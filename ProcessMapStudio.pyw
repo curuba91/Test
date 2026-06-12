@@ -8,6 +8,10 @@ Einfaches Tool zum Erstellen von Process Maps mit Mermaid.js.
 - Mermaid-Code links eingeben (oder Copilot-Antwort einfuegen, der Code-Block
   wird automatisch herausgeloest).
 - "Vorschau" erzeugt eine HTML-Datei und oeffnet sie im Standardbrowser.
+- "PDF exportieren" erzeugt direkt eine PDF-Datei (Hoch-/Querformat, eine
+  Seite oder mehrseitig). Dazu wird Edge oder Chrome unsichtbar im
+  Headless-Modus aufgerufen; wird kein Browser gefunden, oeffnet sich als
+  Fallback der Druckdialog des Standardbrowsers ("Als PDF speichern").
 - "Master-Prompt kopieren" legt den standardisierten Copilot-Prompt in die
   Zwischenablage (Prompt + Quelltext/PDF-Inhalt in Copilot einfuegen,
   Antwort hier wieder einfuegen).
@@ -19,7 +23,10 @@ Mermaid ueber das jsDelivr-CDN geladen (Browser braucht dann Internetzugang).
 
 import datetime
 import html
+import os
 import re
+import shutil
+import subprocess
 import tempfile
 import webbrowser
 from pathlib import Path
@@ -128,18 +135,116 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 
-def build_html(code: str, title: str) -> str:
+def _mermaid_script_tag() -> str:
     if LOCAL_MERMAID.is_file():
-        js = LOCAL_MERMAID.read_text(encoding="utf-8")
-        mermaid_script = "<script>%s</script>" % js
-    else:
-        mermaid_script = '<script src="%s"></script>' % MERMAID_CDN
+        return "<script>%s</script>" % LOCAL_MERMAID.read_text(encoding="utf-8")
+    return '<script src="%s"></script>' % MERMAID_CDN
+
+
+def build_html(code: str, title: str) -> str:
     return HTML_TEMPLATE.format(
         title=html.escape(title) or "Process Map",
         stamp=datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
         code=html.escape(code),
-        mermaid_script=mermaid_script,
+        mermaid_script=_mermaid_script_tag(),
     )
+
+
+# Druckvorlage: @page steuert Papierformat/Ausrichtung, svg_css die Skalierung.
+PRINT_TEMPLATE = """<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>{title}</title>
+<style>
+  @page {{ size: A4 {orientation}; margin: 10mm; }}
+  html, body {{ margin: 0; padding: 0; background: #fff; }}
+  pre.mermaid {{ margin: 0; }}
+  .mermaid svg {{ {svg_css} }}
+</style>
+{mermaid_script}
+</head>
+<body>
+<pre class="mermaid">
+{code}
+</pre>
+<script>
+  mermaid.initialize({{ startOnLoad: false, theme: "default",
+                        flowchart: {{ useMaxWidth: false }} }});
+  mermaid.run().then(function () {{ {after_render} }});
+</script>
+</body>
+</html>
+"""
+
+# Nutzbare A4-Flaeche bei 10 mm Rand (Breite, Hoehe in mm)
+PAGE_AREA = {"portrait": (190, 277), "landscape": (277, 190)}
+
+
+def build_print_html(code: str, title: str, orientation: str,
+                     fit_one_page: bool, auto_print: bool) -> str:
+    width_mm, height_mm = PAGE_AREA[orientation]
+    if fit_one_page:
+        # Proportional verkleinern, bis das Diagramm auf eine Seite passt.
+        svg_css = ("max-width: %dmm; max-height: %dmm; "
+                   "width: auto; height: auto;" % (width_mm, height_mm - 5))
+    else:
+        # An Seitenbreite ausrichten; die Hoehe laeuft ueber mehrere Seiten.
+        svg_css = "width: %dmm; height: auto;" % width_mm
+    return PRINT_TEMPLATE.format(
+        title=html.escape(title) or "Process Map",
+        orientation=orientation,
+        svg_css=svg_css,
+        code=html.escape(code),
+        mermaid_script=_mermaid_script_tag(),
+        after_render="window.print();" if auto_print else "",
+    )
+
+
+def find_chromium_browser() -> str:
+    """Sucht Edge oder Chrome fuer den Headless-PDF-Druck."""
+    candidates = []
+    for env in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+        base = os.environ.get(env)
+        if base:
+            candidates.append(Path(base) / "Microsoft/Edge/Application/msedge.exe")
+            candidates.append(Path(base) / "Google/Chrome/Application/chrome.exe")
+    for cand in candidates:
+        if cand.is_file():
+            return str(cand)
+    for name in ("msedge", "chrome", "google-chrome", "chromium",
+                 "chromium-browser"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return ""
+
+
+def headless_pdf(browser: str, html_path: Path, pdf_path: str) -> bool:
+    cmd = [
+        browser,
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        # Wartet auch auf asynchrones Mermaid-Rendering
+        "--virtual-time-budget=10000",
+        # neues und altes Flag fuer "ohne Kopf-/Fusszeile" (unbekannte
+        # Schalter ignorieren Edge/Chrome stillschweigend)
+        "--no-pdf-header-footer",
+        "--print-to-pdf-no-header",
+        "--print-to-pdf=%s" % pdf_path,
+        html_path.as_uri(),
+    ]
+    kwargs = {"timeout": 90}
+    if hasattr(subprocess, "CREATE_NO_WINDOW"):  # kein Konsolenfenster (Windows)
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, **kwargs)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    target = Path(pdf_path)
+    return target.is_file() and target.stat().st_size > 0
 
 
 def extract_mermaid(text: str) -> str:
@@ -160,6 +265,64 @@ def extract_mermaid(text: str) -> str:
 # ---------------------------------------------------------------------------
 # GUI
 # ---------------------------------------------------------------------------
+class PdfOptionsDialog(tk.Toplevel):
+    """Fragt Ausrichtung und Skalierung fuer den PDF-Export ab."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("PDF-Export")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.result = None
+
+        self.orientation = tk.StringVar(value="landscape")
+        self.scaling = tk.StringVar(value="fit")
+
+        frame = ttk.Frame(self, padding=14)
+        frame.pack(fill="both", expand=True)
+
+        box1 = ttk.LabelFrame(frame, text="Ausrichtung", padding=8)
+        box1.pack(fill="x")
+        ttk.Radiobutton(box1, text="Querformat", value="landscape",
+                        variable=self.orientation).pack(anchor="w")
+        ttk.Radiobutton(box1, text="Hochformat", value="portrait",
+                        variable=self.orientation).pack(anchor="w")
+
+        box2 = ttk.LabelFrame(frame, text="Darstellung", padding=8)
+        box2.pack(fill="x", pady=(10, 0))
+        ttk.Radiobutton(
+            box2, text="Auf eine Seite einpassen (verkleinert)",
+            value="fit", variable=self.scaling,
+        ).pack(anchor="w")
+        ttk.Radiobutton(
+            box2, text="Wie angezeigt (mehrseitig, an Seitenbreite)",
+            value="flow", variable=self.scaling,
+        ).pack(anchor="w")
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill="x", pady=(14, 0))
+        ttk.Button(buttons, text="Abbrechen", command=self.destroy).pack(
+            side="right"
+        )
+        ttk.Button(buttons, text="PDF erstellen", command=self._ok).pack(
+            side="right", padx=(0, 6)
+        )
+
+        self.bind("<Return>", lambda _e: self._ok())
+        self.bind("<Escape>", lambda _e: self.destroy())
+        self.grab_set()
+        self.wait_visibility()
+        # mittig ueber dem Hauptfenster platzieren
+        self.update_idletasks()
+        x = parent.winfo_rootx() + (parent.winfo_width() - self.winfo_width()) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - self.winfo_height()) // 3
+        self.geometry("+%d+%d" % (max(x, 0), max(y, 0)))
+
+    def _ok(self):
+        self.result = (self.orientation.get(), self.scaling.get() == "fit")
+        self.destroy()
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -179,6 +342,9 @@ class App(tk.Tk):
         )
 
         ttk.Button(toolbar, text="Vorschau im Browser", command=self.preview).pack(
+            side="left", padx=2
+        )
+        ttk.Button(toolbar, text="PDF exportieren…", command=self.export_pdf).pack(
             side="left", padx=2
         )
         ttk.Button(toolbar, text="Als HTML speichern…", command=self.save_html).pack(
@@ -288,6 +454,71 @@ class App(tk.Tk):
         offline = " (Mermaid lokal eingebettet)" if LOCAL_MERMAID.is_file() else \
             " (Mermaid via CDN – Browser braucht Internet)"
         self.status_var.set("Vorschau im Browser geöffnet" + offline)
+
+    def export_pdf(self):
+        code = self.get_code()
+        if not self._validate(code):
+            return
+        dialog = PdfOptionsDialog(self)
+        self.wait_window(dialog)
+        if not dialog.result:
+            return
+        orientation, fit_one_page = dialog.result
+        pdf_path = filedialog.asksaveasfilename(
+            title="PDF exportieren",
+            defaultextension=".pdf",
+            filetypes=[("PDF-Datei", "*.pdf")],
+            initialfile=re.sub(r"[^\w\- ]", "", self.title_var.get()).strip()
+            or "process_map",
+        )
+        if not pdf_path:
+            return
+        title = self.title_var.get().strip()
+
+        browser = find_chromium_browser()
+        if browser:
+            self.status_var.set("Erzeuge PDF…")
+            self.update_idletasks()
+            html_doc = build_print_html(
+                code, title, orientation, fit_one_page, auto_print=False
+            )
+            tmp = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".html", prefix="processmap_print_",
+                delete=False, encoding="utf-8",
+            )
+            with tmp:
+                tmp.write(html_doc)
+            try:
+                if headless_pdf(browser, Path(tmp.name), pdf_path):
+                    self.status_var.set("PDF gespeichert: %s" % pdf_path)
+                    return
+            finally:
+                try:
+                    Path(tmp.name).unlink()
+                except OSError:
+                    pass
+
+        # Fallback: Druckdialog des Standardbrowsers (dort "Als PDF speichern")
+        html_doc = build_print_html(
+            code, title, orientation, fit_one_page, auto_print=True
+        )
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", prefix="processmap_print_",
+            delete=False, encoding="utf-8",
+        )
+        with tmp:
+            tmp.write(html_doc)
+        webbrowser.open(Path(tmp.name).as_uri())
+        messagebox.showinfo(
+            APP_TITLE,
+            "Der direkte PDF-Export war nicht möglich (kein Edge/Chrome "
+            "gefunden).\n\nIm Browser öffnet sich nun der Druckdialog: Dort "
+            "als Ziel „Als PDF speichern“ wählen. Format und Skalierung sind "
+            "bereits voreingestellt.",
+        )
+        self.status_var.set(
+            "Druckdialog im Browser geöffnet – dort „Als PDF speichern“ wählen."
+        )
 
     def save_html(self):
         code = self.get_code()

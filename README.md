@@ -23,7 +23,17 @@ Arbeitsumgebungen, in denen nur Python-Bordmittel zur Verfügung stehen.
 1. `ProcessMapStudio.pyw` per Doppelklick starten.
 2. Mermaid-Code in den Editor schreiben (ein Beispiel ist vorgeladen) und auf
    **„Vorschau im Browser“** klicken – die Map öffnet sich im Standardbrowser.
-3. **„Als HTML speichern…“** erzeugt eine eigenständige HTML-Datei, die sich
+3. **„PDF exportieren…“** erzeugt direkt eine PDF-Datei. Ein Dialog fragt ab:
+   - **Ausrichtung:** Querformat oder Hochformat (A4)
+   - **Darstellung:** auf eine Seite einpassen (verkleinert) oder wie
+     angezeigt (mehrseitig, an der Seitenbreite ausgerichtet)
+
+   Der Export ruft Edge oder Chrome unsichtbar im Headless-Modus auf —
+   beides muss nicht als Standardbrowser eingestellt sein, Edge ist auf
+   jedem Windows-Rechner vorhanden. Wird kein passender Browser gefunden,
+   öffnet sich als Fallback der Druckdialog des Standardbrowsers mit
+   voreingestelltem Format (dort „Als PDF speichern“ wählen).
+4. **„Als HTML speichern…“** erzeugt eine eigenständige HTML-Datei, die sich
    per E-Mail teilen oder im Browser drucken lässt (Drucken → als PDF speichern).
 
 ## Workflow mit Copilot (Vorverarbeitung ohne API)
