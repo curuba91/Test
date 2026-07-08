@@ -1,0 +1,8 @@
+SOP-100 Umgebungsmonitoring
+
+1. Zweck
+Monitoring der Reinräume.
+
+2. Verweise
+Die Reinigung erfolgt gemäß SOP-042 in Raumklasse C.
+Die Einwirkzeit beträgt 5 Minuten.

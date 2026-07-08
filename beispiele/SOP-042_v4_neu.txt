@@ -1,0 +1,11 @@
+SOP-042 Reinigung Abfüllanlage, Version 4
+
+1. Zweck
+Diese SOP beschreibt die Reinigung der Abfüllanlage in Raumklasse B.
+
+2. Durchführung
+Die Anlage wird mit Reinigungsmittel Deskosept AF gereinigt.
+Die Einwirkzeit beträgt 10 Minuten.
+
+3. Dokumentation
+Die Reinigung in Raumklasse C ist im Logbuch LB-07 zu dokumentieren.
