@@ -1,62 +1,121 @@
-# Klausur-Bewertung Englisch (Oberstufe)
+# Klausur-Bewertung Englisch (Oberstufe) – nach dem hessischen Erlass
 
-Ein kostenloses Programm (`klausur_bewertung.pyw`) zur Unterstützung bei der
-Korrektur englischer Oberstufenklausuren.
+Zwei kostenlose Programme zur Unterstützung bei der Korrektur englischer
+Oberstufenklausuren:
 
-**Wichtig:** Das Programm liefert *Vorschläge*. Die endgültige Bewertung bleibt
-immer eine pädagogische Entscheidung der Lehrkraft.
+| Datei | Zweck |
+|---|---|
+| `klausur_bewertung.pyw` | Klausur prüfen und bewerten (Sprache + Inhalt) |
+| `erwartungshorizont_editor.pyw` | Erwartungshorizont als Text einfügen → JSON erzeugen |
 
-## Was das Programm macht
+**Bewertungsgrundlage:** Erlass des Hessischen Kultusministeriums zur
+Bewertung und Beurteilung von schriftlichen Arbeiten in den modernen
+Fremdsprachen vom 7. August 2020 (III.A.3 – 323.300.000-337) samt Anlage
+„Deskriptorentabelle – Kriterien zur Bewertung der sprachlichen Leistung“.
 
-1. **Erwartungshorizont einlesen** (JSON-Datei): beschreibt pro Aufgabe die
-   erwarteten Inhalte. Der Horizont ist das Optimum und entspricht 15 Notenpunkten.
-2. **Grammatik & Rechtschreibung prüfen**: über LanguageTool (kostenlos) werden
-   alle Auffälligkeiten mit Kontext, Erklärung und Korrekturvorschlag gelistet.
-3. **Sprachliche Bewertung**: aus der Fehlerdichte (gewichtete Fehler je 100
-   Wörter) wird ein Prozentwert und daraus ein Notenpunktwert (0–15) berechnet.
-4. **Inhaltliche Prüfung**: der Schülertext wird pro Aufgabe gegen die
-   Erwartungen abgeglichen (Schlüsselwörter, tippfehlertolerant). Pro Aufgabe
-   gibt es eine Punktzahl; erfüllte, teilweise erfüllte und fehlende
-   Erwartungen werden ausgewiesen.
-5. **Gesamtgutachten**: gewichtete Gesamtnote (Standard: 60 % Sprache / 40 %
-   Inhalt, im Horizont einstellbar) plus ausformuliertes Gutachten. Alles
-   lässt sich als Textdatei exportieren.
+**Wichtig:** Beide Programme liefern *Vorschläge*. Die endgültige Bewertung
+bleibt immer die pädagogische Entscheidung der Lehrkraft.
+
+## Das Bewertungsmodell (wie im Erlass)
+
+1. **Sprachliche und inhaltliche Leistung werden getrennt bewertet.**
+2. **Sprachliche Leistung** nach der Deskriptorentabelle aus zwei Bereichen
+   im Verhältnis **50:50** (eine Dezimalstelle, *nicht* gerundet):
+   - **Bereich A – Sprachliche Richtigkeit:** Lexik, Grammatik/Syntax,
+     Orthographie
+   - **Bereich B – Ausdruck und Textgestaltung:** Textaufbau/ggf.
+     Textsortenspezifik, eigenständige Textgestaltung, Sprachregister,
+     allgemeiner/thematischer/Funktions- und Interpretationswortschatz,
+     Satzbau
+   - Innerhalb der Bereiche wird **ganzheitlich** bewertet (keine Teilnoten
+     je Kriterium). **Wiederholungsfehler werden nicht gewertet** – das
+     Programm erkennt sie (gleiche Regel, gleiche Fehlstelle) und schließt
+     sie automatisch aus.
+3. **Gesamtnote = Sprache : Inhalt im Verhältnis 60:40**, gerundet wird
+   *nur* hier.
+4. **Sperrklausel:** Eine ungenügende sprachliche oder inhaltliche Leistung
+   schließt eine Gesamtnote von mehr als 3 Punkten aus – wird automatisch
+   angewendet und im Gutachten ausgewiesen.
+
+## Was `klausur_bewertung.pyw` automatisch prüft
+
+**Bereich A (verlässlich automatisierbar):** LanguageTool findet
+Grammatik-, Lexik- und Orthographiefehler; jeder Fund wird dem passenden
+Kriterium zugeordnet (Zeichensetzung/Typographie zählen halb – Primat der
+gesprochenen Sprache). Aus der Dichte der *gewerteten* Fehler je 100 Wörter
+wird je Kriterium ein Banding-Vorschlag (sehr gut 15-13 … ungenügend 0)
+mit dem Original-Deskriptor der Tabelle ermittelt.
+
+**Bereich B (Näherung – bitte prüfen):** Das Programm liefert messbare
+Indikatoren und daraus abgeleitete Vorschläge:
+- *Textaufbau:* Absatzstruktur, Dichte textstrukturierender Mittel
+  (however, moreover, in conclusion …)
+- *Eigenständige Textgestaltung:* maschinell nicht beurteilbar
+  (Materialabgleich nötig) – Voreinstellung „gut“, bitte manuell einstufen
+- *Sprachregister:* Kontraktionen, Umgangssprache, Ausrufezeichen
+  (Annahme: formeller Schreibauftrag – bei informeller Textsorte übersteuern)
+- *Wortschatz:* lexikalische Vielfalt (Guiraud-Index)
+- *Satzbau:* Satzlängen-Variation, Anteil hypotaktischer Sätze
+
+**Jedes der 8 Kriterien kann im Reiter „Sprachliche Leistung“ per Auswahl
+übersteuert werden** – danach „Note aus Auswahl neu berechnen“ klicken.
+Der gewählte Band-Deskriptor (Originalwortlaut der Tabelle) erscheint im
+Gutachten.
+
+**Inhalt:** Abgleich mit dem Erwartungshorizont (Schlüsselwörter je
+Erwartung, tippfehlertolerant), Punkte je Aufgabe, Prozent → Notenpunkte
+nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab 20 %).
+
+## Bedienung
+
+### Schritt 1: Erwartungshorizont erstellen (`erwartungshorizont_editor.pyw`)
+
+1. Eigenen Erwartungshorizont als Text in das linke Feld kopieren.
+   Erkanntes Format (tolerant):
+
+   ```
+   Aufgabe 1: Comprehension – Summarize the text
+   - Nennt die zentrale These (4 P) [interconnected, global trade]
+   - Benennt wirtschaftliche Aspekte (4 P, min. 2) [outsourcing, multinational]
+   ```
+
+   - `Aufgabe 1:` / `Task 1)` / `1.` beginnt eine neue Aufgabe
+   - `(4 P)`, `(4 BE)`, `4 Punkte` → Punktzahl
+   - `[wort1, wort2]` oder `Schlüsselwörter: …` → Suchbegriffe
+   - `min. 2` / `mindestens 2` → nötige Treffer für volle Punkte
+2. „→ Text in Aufgaben umwandeln“ klicken, in der Mitte prüfen/bearbeiten
+   (Erwartungen ohne Schlüsselwörter werden mit ⚠ markiert).
+3. **Schlüsselwörter sind die englischen Begriffe/Synonyme, die im
+   Schülertext gesucht werden** – je mehr Varianten, desto fairer.
+4. „JSON speichern…“.
+
+### Schritt 2: Klausur bewerten (`klausur_bewertung.pyw`)
+
+1. Erwartungshorizont (JSON) laden.
+2. Schülertext laden (.txt/.md/.docx) oder einfügen.
+3. „Prüfung starten“ → Reiter *Korrekturen*, *Sprachliche Leistung*
+   (Deskriptoren mit Übersteuerung), *Inhaltliche Bewertung*,
+   *Gesamtgutachten*.
+4. Ggf. Einstufungen übersteuern → „Note aus Auswahl neu berechnen“.
+5. „Bericht exportieren…“ (Textdatei mit Gutachten, Deskriptoren-Bewertung,
+   Inhaltsbewertung und vollständiger Korrekturliste).
 
 ## Voraussetzungen
 
-- **Python 3.8+** mit Tkinter (bei der normalen Windows-Installation von
-  [python.org](https://www.python.org) enthalten).
-- **Internetverbindung** für die kostenlose LanguageTool-API
-  (max. ca. 20 Anfragen/Minute – für den Korrektureinsatz völlig ausreichend;
-  lange Texte werden automatisch aufgeteilt).
-- *Optional, für Prüfung ohne Internet:* `pip install language_tool_python`
-  (benötigt Java). Das Programm nutzt die lokale Variante automatisch, wenn
-  sie installiert ist.
-- *Optional:* `pip install python-docx`, um Schülertexte direkt aus
-  Word-Dateien (.docx) zu laden. Ohne dieses Paket bitte als .txt speichern.
+- **Python 3.8+** mit Tkinter (in der Windows-Installation von
+  [python.org](https://www.python.org) enthalten). Start per Doppelklick.
+- **Internetverbindung** für die kostenlose LanguageTool-API, *oder*
+  einmalig `pip install language_tool_python` (benötigt Java) für die
+  vollständig lokale Prüfung – wird automatisch bevorzugt.
+- *Optional:* `pip install python-docx` zum direkten Einlesen von
+  .docx-Dateien.
 
-## Start und Bedienung
-
-1. Doppelklick auf `klausur_bewertung.pyw` (Windows startet es ohne
-   Konsolenfenster).
-2. **„1. Erwartungshorizont laden…“** – JSON-Datei wählen
-   (Beispiel: `erwartungshorizont_beispiel.json`).
-3. **„2. Schülertext laden…“** – .txt/.md/.docx wählen, oder den Text direkt
-   in den Reiter „Schülertext“ einfügen/tippen.
-4. **„3. Prüfung starten“** – Ergebnis erscheint in den Reitern
-   *Korrekturen*, *Sprachliche Bewertung*, *Inhaltliche Bewertung* und
-   *Gesamtgutachten*.
-5. **„Bericht exportieren…“** speichert alles als Textdatei
-   (z. B. zum Ausdrucken oder Anhängen an die Klausur).
-
-## Aufbau des Erwartungshorizonts (JSON)
+## JSON-Format des Erwartungshorizonts
 
 ```json
 {
   "titel": "Klausur Q1.1 – Globalization",
   "sprache": "en-GB",
-  "gewichtung": { "inhalt": 0.4, "sprache": 0.6 },
-  "sprachbewertung": { "abzug_pro_fehler_pro_100_woerter": 10 },
   "aufgaben": [
     {
       "nummer": "1",
@@ -75,38 +134,28 @@ immer eine pädagogische Entscheidung der Lehrkraft.
 }
 ```
 
-- **aufgaben**: beliebig viele Aufgaben, jede mit `max_punkte`.
-- **erwartungen**: inhaltliche Teilerwartungen. Ab `mindestens` gefundenen
-  Schlüsselwörtern gibt es die vollen `punkte`, darunter anteilig.
-  Tipp: Synonyme und Umschreibungen als weitere Schlüsselwörter eintragen –
-  je mehr Varianten, desto fairer der Abgleich.
-- **gewichtung**: Anteil Inhalt/Sprache an der Gesamtnote
-  (NRW-üblich für Englisch: Sprache 60 %, Inhalt 40 %).
-- **sprachbewertung**: Strenge der Sprachnote. `10` bedeutet: pro gewichtetem
-  Fehler je 100 Wörter werden 10 Prozentpunkte abgezogen.
+Optional kann `"richtigkeit_anker": [[0, 15], [0.5, 13.5], [1.5, 11],
+[3, 8], [5, 5], [8, 2], [12, 0]]` ergänzt werden, um die Zuordnung
+„gewertete Fehler je 100 Wörter → Notenpunkte“ im Bereich A strenger oder
+milder einzustellen (Standardwerte wie gezeigt, dazwischen wird linear
+interpoliert).
 
-Die Umrechnung Prozent → Notenpunkte folgt dem üblichen KMK-Schlüssel
-(15 P ab 95 %, 14 P ab 90 %, … 1 P ab 20 %).
+## Grenzen
 
-## Grenzen und Empfehlung
+- Bereich A (Richtigkeit) ist gut automatisierbar; LanguageTool findet
+  allerdings nicht jeden Fehler und beurteilt keine „sprachlichen Risiken“
+  im Sinne des sehr-gut-Deskriptors.
+- Bereich B ist eine Näherung über messbare Indikatoren – die Deskriptoren
+  verlangen dort ein fachliches Urteil (deshalb die Übersteuerung).
+- Die inhaltliche Prüfung erkennt Umschreibungen und eigenständige
+  Argumentation nur begrenzt (Schlüsselwort-Abgleich).
+- Wer später echte semantische Bewertung möchte, kann kostenlos ein lokales
+  Sprachmodell (z. B. über [Ollama](https://ollama.com)) anbinden –
+  datenschutzfreundlich, da Schülertexte den Rechner nicht verlassen.
 
-- Die **Sprachprüfung** (LanguageTool) ist ausgereift und findet die meisten
-  Grammatik-, Rechtschreib- und Zeichensetzungsfehler zuverlässig.
-- Die **inhaltliche Prüfung** basiert auf Schlüsselwort-Abgleich. Sie erkennt
-  Umschreibungen, eigenständige Argumentationen oder fehlerhafte Logik nur
-  begrenzt. Sie eignet sich als schnelle Erstsichtung („Welche erwarteten
-  Aspekte tauchen auf, welche fehlen?“), nicht als endgültiges Urteil.
-- Wer eine **echte semantische Inhaltsbewertung** möchte, kann das Programm
-  später um ein lokales, kostenloses Sprachmodell (z. B. über
-  [Ollama](https://ollama.com)) erweitern – datenschutzfreundlich, da
-  Schülertexte den Rechner nicht verlassen. Für den Einstieg ist die
-  vorliegende transparente, regelbasierte Lösung jedoch bewusst
-  nachvollziehbar: Jeder Punkt ist begründbar.
-
-## Datenschutz-Hinweis
+## Datenschutz
 
 Bei der Online-Prüfung wird der Schülertext an die LanguageTool-API
-(languagetool.org, Server in Deutschland) übertragen. Wer das vermeiden
-möchte: `pip install language_tool_python` installieren – dann läuft die
-Prüfung vollständig lokal. Namen vor der Prüfung zu entfernen ist in jedem
-Fall gute Praxis.
+(languagetool.org, Server in Deutschland) übertragen. Zur Vermeidung:
+`pip install language_tool_python` – dann läuft alles lokal. Namen vor der
+Prüfung zu entfernen ist in jedem Fall gute Praxis.
