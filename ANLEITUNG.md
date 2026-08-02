@@ -92,13 +92,48 @@ nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab 20 %).
 ### Schritt 2: Klausur bewerten (`klausur_bewertung.pyw`)
 
 1. Erwartungshorizont (JSON) laden.
-2. Schülertext laden (.txt/.md/.docx) oder einfügen.
+2. Schülertext laden (.txt/.md/.docx/.pdf/.png/.jpg) oder einfügen.
+   **Handschriftliche Klausuren als PDF/Foto:** siehe nächster Abschnitt.
 3. „Prüfung starten“ → Reiter *Korrekturen*, *Sprachliche Leistung*
    (Deskriptoren mit Übersteuerung), *Inhaltliche Bewertung*,
    *Gesamtgutachten*.
 4. Ggf. Einstufungen übersteuern → „Note aus Auswahl neu berechnen“.
 5. „Bericht exportieren…“ (Textdatei mit Gutachten, Deskriptoren-Bewertung,
    Inhaltsbewertung und vollständiger Korrekturliste).
+
+## Handschriftliche Klausuren einlesen (PDF/Foto)
+
+Das Programm lädt gescannte Klausuren direkt als PDF (oder Foto) und
+erkennt den Text automatisch – „so gut es geht“, in drei Stufen:
+
+1. **PDF-Textebene:** Enthält das PDF bereits Text (digital erstellt oder
+   vom Scanner mit OCR versehen), wird dieser direkt übernommen – keine
+   Erkennung nötig.
+2. **EasyOCR** (`pip install pymupdf easyocr`): findet die Textzeilen auf
+   der Seite und liest sie. Beim ersten Start werden die Modelle einmalig
+   heruntergeladen; die Erkennung läuft danach vollständig lokal
+   (datenschutzfreundlich – die Klausur verlässt den Rechner nicht).
+3. **TrOCR** (optional, `pip install transformers torch`): Microsofts frei
+   verfügbares Spezialmodell für englische *Handschrift*
+   (trocr-base-handwritten) liest jede gefundene Zeile nach – deutlich
+   bessere Ergebnisse bei Schreibschrift. Wird automatisch genutzt, wenn
+   installiert.
+
+Nach dem Einlesen zeigt das Programm, wie viele Wörter **unsicher erkannt**
+wurden (mit Beispielen und Seitenangabe).
+
+> **Unbedingt beachten:** Den erkannten Text im Reiter „Schülertext“ mit
+> der Original-Klausur abgleichen und korrigieren, **bevor** die Prüfung
+> gestartet wird. Jeder Erkennungsfehler würde sonst als Sprachfehler der
+> Schülerin/des Schülers in die Bewertung eingehen. Der Zeitgewinn liegt
+> im Abtippen-Ersparen – das Gegenlesen bleibt nötig.
+
+**Scan-Tipps für gute Erkennung:** 300 dpi, Seiten gerade auflegen, guter
+Kontrast (dunkle Tinte, helles Papier), keine Schatten/Knicke, eine
+Klausur pro PDF. Auch Handy-Scans (z. B. mit einer Scanner-App) als PDF
+funktionieren. Grenze der Technik: Sehr unleserliche oder stark verbundene
+Schreibschrift bleibt auch für die besten freien Modelle schwierig – die
+unsicheren Wörter zeigen, wo nachgesehen werden muss.
 
 ## Voraussetzungen
 
@@ -109,6 +144,9 @@ nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab 20 %).
   vollständig lokale Prüfung – wird automatisch bevorzugt.
 - *Optional:* `pip install python-docx` zum direkten Einlesen von
   .docx-Dateien.
+- *Optional (PDF/Handschrift):* `pip install pymupdf easyocr` – dazu
+  empfohlen `pip install transformers torch` für die bestmögliche
+  Handschrifterkennung (TrOCR).
 
 ## JSON-Format des Erwartungshorizonts
 

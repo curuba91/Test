@@ -32,8 +32,11 @@ Original-Deskriptoren. Jeder Vorschlag kann von der Lehrkraft per Auswahl
 die maschinell nur näherungsweise beurteilbar sind.
 
 Start: Doppelklick auf die Datei (Windows: .pyw startet ohne Konsole).
-Benötigt Python 3.8+ mit Tkinter. Optional: language_tool_python (lokale
-Prüfung ohne Internet), python-docx (.docx einlesen).
+Benötigt Python 3.8+ mit Tkinter. Optionale Pakete:
+  pip install language_tool_python   -> Sprachpruefung lokal ohne Internet
+  pip install python-docx            -> .docx einlesen
+  pip install pymupdf easyocr        -> PDF laden + Handschrifterkennung
+  pip install transformers torch     -> bessere Handschrifterkennung (TrOCR)
 
 WICHTIG: Alle Bewertungen sind VORSCHLAEGE und ersetzen nicht die
 pädagogische Beurteilung durch die Lehrkraft.
@@ -402,6 +405,196 @@ class SprachPruefung:
             else:
                 gesehen.add(schluessel)
         return sorted(fehlerliste, key=lambda x: x["offset"])
+
+
+# ----------------------------------------------------------------------------
+# Klausur-Loader: PDF/Bild mit Handschrifterkennung
+# ----------------------------------------------------------------------------
+
+OCR_UNSICHER_SCHWELLE = 0.45  # EasyOCR-Konfidenz, darunter gilt ein Wort
+                              # als unsicher erkannt
+
+
+class KlausurLoader:
+    """Liest handschriftliche Klausuren als PDF oder Bild ein.
+
+    Reihenfolge "so gut es geht":
+    1. Eingebettete Textebene des PDFs (digital erstellte oder bereits
+       per OCR erkannte PDFs) - beste Qualitaet, keine Erkennung noetig.
+    2. Handschrifterkennung: EasyOCR findet und liest die Textzeilen
+       (pip install easyocr). Falls zusaetzlich transformers + torch
+       installiert sind, wird jede gefundene Zeile mit TrOCR
+       (microsoft/trocr-base-handwritten, spezialisiert auf englische
+       Handschrift) nachgelesen - deutlich bessere Ergebnisse bei
+       Schreibschrift.
+
+    Unsicher erkannte Woerter werden mit Seite und Konfidenz gemeldet,
+    damit die Lehrkraft gezielt nachpruefen kann: Erkennungsfehler
+    wuerden sonst als Sprachfehler in die Bewertung eingehen.
+    """
+
+    def __init__(self, status_melden=None):
+        self.status_melden = status_melden or (lambda text: None)
+
+    def lese(self, pfad):
+        """Liefert (text, protokoll) mit protokoll =
+        {quelle, seiten, unsicher: [(seite, wort, konfidenz)]}."""
+        endung = pfad.lower().rsplit(".", 1)[-1]
+        if endung == "pdf":
+            return self._lese_pdf(pfad)
+        from PIL import Image
+        return self._ocr_bilder([Image.open(pfad).convert("RGB")])
+
+    # ---------------- PDF ----------------
+
+    def _lese_pdf(self, pfad):
+        try:
+            import fitz  # PyMuPDF
+        except ImportError:
+            raise RuntimeError(
+                "Zum Einlesen von PDF bitte einmalig installieren:\n"
+                "pip install pymupdf")
+        dokument = fitz.open(pfad)
+        textebene = "\n\n".join(seite.get_text().strip()
+                                for seite in dokument).strip()
+        if woerter_zaehlen(textebene) >= 30:
+            return textebene, {"quelle": "PDF-Textebene",
+                               "seiten": len(dokument), "unsicher": []}
+        self.status_melden("Keine Textebene im PDF – starte "
+                           "Handschrifterkennung …")
+        try:
+            from PIL import Image
+        except ImportError:
+            raise RuntimeError(
+                "Für die Handschrifterkennung bitte einmalig installieren:\n"
+                "pip install pillow easyocr")
+        bilder = []
+        for seite in dokument:
+            pix = seite.get_pixmap(dpi=300)
+            bilder.append(Image.frombytes("RGB", (pix.width, pix.height),
+                                          pix.samples))
+        return self._ocr_bilder(bilder)
+
+    # ---------------- OCR ----------------
+
+    def _ocr_bilder(self, bilder):
+        leser = self._lade_easyocr()
+        trocr = self._lade_trocr()
+        import numpy as np
+        from PIL import ImageOps
+
+        seiten_texte = []
+        unsicher = []
+        for nr, bild in enumerate(bilder, 1):
+            self.status_melden(f"Erkenne Seite {nr}/{len(bilder)} …")
+            grau = ImageOps.autocontrast(bild.convert("L"))
+            ergebnisse = leser.readtext(np.array(grau), detail=1,
+                                        paragraph=False)
+            zeilen = self._zeilen_gruppieren(ergebnisse)
+            zeilen_texte = []
+            for zeile in zeilen:
+                text_zeile = None
+                if trocr:
+                    text_zeile = self._trocr_zeile(trocr, bild, zeile)
+                if not text_zeile:
+                    text_zeile = " ".join(w["text"] for w in zeile)
+                zeilen_texte.append(text_zeile)
+                for w in zeile:
+                    if w["conf"] < OCR_UNSICHER_SCHWELLE:
+                        unsicher.append((nr, w["text"], round(w["conf"], 2)))
+            seiten_texte.append("\n".join(zeilen_texte))
+
+        quelle = ("Handschrifterkennung (TrOCR + EasyOCR)" if trocr
+                  else "Handschrifterkennung (EasyOCR)")
+        return ("\n\n".join(seiten_texte).strip(),
+                {"quelle": quelle, "seiten": len(bilder),
+                 "unsicher": unsicher})
+
+    def _lade_easyocr(self):
+        try:
+            import easyocr
+        except ImportError:
+            raise RuntimeError(
+                "Für die Handschrifterkennung bitte einmalig installieren:\n"
+                "pip install easyocr\n"
+                "(Beim ersten Start werden die Erkennungsmodelle "
+                "heruntergeladen.)")
+        self.status_melden("Lade Erkennungsmodell (erster Start: "
+                           "Modell-Download) …")
+        return easyocr.Reader(["en"], gpu=False, verbose=False)
+
+    def _lade_trocr(self):
+        """Optionales Handschrift-Spezialmodell; None, wenn transformers/
+        torch nicht installiert sind."""
+        try:
+            from transformers import (TrOCRProcessor,
+                                      VisionEncoderDecoderModel)
+        except ImportError:
+            return None
+        try:
+            self.status_melden("Lade TrOCR-Handschriftmodell (erster "
+                               "Start: Modell-Download) …")
+            name = "microsoft/trocr-base-handwritten"
+            return {"prozessor": TrOCRProcessor.from_pretrained(name),
+                    "modell": VisionEncoderDecoderModel.from_pretrained(name)}
+        except Exception:
+            return None
+
+    @staticmethod
+    def _trocr_zeile(trocr, bild, zeile):
+        """Liest eine per EasyOCR gefundene Zeile mit TrOCR nach."""
+        try:
+            rand = 4
+            x0 = max(0, int(min(w["x0"] for w in zeile)) - rand)
+            y0 = max(0, int(min(w["y0"] for w in zeile)) - rand)
+            x1 = min(bild.width, int(max(w["x1"] for w in zeile)) + rand)
+            y1 = min(bild.height, int(max(w["y1"] for w in zeile)) + rand)
+            if x1 - x0 < 8 or y1 - y0 < 8:
+                return None
+            ausschnitt = bild.crop((x0, y0, x1, y1))
+            pixel = trocr["prozessor"](images=ausschnitt,
+                                       return_tensors="pt").pixel_values
+            ids = trocr["modell"].generate(pixel, max_new_tokens=96)
+            text = trocr["prozessor"].batch_decode(
+                ids, skip_special_tokens=True)[0].strip()
+            return text or None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _zeilen_gruppieren(ergebnisse):
+        """Ordnet EasyOCR-Funde (Box, Text, Konfidenz) zu Textzeilen:
+        Woerter mit aehnlicher vertikaler Lage bilden eine Zeile, innerhalb
+        der Zeile wird von links nach rechts sortiert."""
+        woerter = []
+        for bbox, text, conf in ergebnisse:
+            xs = [p[0] for p in bbox]
+            ys = [p[1] for p in bbox]
+            if not text.strip():
+                continue
+            woerter.append({"text": text.strip(), "conf": float(conf),
+                            "x0": min(xs), "x1": max(xs),
+                            "y0": min(ys), "y1": max(ys),
+                            "ym": (min(ys) + max(ys)) / 2.0})
+        woerter.sort(key=lambda w: w["ym"])
+        zeilen = []
+        for w in woerter:
+            ziel = None
+            for zeile in zeilen:
+                mitte = sum(z["ym"] for z in zeile) / len(zeile)
+                hoehe = sum(z["y1"] - z["y0"] for z in zeile) / len(zeile)
+                if abs(w["ym"] - mitte) <= 0.6 * max(hoehe,
+                                                     w["y1"] - w["y0"]):
+                    ziel = zeile
+                    break
+            if ziel is None:
+                zeilen.append([w])
+            else:
+                ziel.append(w)
+        for zeile in zeilen:
+            zeile.sort(key=lambda z: z["x0"])
+        zeilen.sort(key=lambda zeile: sum(z["ym"] for z in zeile) / len(zeile))
+        return zeilen
 
 
 # ----------------------------------------------------------------------------
@@ -1013,13 +1206,27 @@ class App(tk.Tk):
 
     def lade_schuelertext(self):
         pfad = filedialog.askopenfilename(
-            title="Schülertext wählen",
-            filetypes=[("Text/Word", "*.txt *.md *.docx"),
+            title="Schülertext wählen (Text, Word, PDF oder Foto)",
+            filetypes=[("Alle unterstützten Formate",
+                        "*.txt *.md *.docx *.pdf *.png *.jpg *.jpeg"),
+                       ("Text/Word", "*.txt *.md *.docx"),
+                       ("PDF (auch handschriftlich)", "*.pdf"),
+                       ("Fotos/Scans", "*.png *.jpg *.jpeg"),
                        ("Alle Dateien", "*.*")])
         if not pfad:
             return
+        endung = pfad.lower().rsplit(".", 1)[-1]
+        if endung in ("pdf", "png", "jpg", "jpeg"):
+            self.knopf_pruefen.configure(state=tk.DISABLED)
+            self.status.configure(
+                text="Dokument wird eingelesen … (Handschrifterkennung "
+                     "kann beim ersten Start einige Minuten dauern: "
+                     "Modell-Download)")
+            threading.Thread(target=self._lade_dokument_im_hintergrund,
+                             args=(pfad,), daemon=True).start()
+            return
         try:
-            if pfad.lower().endswith(".docx"):
+            if endung == "docx":
                 inhalt = self._lese_docx(pfad)
             else:
                 with open(pfad, encoding="utf-8", errors="replace") as datei:
@@ -1033,6 +1240,47 @@ class App(tk.Tk):
         self.mappe.select(0)
         self.status.configure(
             text=f"Schülertext geladen ({woerter_zaehlen(inhalt)} Wörter).")
+
+    def _lade_dokument_im_hintergrund(self, pfad):
+        try:
+            loader = KlausurLoader(
+                lambda text: self._queue.put(("status", text)))
+            text, protokoll = loader.lese(pfad)
+            self._queue.put(("dokument", (text, protokoll)))
+        except Exception as fehler:
+            self._queue.put(("ladefehler", str(fehler)))
+
+    def _zeige_dokument(self, text, protokoll):
+        self.knopf_pruefen.configure(state=tk.NORMAL)
+        if not text.strip():
+            messagebox.showwarning(
+                "Nichts erkannt",
+                "Im Dokument konnte kein Text erkannt werden. Tipps: mit "
+                "300 dpi und gutem Kontrast scannen, Seiten gerade "
+                "ausrichten, dunkle Tinte auf hellem Papier.")
+            self.status.configure(text="Keine Texterkennung möglich.")
+            return
+        self._setze_text(self.text_schueler, text)
+        self.mappe.select(0)
+        unsicher = protokoll.get("unsicher", [])
+        meldung = (f"Quelle: {protokoll['quelle']}, "
+                   f"{protokoll['seiten']} Seite(n), "
+                   f"{woerter_zaehlen(text)} Wörter erkannt.")
+        if protokoll["quelle"] != "PDF-Textebene":
+            beispiele = ", ".join(
+                f"„{wort}“ (S. {seite})" for seite, wort, _k in unsicher[:12])
+            if unsicher:
+                meldung += (f"\n\n{len(unsicher)} Wörter wurden unsicher "
+                            f"erkannt, z. B.: {beispiele}")
+            meldung += ("\n\nWICHTIG: Bitte den erkannten Text im Reiter "
+                        "„Schülertext“ mit der Klausur abgleichen und "
+                        "korrigieren, BEVOR die Prüfung gestartet wird – "
+                        "Erkennungsfehler würden sonst als Sprachfehler "
+                        "der Schülerin/des Schülers gewertet.")
+        messagebox.showinfo("Dokument eingelesen", meldung)
+        self.status.configure(
+            text=f"{meldung.splitlines()[0]} Bitte Text prüfen, dann "
+                 f"Prüfung starten.")
 
     def _lese_docx(self, pfad):
         try:
@@ -1089,6 +1337,14 @@ class App(tk.Tk):
                 art, daten = self._queue.get_nowait()
                 if art == "fertig":
                     self._zeige_ergebnis(daten)
+                elif art == "status":
+                    self.status.configure(text=daten)
+                elif art == "dokument":
+                    self._zeige_dokument(*daten)
+                elif art == "ladefehler":
+                    self.knopf_pruefen.configure(state=tk.NORMAL)
+                    self.status.configure(text="Einlesen fehlgeschlagen.")
+                    messagebox.showerror("Einlesen fehlgeschlagen", daten)
                 else:
                     self.knopf_pruefen.configure(state=tk.NORMAL)
                     self.status.configure(text="Prüfung fehlgeschlagen.")
