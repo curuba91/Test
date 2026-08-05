@@ -1008,9 +1008,54 @@ def _begriff_gefunden(begriff, text_klein, tokenliste):
     return False
 
 
+# Häufige Wörter, die für den inhaltlichen Abgleich nichts aussagen
+INHALT_STOPWOERTER = set("""
+a an the and or but nor of in on at to for with by from as is are was were be
+been being have has had do does did will would can could should may might must
+this that these those it its they them their there here he she his her we us
+our you your i me my not no so if then than when where which who whom whose
+what how all any some more most other others such own same also very too just
+only even still well way ways make makes made get got take use used using one
+two three first second third both each into out up down over under about after
+before while during between through student students text author reader
+correctly identifies mentioned following main given gives show shows include
+includes said says seem seems become becomes lead leads para paras
+""".split())
+
+
+def _inhaltswoerter(text):
+    return {w for w in re.findall(r"[a-zäöüß'’-]{4,}", (text or "").lower())
+            if w not in INHALT_STOPWOERTER}
+
+
+def _prosa_abdeckung(beschreibung, schueler_woerter):
+    """Anteil der inhaltstragenden Wörter einer Fließtext-Erwartung, die im
+    Schülertext vorkommen.
+
+    Bewertungsbögen formulieren Erwartungen als ganze Sätze. Deckt der
+    Schülertext deren Inhaltswörter ab, ist der erwartete Aspekt
+    wahrscheinlich behandelt – ein zusätzliches Signal neben den
+    Schlüsselwörtern."""
+    erwartet = _inhaltswoerter(beschreibung)
+    if len(erwartet) < 4:
+        return 0.0, 0
+    getroffen = erwartet & schueler_woerter
+    return len(getroffen) / len(erwartet), len(erwartet)
+
+
+def _abdeckung_zu_anteil(abdeckung, unten=0.25, oben=0.55):
+    """Rechnet die Wortabdeckung in einen Punkteanteil um. Unterhalb von
+    'unten' liegt der Zufallsbereich (jeder englische Text teilt einige
+    Wörter), ab 'oben' gilt der Aspekt als voll behandelt."""
+    if abdeckung <= unten:
+        return 0.0
+    return min(1.0, (abdeckung - unten) / (oben - unten))
+
+
 def inhaltliche_bewertung(erwartungshorizont, schuelertext):
     text_klein = schuelertext.lower()
     tokenliste = _tokens_inhalt(schuelertext)
+    schueler_woerter = _inhaltswoerter(schuelertext)
 
     aufgaben_ergebnisse = []
     gesamt_max = 0.0
@@ -1029,8 +1074,15 @@ def inhaltliche_bewertung(erwartungshorizont, schuelertext):
             gefunden = [b for b in begriffe
                         if _begriff_gefunden(b, text_klein, tokenliste)]
             fehlend = [b for b in begriffe if b not in gefunden]
-            anteil = min(1.0, len(gefunden) / mindestens) if begriffe else 0.0
+            anteil_begriffe = (min(1.0, len(gefunden) / mindestens)
+                               if begriffe else 0.0)
+            # Zweites Signal: Wortabdeckung der Fließtext-Erwartung
+            abdeckung, _umfang = _prosa_abdeckung(
+                erwartung.get("beschreibung", ""), schueler_woerter)
+            anteil_prosa = _abdeckung_zu_anteil(abdeckung)
+            anteil = max(anteil_begriffe, anteil_prosa)
             teilpunkte_roh = float(erwartung.get("punkte", 0))
+            manuell = bool(erwartung.get("manuell"))
             teilpunkte = anteil * teilpunkte_roh
             erreicht += teilpunkte
             details.append({
@@ -1040,12 +1092,20 @@ def inhaltliche_bewertung(erwartungshorizont, schuelertext):
                 "gefunden": gefunden,
                 "fehlend": fehlend,
                 "mindestens": mindestens,
+                "abdeckung": round(abdeckung * 100, 0),
+                "manuell": manuell,
+                "signal": ("manuell zu bewerten" if manuell else
+                           "Schlüsselwörter"
+                           if anteil_begriffe >= anteil_prosa
+                           else "Textabdeckung"),
             })
 
         if summe_teilpunkte > 0 and max_punkte > 0:
             erreicht = erreicht / summe_teilpunkte * max_punkte
         gesamt_max += max_punkte
         gesamt_erreicht += erreicht
+        offen_manuell = sum(d["punkte_max"] - d["punkte_erreicht"]
+                            for d in details if d["manuell"])
         aufgaben_ergebnisse.append({
             "nummer": str(aufgabe.get("nummer", "?")),
             "titel": aufgabe.get("titel", ""),
@@ -1053,6 +1113,7 @@ def inhaltliche_bewertung(erwartungshorizont, schuelertext):
             "erreicht": round(erreicht, 1),
             "prozent": round(erreicht / max_punkte * 100, 1)
             if max_punkte else 0.0,
+            "offen_manuell": round(offen_manuell, 1),
             "details": details,
         })
 
@@ -1198,7 +1259,7 @@ class App(tk.Tk):
                                                  schreibbar=True)
         self.text_korrekturen = self._neuer_texttab("Korrekturen")
         self._baue_deskriptor_tab()
-        self.text_inhalt = self._neuer_texttab("Inhaltliche Bewertung")
+        self._baue_inhalt_tab()
         self.text_gutachten = self._neuer_texttab("Gesamtgutachten")
 
         self.status = ttk.Label(self, relief=tk.SUNKEN, anchor=tk.W,
@@ -1296,6 +1357,76 @@ class App(tk.Tk):
                              "übersteuern)")
         for k in KRITERIEN_AUSDRUCK:
             kriterium_zeile(k)
+
+    def _baue_inhalt_tab(self):
+        """Reiter 'Inhaltliche Bewertung': automatische Punkte je Aufgabe,
+        von der Lehrkraft überschreibbar (z. B. für Kriterien zu Aufbau und
+        Darstellung, die sich inhaltlich nicht automatisch prüfen lassen)."""
+        aussen = ttk.Frame(self.mappe)
+        self.mappe.add(aussen, text="Inhaltliche Bewertung")
+
+        kopf = ttk.LabelFrame(aussen, padding=8,
+                              text="Erreichte Punkte je Aufgabe "
+                                   "(automatischer Vorschlag – überschreibbar)")
+        kopf.pack(side=tk.TOP, fill=tk.X, padx=6, pady=6)
+        self.inhalt_punkte_rahmen = ttk.Frame(kopf)
+        self.inhalt_punkte_rahmen.pack(fill=tk.X)
+        self.inhalt_felder = []      # [(nummer, Entry, max_punkte)]
+        ttk.Button(kopf, text="Inhaltspunkte übernehmen & Note neu berechnen",
+                   command=self.neu_berechnen).pack(anchor=tk.W, pady=(8, 0))
+
+        self.text_inhalt = tk.Text(aussen, wrap=tk.WORD,
+                                   font=("Segoe UI", 11), state=tk.DISABLED)
+        rollbalken = ttk.Scrollbar(aussen, command=self.text_inhalt.yview)
+        self.text_inhalt.configure(yscrollcommand=rollbalken.set)
+        rollbalken.pack(side=tk.RIGHT, fill=tk.Y)
+        self.text_inhalt.pack(fill=tk.BOTH, expand=True)
+
+    def _baue_inhalt_felder(self, inhalt):
+        for widget in self.inhalt_punkte_rahmen.winfo_children():
+            widget.destroy()
+        self.inhalt_felder = []
+        for spalte, aufgabe in enumerate(inhalt["aufgaben"]):
+            zelle = ttk.Frame(self.inhalt_punkte_rahmen)
+            zelle.grid(row=0, column=spalte, sticky=tk.W, padx=(0, 18))
+            offen = aufgabe.get("offen_manuell", 0)
+            hinweis = (f"  (+ bis {offen:g} P manuell)" if offen else "")
+            ttk.Label(zelle, text=f"Aufgabe {aufgabe['nummer']}"
+                                  f"{hinweis}").pack(anchor=tk.W)
+            zeile = ttk.Frame(zelle)
+            zeile.pack(anchor=tk.W)
+            feld = ttk.Entry(zeile, width=7)
+            feld.insert(0, f"{aufgabe['erreicht']:g}")
+            feld.pack(side=tk.LEFT)
+            ttk.Label(zeile,
+                      text=f" / {aufgabe['max_punkte']:g} P").pack(side=tk.LEFT)
+            self.inhalt_felder.append((aufgabe["nummer"], feld,
+                                       aufgabe["max_punkte"]))
+
+    def _inhalt_aus_feldern(self):
+        """Liest die (ggf. korrigierten) Inhaltspunkte und bildet daraus
+        Prozentwert und Notenpunkte neu."""
+        inhalt = dict(self.analyse["inhalt"])
+        aufgaben = []
+        erreicht_gesamt = 0.0
+        for aufgabe, (_nr, feld, maxp) in zip(inhalt["aufgaben"],
+                                              self.inhalt_felder):
+            kopie = dict(aufgabe)
+            try:
+                wert = float(feld.get().replace(",", "."))
+            except ValueError:
+                wert = aufgabe["erreicht"]
+            wert = max(0.0, min(float(maxp), wert))
+            kopie["erreicht"] = round(wert, 1)
+            kopie["prozent"] = round(wert / maxp * 100, 1) if maxp else 0.0
+            erreicht_gesamt += wert
+            aufgaben.append(kopie)
+        inhalt["aufgaben"] = aufgaben
+        inhalt["erreicht"] = round(erreicht_gesamt, 1)
+        inhalt["prozent"] = (round(erreicht_gesamt / inhalt["max_punkte"] * 100,
+                                   1) if inhalt["max_punkte"] else 0.0)
+        inhalt["notenpunkte"] = prozent_zu_notenpunkte(inhalt["prozent"])
+        return inhalt
 
     def _setze_text(self, widget, inhalt):
         widget.configure(state=tk.NORMAL)
@@ -1524,6 +1655,7 @@ class App(tk.Tk):
                 text="Deskriptor: " + DESKRIPTOREN[kriterium][ergebnis["band"]])
         self._setze_text(self.text_korrekturen,
                          self._format_korrekturen(analyse["fehlerliste"]))
+        self._baue_inhalt_felder(analyse["inhalt"])
         self._setze_text(self.text_inhalt,
                          self._format_inhalt(analyse["inhalt"]))
         self.knopf_pruefen.configure(state=tk.NORMAL)
@@ -1553,7 +1685,9 @@ class App(tk.Tk):
             return
         noten, baender = self._gewaehlte_noten()
         sprach = sprachnote_bilden(noten)
-        inhalt = self.analyse["inhalt"]
+        inhalt = self._inhalt_aus_feldern()
+        self._inhalt_aktuell = inhalt
+        self._setze_text(self.text_inhalt, self._format_inhalt(inhalt))
         gesamt = gesamtnote_bilden(sprach["note"],
                                    float(inhalt["notenpunkte"]))
 
@@ -1616,7 +1750,9 @@ class App(tk.Tk):
             zeilen.append(f"  Punkte: {a['erreicht']} / {a['max_punkte']} "
                           f"({a['prozent']} %)")
             for d in a["details"]:
-                if d["punkte_erreicht"] >= d["punkte_max"] * 0.999:
+                if d.get("manuell") and d["punkte_erreicht"] < d["punkte_max"]:
+                    symbol = "[manuell]"
+                elif d["punkte_erreicht"] >= d["punkte_max"] * 0.999:
                     symbol = "[voll]   "
                 elif d["punkte_erreicht"] > 0:
                     symbol = "[teilw.] "
@@ -1624,6 +1760,10 @@ class App(tk.Tk):
                     symbol = "[fehlt]  "
                 zeilen.append(f"  {symbol}{d['beschreibung']} "
                               f"({d['punkte_erreicht']}/{d['punkte_max']} P)")
+                if d.get("abdeckung") is not None:
+                    zeilen.append(f"           Textabdeckung: "
+                                  f"{d['abdeckung']:.0f} %"
+                                  f"   (gewertet über: {d.get('signal', '–')})")
                 if d["gefunden"]:
                     zeilen.append("           gefunden: "
                                   + ", ".join(d["gefunden"]))
@@ -1634,6 +1774,14 @@ class App(tk.Tk):
         zeilen.append(f"Gesamt: {inhalt['erreicht']} / {inhalt['max_punkte']} "
                       f"Punkte = {inhalt['prozent']} % → "
                       f"{inhalt['notenpunkte']} Notenpunkte")
+        offen = sum(a.get("offen_manuell", 0) for a in inhalt["aufgaben"])
+        if offen:
+            zeilen.append("")
+            zeilen.append(f"Hinweis: {offen:g} Punkte entfallen auf Kriterien "
+                          f"zu Aufbau, Darstellung und Zitierweise "
+                          f"([manuell]). Diese lassen sich inhaltlich nicht "
+                          f"automatisch prüfen und sind oben in den Feldern "
+                          f"„Erreichte Punkte je Aufgabe“ zu ergänzen.")
         return "\n".join(zeilen)
 
     def _format_deskriptoren(self):
@@ -1679,7 +1827,8 @@ class App(tk.Tk):
         bericht = trennung.join([
             self.text_gutachten.get("1.0", tk.END).strip(),
             self._format_deskriptoren(),
-            self._format_inhalt(self.analyse["inhalt"]),
+            self._format_inhalt(getattr(self, "_inhalt_aktuell",
+                                        self.analyse["inhalt"])),
             self._format_korrekturen(self.analyse["fehlerliste"]),
         ])
         with open(pfad, "w", encoding="utf-8") as datei:

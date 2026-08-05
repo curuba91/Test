@@ -30,11 +30,23 @@ Schlüsselwörter sind die ENGLISCHEN Begriffe/Synonyme, die im Schülertext
 gesucht werden – je mehr Varianten, desto fairer der Abgleich.
 
 Der Erwartungshorizont kann wahlweise als Text eingefügt ODER als PDF
-geladen werden ("PDF laden…"): Die Textebene des PDFs wird direkt
-übernommen; bei gescannten Bögen ohne Textebene wird die
-Handschrifterkennung aus klausur_bewertung.pyw mitgenutzt (dazu müssen
-beide Dateien im selben Ordner liegen und pymupdf/easyocr installiert
-sein).
+geladen werden ("PDF laden…"). Beim PDF wird in dieser Reihenfolge
+vorgegangen:
+
+1. Tabellarischer Bewertungsbogen ("Teilaufgabe 1: Comprehension",
+   Punktespalte "max.", "Total"-Zeile): Die Tabelle wird ausgewertet,
+   mehrere Punktwerte einer Zelle werden ihren Stichpunkten zugeordnet,
+   Gruppenüberschriften werden den Unterpunkten vorangestellt.
+2. Sonstige PDFs (z. B. das Klausurblatt mit "1. Outline … (30 BE)"):
+   Fließtext-Auswertung; Material-/Operatorenteile werden abgeschnitten.
+3. Gescannte Bögen ohne Textebene: Handschrifterkennung aus
+   klausur_bewertung.pyw (beide Dateien im selben Ordner, easyocr nötig).
+
+Formuliert der Bogen die Erwartungen als ganze Sätze (der Normalfall),
+werden daraus Schlüsselwörter VORGESCHLAGEN (im Baum mit ◆ markiert) -
+diese sind zu prüfen. Kriterien zu Aufbau, Darstellung und Zitierweise
+werden als "manuell zu bewerten" markiert (✎), weil sie sich inhaltlich
+nicht automatisch prüfen lassen.
 
 Start: Doppelklick (Windows: .pyw ohne Konsolenfenster). Benötigt nur
 Python 3.8+ mit Tkinter; für PDF: pip install pymupdf.
@@ -187,53 +199,140 @@ def biete_installation_an(parent, fehler, wiederholen, status_setzen=None):
         status_setzen("Installation abgelehnt – Vorgang abgebrochen.")
 
 AUFGABE_MUSTER = re.compile(
-    r"^\s*(?:Aufgabe|Task)\s*(\d+[a-z]?)\s*[.):–-]?\s*(.*)$", re.IGNORECASE)
+    r"^\s*(?:Teilaufgabe|Aufgabe|Task|Exercise)\s*(\d+[a-z]?)\s*[.:)–-]?\s*(.*)$",
+    re.IGNORECASE)
 AUFGABE_NUMMER_MUSTER = re.compile(r"^\s*(\d+[a-z]?)\s*[.)]\s+(.{10,})$")
 PUNKTE_MUSTER = re.compile(
     r"\(?\s*(\d+(?:[.,]\d+)?)\s*(?:P\b|BE\b|Punkte?\b|Pkt\.?)\s*\)?",
     re.IGNORECASE)
+# Zeile, die NUR eine Punktangabe enthaelt - z.B. "(30 BE)" unter der Aufgabe
+NUR_PUNKTE_MUSTER = re.compile(
+    r"^\s*\(?\s*(\d+(?:[.,]\d+)?)\s*(?:P|BE|Punkte?|Pkt\.?)?\s*\)?\s*$",
+    re.IGNORECASE)
+# "Total 30", "Total: 30", "Summe 30", "Gesamt 30"
+TOTAL_MUSTER = re.compile(
+    r"^\s*(?:Total|Summe|Gesamt|Zwischensumme)\s*:?\s*"
+    r"(\d+(?:[.,]\d+)?)?\s*$", re.IGNORECASE)
 MINDESTENS_MUSTER = re.compile(
     r"(?:min\.?|mindestens)\s*(\d+)", re.IGNORECASE)
 KLAMMER_WOERTER_MUSTER = re.compile(r"\[([^\]]+)\]")
 SCHLUESSEL_MUSTER = re.compile(
     r"(?:Schlüsselwörter|Schluesselwoerter|Keywords?)\s*[:=]\s*(.+)$",
     re.IGNORECASE)
-AUFZAEHLUNG_MUSTER = re.compile(r"^\s*[-•*o▪]\s+")
+# Aufzaehlungszeichen inkl. Word-Symbolzeichen (Wingdings) und "o"-Unterpunkte
+BULLET_ZEICHEN = "•▪‣·◦●○*-–—"
+AUFZAEHLUNG_MUSTER = re.compile(
+    r"^\s*(?:[" + re.escape(BULLET_ZEICHEN) + r"]|o(?=\s))\s*")
+# Zeilen aus Bewertungsbögen, die keine Erwartung sind
+JUNK_MUSTER = re.compile(
+    r"^\s*(?:max\.?|erreicht|Punkte|BE|Note|Bewertungsraster|Bewertungsbogen|"
+    r"I{1,3}\.?\s*(?:INHALT|SPRACHE|DARSTELLUNG)|INHALT|"
+    r"Summe\s+Inhalt|Notenpunkte.*|ENDNOTE|Seite\s*\d+|"
+    r"Name\s*:?|Datum\s*:?|_{3,}|\d+\s*%)\s*$", re.IGNORECASE)
+# Ab hier ist in einer Klausur-PDF nur noch Material/Anhang - nicht parsen
+ABSCHNITT_ENDE_MUSTER = re.compile(
+    r"^\s*(?:Operatoren\b|Material\s*:|Materialien\s*:|Anlage\b|Anhang\b|"
+    r"Viel\s+Erfolg|Hilfsmittel\b|Annotations?\b|Quellen?\b)", re.IGNORECASE)
 
 
-def parse_erwartungshorizont(text, titel=""):
-    """Wandelt frei formatierten Text in die JSON-Struktur um."""
+def parse_erwartungshorizont(text, titel="", auto_schluesselwoerter=True):
+    """Wandelt frei formatierten Text in die JSON-Struktur um.
+
+    Erkennt sowohl handgeschriebene Listen ("Aufgabe 1: …" + Spiegelstriche)
+    als auch die aus PDF-Bewertungsbögen normalisierte Form
+    ("Teilaufgabe 1: Comprehension", Erwartungen mit "(5 P)", "Total 30").
+    Fehlen Schlüsselwörter, werden sie aus dem Beschreibungstext
+    vorgeschlagen (auto_schluesselwoerter)."""
     aufgaben = []
     aktuelle = None
-    for zeile in text.splitlines():
-        if not zeile.strip():
+    letzte_erwartung = None
+    titel_offen = False   # Aufgabentitel geht ueber mehrere Zeilen (Klausur-PDF)
+
+    for roh in text.splitlines():
+        zeile = roh.strip()
+        if not zeile:
+            titel_offen = False
+            continue
+        if ABSCHNITT_ENDE_MUSTER.match(zeile):
+            break
+        if JUNK_MUSTER.match(zeile):
             continue
 
+        # "Total 30" -> Maximalpunktzahl der laufenden Aufgabe
+        total = TOTAL_MUSTER.match(zeile)
+        if total and aktuelle is not None:
+            if total.group(1):
+                aktuelle["max_punkte"] = float(total.group(1).replace(",", "."))
+                aktuelle["_total_gesetzt"] = True
+            continue
+
+        # Zeile, die nur eine Punktzahl enthaelt: gehoert zur letzten Aufgabe
+        # (Klausur-PDF: "1. Outline …" / "(30 BE)") oder zur letzten Erwartung
+        nur_punkte = NUR_PUNKTE_MUSTER.match(zeile)
+        if nur_punkte and (aktuelle is not None or letzte_erwartung is not None):
+            wert = float(nur_punkte.group(1).replace(",", "."))
+            if aktuelle is not None and not aktuelle["erwartungen"]:
+                aktuelle["max_punkte"] = wert
+                aktuelle["_total_gesetzt"] = True
+            elif letzte_erwartung is not None:
+                letzte_erwartung["punkte"] = wert
+            continue
+
+        ist_aufzaehlung = bool(AUFZAEHLUNG_MUSTER.match(roh))
         treffer = AUFGABE_MUSTER.match(zeile)
-        if not treffer and not AUFZAEHLUNG_MUSTER.match(zeile):
+        if not treffer and not ist_aufzaehlung:
             treffer = AUFGABE_NUMMER_MUSTER.match(zeile)
         if treffer:
             aktuelle = {
                 "nummer": treffer.group(1),
-                "titel": treffer.group(2).strip() or f"Aufgabe {treffer.group(1)}",
+                "titel": (treffer.group(2).strip()
+                          or f"Aufgabe {treffer.group(1)}"),
                 "max_punkte": 0.0,
                 "erwartungen": [],
             }
+            # Punktangabe direkt im Aufgabentitel ("… (30 BE)")
+            punkte_im_titel = PUNKTE_MUSTER.search(aktuelle["titel"])
+            if punkte_im_titel:
+                aktuelle["max_punkte"] = float(
+                    punkte_im_titel.group(1).replace(",", "."))
+                aktuelle["_total_gesetzt"] = True
+                aktuelle["titel"] = PUNKTE_MUSTER.sub(
+                    "", aktuelle["titel"], count=1).strip(" .,;()")
             aufgaben.append(aktuelle)
+            letzte_erwartung = None
+            titel_offen = True
             continue
 
         if aktuelle is None:
-            # Text vor der ersten Aufgabe: als Titel verwenden, falls leer
             if not titel:
-                titel = zeile.strip()
+                titel = zeile
             continue
 
-        aktuelle["erwartungen"].append(_parse_erwartung(zeile))
+        # Fortsetzung eines mehrzeiligen Aufgabentitels (Klausur-PDF):
+        # solange noch keine Erwartung erfasst ist und die Zeile keine
+        # Aufzaehlung ist.
+        if titel_offen and not ist_aufzaehlung and not aktuelle["erwartungen"]:
+            aktuelle["titel"] = (aktuelle["titel"] + " " + zeile).strip()
+            punkte_im_titel = PUNKTE_MUSTER.search(aktuelle["titel"])
+            if punkte_im_titel:
+                aktuelle["max_punkte"] = float(
+                    punkte_im_titel.group(1).replace(",", "."))
+                aktuelle["_total_gesetzt"] = True
+                aktuelle["titel"] = PUNKTE_MUSTER.sub(
+                    "", aktuelle["titel"], count=1).strip(" .,;()")
+            continue
+
+        titel_offen = False
+        erwartung = _parse_erwartung(zeile, auto_schluesselwoerter)
+        if erwartung["beschreibung"]:
+            aktuelle["erwartungen"].append(erwartung)
+            letzte_erwartung = erwartung
 
     for aufgabe in aufgaben:
         summe = sum(e["punkte"] for e in aufgabe["erwartungen"])
-        aufgabe["max_punkte"] = summe if summe > 0 else float(
-            len(aufgabe["erwartungen"]) * 2)
+        if not aufgabe.pop("_total_gesetzt", False):
+            aufgabe["max_punkte"] = summe if summe > 0 else float(
+                max(1, len(aufgabe["erwartungen"])) * 2)
 
     return {
         "titel": titel or "Klausur",
@@ -243,10 +342,11 @@ def parse_erwartungshorizont(text, titel=""):
     }
 
 
-def _parse_erwartung(zeile):
+def _parse_erwartung(zeile, auto_schluesselwoerter=True):
     rest = AUFZAEHLUNG_MUSTER.sub("", zeile).strip()
 
     schluesselwoerter = []
+    automatisch = False
     klammern = KLAMMER_WOERTER_MUSTER.search(rest)
     if klammern:
         schluesselwoerter = [w.strip() for w in klammern.group(1).split(",")
@@ -271,15 +371,294 @@ def _parse_erwartung(zeile):
         mindestens = int(mind_treffer.group(1))
         rest = MINDESTENS_MUSTER.sub("", rest).strip()
 
-    rest = re.sub(r"[(),;]\s*$", "", rest).strip()
+    rest = re.sub(r"\s*[(),;]\s*$", "", rest).strip()
     rest = re.sub(r"\(\s*\)", "", rest).strip()
+
+    if not schluesselwoerter and auto_schluesselwoerter:
+        schluesselwoerter = schluesselwoerter_vorschlagen(rest)
+        automatisch = bool(schluesselwoerter)
+        if automatisch and not mind_treffer:
+            mindestens = max(1, min(3, round(len(schluesselwoerter) / 3.0)))
 
     return {
         "beschreibung": rest,
         "punkte": punkte,
         "schluesselwoerter": schluesselwoerter,
         "mindestens": mindestens,
+        "auto": automatisch,
+        "manuell": ist_formales_kriterium(rest),
     }
+
+
+# Kriterien zu Aufbau, Darstellung und Zitierweise lassen sich nicht über
+# Inhaltsbegriffe prüfen - sie werden markiert und von der Lehrkraft vergeben.
+FORMAL_MUSTER = re.compile(
+    r"well[- ]structured|logically connected|coherent|structure of the text|"
+    r"formal tone|register|own words|paraphras|omission of quotes|"
+    r"quotations? are|cited|citation|introduction and conclusion|"
+    r"Aufbau|gegliedert|strukturiert|kohärent|Zitat|zitiert|eigene[nrm]? Worte|"
+    r"Darstellungsleistung|sprachliche Leistung|Umfang der Arbeit",
+    re.IGNORECASE)
+
+
+def ist_formales_kriterium(beschreibung):
+    """True, wenn die Erwartung Aufbau/Darstellung statt Inhalt betrifft."""
+    return bool(FORMAL_MUSTER.search(beschreibung or ""))
+
+
+# ----------------------------------------------------------------------------
+# Automatische Schluesselwort-Vorschlaege aus Fließtext-Erwartungen
+# ----------------------------------------------------------------------------
+
+STOPWOERTER = set("""
+a an the and or but nor of in on at to for with by from as is are was were be
+been being have has had do does did will would can could should may might must
+shall this that these those it its they them their there here he she his her we
+us our you your i me my not no so if then than when where which who whom whose
+what how why all any some more most other others such own same also very too
+just only even still well way ways make makes made get gets got take takes
+taken use uses used using one two three first second third both each new like
+into out up down over under about after before while during between through
+e.g eg etc ie i.e para paras page pages line lines cf vgl
+student students text texts author reader readers writer writing written
+answer answers response responses task tasks exercise question questions
+correctly correct mention mentions mentioned name names named identify
+identifies identified following main given give gives given show shows shown
+include includes including includes said says say seem seems seemed become
+becomes becoming lead leads led lot lots
+der die das dem den des und oder aber nicht ein eine einer eines einem einen
+ist sind war waren wird werden wurde wurden hat haben hatte kann können soll
+sollen muss müssen sich auch noch nur schon sehr mehr viel viele als wie von
+mit für auf aus bei zum zur nach über unter durch gegen ohne dass wenn weil
+nennt benennt beschreibt erläutert erklärt analysiert stellt dar zeigt geht
+""".split())
+
+# Quellenangaben und Verweise, die keine Inhaltsbegriffe sind
+VERWEIS_MUSTER = re.compile(
+    r"\((?:paras?\.|ll?\.|Z\.|vgl\.|cf\.|siehe|see)[^)]*\)|"
+    r"\bparas?\.\s*[\d,\s–\-]+|\(Material\)|\(\s*\)", re.IGNORECASE)
+ZITAT_MUSTER = re.compile(r"[“\"„]([^”\"“„]{4,60})[”\"“]")
+
+
+def schluesselwoerter_vorschlagen(beschreibung, max_anzahl=8):
+    """Schlägt Suchbegriffe aus einer Fließtext-Erwartung vor.
+
+    Bewertungsbögen formulieren Erwartungen als ganze Sätze. Für den
+    Abgleich mit dem Schülertext werden daraus die inhaltstragenden
+    Begriffe gezogen: wörtliche Zitate, Eigennamen sowie aussagekräftige
+    Wörter und Wortpaare. Die Vorschläge sind ein Startpunkt und von der
+    Lehrkraft zu prüfen."""
+    if not beschreibung or len(beschreibung) < 12:
+        return []
+    text = VERWEIS_MUSTER.sub(" ", beschreibung)
+
+    kandidaten = []       # (gewicht, begriff)
+    vergeben = set()
+
+    def merken(begriff, gewicht):
+        begriff = begriff.strip(" .,;:!?()[]\"'“”„-").lower()
+        if (len(begriff) < 4 or begriff in vergeben
+                or begriff in STOPWOERTER):
+            return
+        vergeben.add(begriff)
+        kandidaten.append((gewicht, begriff))
+
+    # 1. Wörtliche Zitate ("digital partner", "Personal AI Constitution")
+    for zitat in ZITAT_MUSTER.findall(text):
+        woerter = zitat.split()
+        if 1 <= len(woerter) <= 5:
+            merken(zitat, 100)
+    text_ohne_zitate = ZITAT_MUSTER.sub(" ", text)
+
+    # 2. Eigennamen (Parmy Olson, Bloomberg, Pandora's Box) - Großschreibung
+    #    innerhalb des Satzes, nicht am Satzanfang
+    for satz in re.split(r"(?<=[.!?;:])\s+|\n", text_ohne_zitate):
+        woerter = satz.split()
+        for pos, wort in enumerate(woerter):
+            rein = wort.strip(" .,;:!?()[]\"'“”„")
+            if pos > 0 and re.match(r"^[A-ZÄÖÜ][\wÄÖÜäöüß’'-]{2,}$", rein):
+                folge = [rein]
+                vorher = wort
+                for weiter in woerter[pos + 1:pos + 3]:
+                    # Satzzeichen am Vorgänger beendet den Eigennamen
+                    if vorher.rstrip().endswith((",", ".", ";", ":", ")")):
+                        break
+                    nach = weiter.strip(" .,;:!?()[]\"'“”„")
+                    if re.match(r"^[A-ZÄÖÜ][\wÄÖÜäöüß’'-]{2,}$", nach):
+                        folge.append(nach)
+                        vorher = weiter
+                    else:
+                        break
+                merken(" ".join(folge), 90 + len(folge))
+
+    # 3. Inhaltstragende Wortpaare und Einzelwörter
+    for satz in re.split(r"[.;:!?]\s+|\n", text_ohne_zitate):
+        woerter = re.findall(r"[A-Za-zÄÖÜäöüß][\wÄÖÜäöüß’'-]*", satz)
+        klein = [w.lower() for w in woerter]
+        inhalt = [(i, w) for i, w in enumerate(klein)
+                  if w not in STOPWOERTER and len(w) >= 4]
+        # Wortpaare aus direkt benachbarten Inhaltswörtern
+        for (i1, w1), (i2, w2) in zip(inhalt, inhalt[1:]):
+            if i2 == i1 + 1:
+                merken(f"{w1} {w2}", 60 + min(len(w1) + len(w2), 24))
+        for _i, wort in inhalt:
+            merken(wort, 20 + min(len(wort), 14))
+
+    kandidaten.sort(key=lambda p: (-p[0], p[1]))
+    ausgewaehlt = []
+    for _gewicht, begriff in kandidaten:
+        # Begriffe überspringen, die schon in einem gewählten Wortpaar stecken
+        if any(begriff in gewaehlt.split() or gewaehlt in begriff
+               for gewaehlt in ausgewaehlt):
+            continue
+        ausgewaehlt.append(begriff)
+        if len(ausgewaehlt) >= max_anzahl:
+            break
+    return ausgewaehlt
+
+
+# ----------------------------------------------------------------------------
+# Bewertungsbogen-PDF: tabellenbasiertes Einlesen
+# ----------------------------------------------------------------------------
+
+# Word-Symbolzeichen (Wingdings) fuer Aufzaehlungen aus PDF-Tabellen
+SYMBOL_BULLETS = "\uf0b7\uf0a7\uf0d8\uf02c\uf00d"  # Wingdings/Symbol-Aufzählungszeichen aus Word-PDFs
+
+
+def bogen_pdf_zu_text(pfad):
+    """Wandelt einen tabellarischen Bewertungsbogen (PDF) in die
+    normalisierte Textform um, die parse_erwartungshorizont versteht.
+
+    Erkennt die typische Struktur hessischer Bewertungsraster:
+    Kopfzeile "Teilaufgabe 1: Comprehension", Beschreibungsspalte,
+    Punktespalte ("max.") und "Total"-Zeile. Mehrere Punktwerte in einer
+    Zelle werden den Aufzählungspunkten der Zelle zugeordnet.
+
+    Liefert (text, anzahl_aufgaben); anzahl_aufgaben = 0, wenn das PDF
+    keine passende Tabelle enthält (dann Fließtext-Weg nutzen)."""
+    import fitz  # PyMuPDF – Aufrufer hat Verfügbarkeit sichergestellt
+
+    dokument = fitz.open(pfad)
+    zeilen = []
+    aufgaben_gefunden = 0
+    aufgabe_offen = False
+    try:
+        # Ueberschrift des Bogens (steht ausserhalb der Tabellen)
+        for kopfzeile in (dokument[0].get_text() or "").splitlines():
+            kopfzeile = kopfzeile.strip()
+            if len(kopfzeile) > 8 and not JUNK_MUSTER.match(kopfzeile):
+                zeilen.append(kopfzeile)
+                break
+        for seite in dokument:
+            for tabelle in seite.find_tables().tables:
+                for reihe in tabelle.extract():
+                    if not reihe:
+                        continue
+                    beschreibung = (reihe[0] or "").strip()
+                    punkte_zelle = (reihe[1] or "").strip() if len(reihe) > 1 \
+                        else ""
+                    if not beschreibung and not punkte_zelle:
+                        continue
+
+                    kopf = AUFGABE_MUSTER.match(beschreibung)
+                    if kopf:
+                        zeilen.append("")
+                        zeilen.append(f"Aufgabe {kopf.group(1)}: "
+                                      f"{kopf.group(2).strip()}")
+                        aufgaben_gefunden += 1
+                        aufgabe_offen = True
+                        continue
+                    if not aufgabe_offen:
+                        continue
+
+                    if TOTAL_MUSTER.match(beschreibung):
+                        werte = _punktwerte(punkte_zelle)
+                        if werte:
+                            zeilen.append(f"Total: {werte[0]:g}")
+                        continue
+                    if JUNK_MUSTER.match(beschreibung):
+                        continue
+
+                    werte = _punktwerte(punkte_zelle)
+                    for teiltext, wert in _zelle_zerlegen(beschreibung, werte):
+                        teiltext = _saubere_beschreibung(teiltext)
+                        if len(teiltext) < 8:
+                            continue
+                        zeilen.append(f"- {teiltext} ({wert:g} P)"
+                                      if wert else f"- {teiltext}")
+    finally:
+        dokument.close()
+    return "\n".join(zeilen).strip(), aufgaben_gefunden
+
+
+def _punktwerte(zelle):
+    """Liest alle Punktzahlen einer Tabellenzelle ('5\\n5\\n5' -> [5,5,5])."""
+    return [float(w.replace(",", "."))
+            for w in re.findall(r"\d+(?:[.,]\d+)?", zelle or "")]
+
+
+def _saubere_beschreibung(text):
+    text = re.sub(r"[" + re.escape(SYMBOL_BULLETS) + r"]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text.strip(" .;:–-")
+
+
+def _zelle_zerlegen(beschreibung, werte):
+    """Ordnet die Punktwerte einer Zelle deren Aufzählungspunkten zu.
+
+    Bewertungsbögen bündeln mehrere bepunktete Stichpunkte in einer Zelle.
+    Auf welcher Ebene bepunktet wird (Hauptpunkte, Unterpunkte oder
+    Absätze), unterscheidet sich je Zelle – daher wird die Gliederungsebene
+    gewählt, deren Anzahl zu den Punktwerten passt."""
+    text = beschreibung.replace("\r", "")
+    ebenen = []
+    for muster in (r"[" + re.escape(SYMBOL_BULLETS + "•▪‣") + r"]",
+                   r"(?:^|\n)\s*o\s+",
+                   r"\n\s*\n"):
+        teile = [t.strip() for t in re.split(muster, text) if t.strip()]
+        if len(teile) > 1:
+            ebenen.append(teile)
+
+    if not werte:
+        return [(text, None)]
+    if len(werte) == 1:
+        return [(text, werte[0])]
+
+    for teile in ebenen:
+        if len(teile) == len(werte):
+            return list(zip(teile, werte))
+        # Ein Teil mehr als Punktwerte: die erste Zeile ist eine Überschrift
+        # der Gruppe ("Negative impact", "Ways of manipulation …") und wird
+        # nicht eigenständig bepunktet, sondern den Unterpunkten vorangestellt.
+        if len(teile) == len(werte) + 1:
+            kopf = _saubere_beschreibung(teile[0])
+            return [((f"{kopf}: {rest}" if 0 < len(kopf) <= 80 else rest),
+                     wert)
+                    for rest, wert in zip(teile[1:], werte)]
+    # Keine Ebene passt: gröbste Gliederung nehmen, Restpunkte anhängen
+    teile = ebenen[0] if ebenen else [text]
+    ergebnis = []
+    for index, teiltext in enumerate(teile):
+        if index < len(teile) - 1:
+            ergebnis.append((teiltext, werte[index]
+                             if index < len(werte) else None))
+        else:
+            rest = sum(werte[index:]) if index < len(werte) else None
+            ergebnis.append((teiltext, rest))
+    return ergebnis
+
+
+def bogen_pdf_lesen(pfad, auto_schluesselwoerter=True):
+    """Liest einen Bewertungsbogen (PDF) als Erwartungshorizont ein.
+    Liefert (horizont_oder_None, normalisierter_text)."""
+    text, anzahl = bogen_pdf_zu_text(pfad)
+    if anzahl == 0:
+        return None, ""
+    horizont = parse_erwartungshorizont(
+        text, titel="", auto_schluesselwoerter=auto_schluesselwoerter)
+    if not horizont["aufgaben"]:
+        return None, text
+    return horizont, text
 
 
 def _lade_klausur_loader(status_melden):
@@ -377,6 +756,9 @@ class Editor(tk.Tk):
                    command=self.neue_erwartung).pack(side=tk.LEFT, padx=2)
         ttk.Button(knoepfe, text="Löschen",
                    command=self.loesche_auswahl).pack(side=tk.LEFT, padx=2)
+        ttk.Button(knoepfe, text="Schlüsselwörter vorschlagen",
+                   command=self.schlage_woerter_vor).pack(side=tk.LEFT,
+                                                          padx=(12, 2))
 
         felder = ttk.Frame(mitte)
         felder.pack(fill=tk.X, pady=(8, 0))
@@ -436,6 +818,13 @@ class Editor(tk.Tk):
             except ImportError:
                 raise FehlendePakete(["pymupdf"],
                                      "das Einlesen von PDF-Dateien")
+            # 1. Versuch: tabellarischer Bewertungsbogen (Punktespalte)
+            self._queue.put(("status", "Prüfe PDF auf Bewertungsraster …"))
+            horizont, roh = bogen_pdf_lesen(pfad)
+            if horizont is not None:
+                self._queue.put(("horizont", (horizont, roh)))
+                return
+
             dokument = fitz.open(pfad)
             text = "\n".join(seite.get_text() for seite in dokument).strip()
             quelle = "PDF-Textebene"
@@ -459,6 +848,17 @@ class Editor(tk.Tk):
                 art, daten = self._queue.get_nowait()
                 if art == "status":
                     self.status.configure(text=daten)
+                elif art == "horizont":
+                    horizont, roh = daten
+                    self.knopf_pdf.configure(state=tk.NORMAL)
+                    self.text_eingabe.delete("1.0", tk.END)
+                    self.text_eingabe.insert("1.0", roh)
+                    self.daten = horizont
+                    self.titel_feld.delete(0, tk.END)
+                    self.titel_feld.insert(0, horizont["titel"])
+                    self._baum_neu()
+                    self._melde_ergebnis(horizont,
+                                         "Bewertungsraster (Tabelle)")
                 elif art == "pdf":
                     text, quelle = daten
                     self.knopf_pdf.configure(state=tk.NORMAL)
@@ -509,14 +909,35 @@ class Editor(tk.Tk):
         self.titel_feld.delete(0, tk.END)
         self.titel_feld.insert(0, daten["titel"])
         self._baum_neu()
-        ohne_woerter = sum(
-            1 for a in daten["aufgaben"] for e in a["erwartungen"]
-            if not e["schluesselwoerter"])
-        hinweis = (f" – {ohne_woerter} Erwartung(en) noch OHNE "
-                   f"Schlüsselwörter (bitte ergänzen!)" if ohne_woerter
-                   else "")
-        self.status.configure(
-            text=f"{len(daten['aufgaben'])} Aufgabe(n) erkannt{hinweis}.")
+        self._melde_ergebnis(daten, "Text")
+
+    def _melde_ergebnis(self, horizont, quelle):
+        aufgaben = horizont["aufgaben"]
+        gesamt = sum(a["max_punkte"] for a in aufgaben)
+        erwartungen = sum(len(a["erwartungen"]) for a in aufgaben)
+        auto = sum(1 for a in aufgaben for e in a["erwartungen"]
+                   if e.get("auto"))
+        manuell = sum(1 for a in aufgaben for e in a["erwartungen"]
+                      if e.get("manuell"))
+        text = (f"{quelle} erkannt: {len(aufgaben)} Aufgabe(n), "
+                f"{erwartungen} Erwartungen, {gesamt:g} Punkte gesamt.")
+        hinweise = []
+        if auto:
+            hinweise.append(
+                f"Für {auto} Erwartungen wurden Schlüsselwörter automatisch "
+                f"aus dem Text vorgeschlagen (im Baum mit ◆ markiert). Bitte "
+                f"prüfen und ergänzen – sie bestimmen, was im Schülertext "
+                f"gesucht wird.")
+        if manuell:
+            hinweise.append(
+                f"{manuell} Erwartungen betreffen Aufbau/Darstellung/"
+                f"Zitierweise (mit ✎ markiert). Diese kann das Programm "
+                f"nicht automatisch prüfen; die Punkte vergeben Sie im "
+                f"Bewertungsprogramm selbst.")
+        self.status.configure(text=text)
+        messagebox.showinfo("PDF eingelesen",
+                            text + ("\n\n" + "\n\n".join(hinweise)
+                                    if hinweise else ""))
 
     def _baum_neu(self):
         self.baum.delete(*self.baum.get_children())
@@ -526,12 +947,19 @@ class Editor(tk.Tk):
                 text=f"Aufgabe {aufgabe['nummer']}: {aufgabe['titel']} "
                      f"({aufgabe['max_punkte']:g} P)")
             for e_index, erwartung in enumerate(aufgabe["erwartungen"]):
-                fehlt = "" if erwartung["schluesselwoerter"] else "  ⚠ ohne Schlüsselwörter"
+                if not erwartung["schluesselwoerter"]:
+                    markierung = "  ⚠ ohne Schlüsselwörter"
+                elif erwartung.get("auto"):
+                    markierung = "  ◆ Vorschlag – bitte prüfen"
+                else:
+                    markierung = ""
+                if erwartung.get("manuell"):
+                    markierung += "  ✎ manuell zu bewerten"
                 self.baum.insert(
                     knoten, tk.END, iid=f"a{a_index}e{e_index}",
                     text=f"{erwartung['beschreibung']} "
                          f"({erwartung['punkte']:g} P, min. "
-                         f"{erwartung['mindestens']}){fehlt}")
+                         f"{erwartung['mindestens']}){markierung}")
         self._vorschau_neu()
 
     def _vorschau_neu(self):
@@ -600,8 +1028,12 @@ class Editor(tk.Tk):
                 if w["f2"].get().strip():
                     erwartung["punkte"] = float(
                         w["f2"].get().replace(",", "."))
-                erwartung["schluesselwoerter"] = [
-                    s.strip() for s in w["f3"].get().split(",") if s.strip()]
+                neue_woerter = [s.strip() for s in w["f3"].get().split(",")
+                                if s.strip()]
+                if neue_woerter != erwartung["schluesselwoerter"]:
+                    # von Hand geändert -> kein automatischer Vorschlag mehr
+                    erwartung["auto"] = False
+                erwartung["schluesselwoerter"] = neue_woerter
                 if w["f4"].get().strip():
                     erwartung["mindestens"] = max(1, int(w["f4"].get()))
         except ValueError as fehler:
@@ -612,6 +1044,40 @@ class Editor(tk.Tk):
         self._baum_neu()
         self.baum.selection_set(auswahl[0])
         self.status.configure(text="Änderung übernommen.")
+
+    def schlage_woerter_vor(self):
+        """Erzeugt Schlüsselwort-Vorschläge aus dem Beschreibungstext –
+        für die ausgewählte Erwartung oder für alle noch leeren."""
+        auswahl = self.baum.selection()
+        a_index, e_index = self._zerlege_iid(auswahl[0] if auswahl else "")
+        if a_index is not None and e_index is not None:
+            ziele = [self.daten["aufgaben"][a_index]["erwartungen"][e_index]]
+        else:
+            ziele = [e for a in self.daten["aufgaben"]
+                     for e in a["erwartungen"] if not e["schluesselwoerter"]]
+            if not ziele:
+                messagebox.showinfo(
+                    "Nichts zu tun",
+                    "Alle Erwartungen haben bereits Schlüsselwörter. Für eine "
+                    "einzelne Erwartung diese links auswählen und erneut "
+                    "klicken.")
+                return
+        ergaenzt = 0
+        for erwartung in ziele:
+            vorschlag = schluesselwoerter_vorschlagen(erwartung["beschreibung"])
+            if vorschlag:
+                erwartung["schluesselwoerter"] = vorschlag
+                erwartung["auto"] = True
+                erwartung["mindestens"] = max(
+                    1, min(3, round(len(vorschlag) / 3.0)))
+                ergaenzt += 1
+        self._baum_neu()
+        if auswahl:
+            self.baum.selection_set(auswahl[0])
+            self._auswahl_geaendert()
+        self.status.configure(
+            text=f"Schlüsselwörter für {ergaenzt} Erwartung(en) "
+                 f"vorgeschlagen – bitte prüfen.")
 
     def neue_aufgabe(self):
         nummer = str(len(self.daten["aufgaben"]) + 1)
@@ -670,6 +1136,8 @@ class Editor(tk.Tk):
                 erwartung.setdefault("schluesselwoerter", [])
                 erwartung.setdefault("mindestens", 1)
                 erwartung.setdefault("punkte", 2.0)
+                erwartung.setdefault("auto", False)
+                erwartung.setdefault("manuell", False)
         self.daten = daten
         self.titel_feld.delete(0, tk.END)
         self.titel_feld.insert(0, daten.get("titel", "Klausur"))

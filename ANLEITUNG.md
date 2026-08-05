@@ -62,20 +62,28 @@ Indikatoren und daraus abgeleitete Vorschläge:
 Der gewählte Band-Deskriptor (Originalwortlaut der Tabelle) erscheint im
 Gutachten.
 
-**Inhalt:** Abgleich mit dem Erwartungshorizont (Schlüsselwörter je
-Erwartung, tippfehlertolerant), Punkte je Aufgabe, Prozent → Notenpunkte
-nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab 20 %).
+**Inhalt:** Abgleich mit dem Erwartungshorizont über zwei Signale –
+(1) **Schlüsselwörter** je Erwartung (tippfehlertolerant) und
+(2) **Textabdeckung**: Anteil der inhaltstragenden Wörter einer
+Fließtext-Erwartung, die im Schülertext vorkommen. Gewertet wird das
+jeweils stärkere Signal; der Bericht weist beide aus. Daraus Punkte je
+Aufgabe, Prozent → Notenpunkte nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab
+20 %). Kriterien zu Aufbau/Darstellung (✎) bleiben automatisch bei 0 und
+sind manuell zu ergänzen.
 
 ## Bedienung
 
 ### Schritt 1: Erwartungshorizont erstellen (`erwartungshorizont_editor.pyw`)
 
 1. Eigenen Erwartungshorizont/Bewertungsbogen einbringen – wahlweise:
-   - **„PDF laden…“**: Die Textebene des PDFs wird direkt ins Textfeld
-     übernommen (benötigt `pip install pymupdf`). Gescannte Bögen ohne
-     Textebene werden automatisch über die Handschrifterkennung des
-     Hauptprogramms erkannt (beide .pyw-Dateien müssen dazu im selben
-     Ordner liegen, easyocr installiert sein).
+   - **„PDF laden…“** (empfohlen): erkennt **tabellarische Bewertungsraster**
+     automatisch – „Teilaufgabe 1: Comprehension“, Punktespalte „max.“,
+     „Total“-Zeile, Stichpunkte mit mehreren Punktwerten je Zelle,
+     seitenübergreifende Tabellen. Auch das reine **Klausurblatt**
+     („1. Outline … (30 BE)“) funktioniert und liefert das Aufgabengerüst;
+     Material- und Operatorenteile werden abgeschnitten. Gescannte Bögen
+     ohne Textebene laufen über die Handschrifterkennung des
+     Hauptprogramms (beide .pyw-Dateien im selben Ordner, easyocr).
    - **Text einfügen**: den Horizont einfach in das linke Feld kopieren.
 
    Erkanntes Format (tolerant):
@@ -90,8 +98,19 @@ nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab 20 %).
    - `(4 P)`, `(4 BE)`, `4 Punkte` → Punktzahl
    - `[wort1, wort2]` oder `Schlüsselwörter: …` → Suchbegriffe
    - `min. 2` / `mindestens 2` → nötige Treffer für volle Punkte
-2. „→ Text in Aufgaben umwandeln“ klicken, in der Mitte prüfen/bearbeiten
-   (Erwartungen ohne Schlüsselwörter werden mit ⚠ markiert).
+2. Beim Text-Weg „→ Text in Aufgaben umwandeln“ klicken; danach in der
+   Mitte prüfen und bearbeiten. Markierungen im Baum:
+   - ⚠ **ohne Schlüsselwörter** – wird nicht automatisch geprüft, bitte
+     ergänzen (Knopf „Schlüsselwörter vorschlagen“ hilft).
+   - ◆ **Vorschlag – bitte prüfen**: Formuliert der Bogen die Erwartung als
+     ganzen Satz, zieht das Tool die inhaltstragenden Begriffe automatisch
+     heraus (Zitate, Eigennamen, aussagekräftige Wortpaare). Das ist ein
+     Startpunkt, kein fertiges Ergebnis – ergänzen Sie Synonyme, die
+     Ihre Schülerinnen und Schüler realistisch verwenden.
+   - ✎ **manuell zu bewerten**: Kriterien zu Aufbau, Darstellung und
+     Zitierweise („well-structured“, „own words“, „paraphrasing“). Sie
+     lassen sich inhaltlich nicht automatisch prüfen; diese Punkte
+     vergeben Sie später im Bewertungsprogramm selbst.
 3. **Schlüsselwörter sind die englischen Begriffe/Synonyme, die im
    Schülertext gesucht werden** – je mehr Varianten, desto fairer.
 4. „JSON speichern…“.
@@ -105,6 +124,12 @@ nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab 20 %).
    (Deskriptoren mit Übersteuerung), *Inhaltliche Bewertung*,
    *Gesamtgutachten*.
 4. Ggf. Einstufungen übersteuern → „Note aus Auswahl neu berechnen“.
+   Im Reiter *Inhaltliche Bewertung* stehen oben die **erreichten Punkte je
+   Aufgabe** als Eingabefelder: Der automatische Wert ist ein Vorschlag und
+   kann überschrieben werden – nötig für die mit ✎ markierten Kriterien
+   (Aufbau, Darstellung, Zitierweise), die automatisch 0 Punkte bekommen.
+   Das Feld zeigt an, wie viele Punkte dort noch offen sind.
+   Danach „Inhaltspunkte übernehmen & Note neu berechnen“.
 5. „Bericht exportieren…“ (Textdatei mit Gutachten, Deskriptoren-Bewertung,
    Inhaltsbewertung und vollständiger Korrekturliste).
 
@@ -200,7 +225,12 @@ interpoliert).
 - Bereich B ist eine Näherung über messbare Indikatoren – die Deskriptoren
   verlangen dort ein fachliches Urteil (deshalb die Übersteuerung).
 - Die inhaltliche Prüfung erkennt Umschreibungen und eigenständige
-  Argumentation nur begrenzt (Schlüsselwort-Abgleich).
+  Argumentation nur begrenzt (Schlüsselwort- und Wortabdeckungs-Abgleich).
+  In einem Test mit dem Bewertungsbogen „In a relationship with AI“
+  erreichte eine inhaltlich vollständige Antwort 90 von 100 Punkten
+  (die fehlenden 10 sind die ✎-Kriterien), eine oberflächliche Antwort
+  6 Punkte, ein themenfremder Text 0 Punkte. Die Rangfolge stimmt also –
+  die exakte Punktzahl bleibt zu prüfen.
 - Wer später echte semantische Bewertung möchte, kann kostenlos ein lokales
   Sprachmodell (z. B. über [Ollama](https://ollama.com)) anbinden –
   datenschutzfreundlich, da Schülertexte den Rechner nicht verlassen.
