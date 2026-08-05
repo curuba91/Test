@@ -70,7 +70,14 @@ nach KMK-Schlüssel (15 P ab 95 %, … 1 P ab 20 %).
 
 ### Schritt 1: Erwartungshorizont erstellen (`erwartungshorizont_editor.pyw`)
 
-1. Eigenen Erwartungshorizont als Text in das linke Feld kopieren.
+1. Eigenen Erwartungshorizont/Bewertungsbogen einbringen – wahlweise:
+   - **„PDF laden…“**: Die Textebene des PDFs wird direkt ins Textfeld
+     übernommen (benötigt `pip install pymupdf`). Gescannte Bögen ohne
+     Textebene werden automatisch über die Handschrifterkennung des
+     Hauptprogramms erkannt (beide .pyw-Dateien müssen dazu im selben
+     Ordner liegen, easyocr installiert sein).
+   - **Text einfügen**: den Horizont einfach in das linke Feld kopieren.
+
    Erkanntes Format (tolerant):
 
    ```

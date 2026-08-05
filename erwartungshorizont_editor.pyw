@@ -29,12 +29,24 @@ Erkanntes Textformat (tolerant):
 Schlüsselwörter sind die ENGLISCHEN Begriffe/Synonyme, die im Schülertext
 gesucht werden – je mehr Varianten, desto fairer der Abgleich.
 
+Der Erwartungshorizont kann wahlweise als Text eingefügt ODER als PDF
+geladen werden ("PDF laden…"): Die Textebene des PDFs wird direkt
+übernommen; bei gescannten Bögen ohne Textebene wird die
+Handschrifterkennung aus klausur_bewertung.pyw mitgenutzt (dazu müssen
+beide Dateien im selben Ordner liegen und pymupdf/easyocr installiert
+sein).
+
 Start: Doppelklick (Windows: .pyw ohne Konsolenfenster). Benötigt nur
-Python 3.8+ mit Tkinter.
+Python 3.8+ mit Tkinter; für PDF: pip install pymupdf.
 """
 
+import importlib.machinery
+import importlib.util
 import json
+import os
+import queue
 import re
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
@@ -136,6 +148,24 @@ def _parse_erwartung(zeile):
     }
 
 
+def _lade_klausur_loader(status_melden):
+    """Importiert den KlausurLoader aus klausur_bewertung.pyw (gleicher
+    Ordner), um dessen Handschrifterkennung fuer gescannte Boegen
+    mitzunutzen."""
+    pfad = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "klausur_bewertung.pyw")
+    if not os.path.exists(pfad):
+        raise RuntimeError(
+            "klausur_bewertung.pyw wurde nicht im selben Ordner gefunden – "
+            "die Handschrifterkennung für gescannte PDFs steht daher nicht "
+            "zur Verfügung.")
+    lader = importlib.machinery.SourceFileLoader("klausur_bewertung", pfad)
+    spec = importlib.util.spec_from_loader("klausur_bewertung", lader)
+    modul = importlib.util.module_from_spec(spec)
+    lader.exec_module(modul)
+    return modul.KlausurLoader(status_melden)
+
+
 class Editor(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -145,7 +175,9 @@ class Editor(tk.Tk):
         self.daten = {"titel": "Klausur", "sprache": "en-GB",
                       "gewichtung": {"inhalt": 0.4, "sprache": 0.6},
                       "aufgaben": []}
+        self._queue = queue.Queue()
         self._baue_oberflaeche()
+        self.after(100, self._verarbeite_queue)
 
     # ---------------- Aufbau ----------------
 
@@ -169,10 +201,19 @@ class Editor(tk.Tk):
         haupt = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         haupt.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
-        # Links: Texteingabe
-        links = ttk.LabelFrame(haupt, text="1. Erwartungshorizont als Text "
-                                           "einfügen", padding=6)
+        # Links: Texteingabe oder PDF
+        links = ttk.LabelFrame(haupt, text="1. Erwartungshorizont: Text "
+                                           "einfügen oder PDF laden",
+                               padding=6)
         haupt.add(links, weight=1)
+        quellen = ttk.Frame(links)
+        quellen.pack(side=tk.TOP, fill=tk.X, pady=(0, 6))
+        self.knopf_pdf = ttk.Button(quellen,
+                                    text="PDF laden… (Bewertungsbogen)",
+                                    command=self.lade_pdf)
+        self.knopf_pdf.pack(side=tk.LEFT)
+        ttk.Label(quellen, text="  oder Text unten einfügen/bearbeiten:"
+                  ).pack(side=tk.LEFT)
         self.text_eingabe = tk.Text(links, wrap=tk.WORD,
                                     font=("Segoe UI", 10), undo=True)
         rb1 = ttk.Scrollbar(links, command=self.text_eingabe.yview)
@@ -237,6 +278,76 @@ class Editor(tk.Tk):
                                 text="Text links einfügen und umwandeln – "
                                      "oder direkt Aufgaben anlegen.")
         self.status.pack(side=tk.BOTTOM, fill=tk.X)
+
+    # ---------------- PDF laden ----------------
+
+    def lade_pdf(self):
+        pfad = filedialog.askopenfilename(
+            title="Erwartungshorizont / Bewertungsbogen als PDF wählen",
+            filetypes=[("PDF-Dateien", "*.pdf"), ("Alle Dateien", "*.*")])
+        if not pfad:
+            return
+        self.knopf_pdf.configure(state=tk.DISABLED)
+        self.status.configure(text="PDF wird eingelesen …")
+        threading.Thread(target=self._lese_pdf_im_hintergrund,
+                         args=(pfad,), daemon=True).start()
+
+    def _lese_pdf_im_hintergrund(self, pfad):
+        try:
+            try:
+                import fitz  # PyMuPDF
+            except ImportError:
+                raise RuntimeError(
+                    "Zum Einlesen von PDF bitte einmalig installieren:\n"
+                    "pip install pymupdf")
+            dokument = fitz.open(pfad)
+            text = "\n".join(seite.get_text() for seite in dokument).strip()
+            quelle = "PDF-Textebene"
+            if len(re.findall(r"[A-Za-zÄÖÜäöüß]+", text)) < 20:
+                # gescannter Bogen ohne Textebene -> Handschrifterkennung
+                # aus klausur_bewertung.pyw mitnutzen
+                self._queue.put(("status",
+                                 "Keine Textebene – starte Texterkennung "
+                                 "(erster Start: Modell-Download) …"))
+                lader = _lade_klausur_loader(
+                    lambda t: self._queue.put(("status", t)))
+                text, protokoll = lader.lese(pfad)
+                quelle = protokoll["quelle"]
+            self._queue.put(("pdf", (text, quelle)))
+        except Exception as fehler:
+            self._queue.put(("fehler", str(fehler)))
+
+    def _verarbeite_queue(self):
+        try:
+            while True:
+                art, daten = self._queue.get_nowait()
+                if art == "status":
+                    self.status.configure(text=daten)
+                elif art == "pdf":
+                    text, quelle = daten
+                    self.knopf_pdf.configure(state=tk.NORMAL)
+                    if not text.strip():
+                        messagebox.showwarning(
+                            "Nichts erkannt",
+                            "Im PDF konnte kein Text erkannt werden.")
+                        self.status.configure(text="PDF ohne erkennbaren "
+                                                   "Text.")
+                    else:
+                        self.text_eingabe.delete("1.0", tk.END)
+                        self.text_eingabe.insert("1.0", text)
+                        self.status.configure(
+                            text=f"PDF eingelesen ({quelle}). Bitte Text "
+                                 f"prüfen/anpassen, dann „→ Text in "
+                                 f"Aufgaben umwandeln“ klicken.")
+                elif art == "fehler":
+                    self.knopf_pdf.configure(state=tk.NORMAL)
+                    self.status.configure(text="PDF-Einlesen "
+                                               "fehlgeschlagen.")
+                    messagebox.showerror("PDF-Einlesen fehlgeschlagen",
+                                         daten)
+        except queue.Empty:
+            pass
+        self.after(100, self._verarbeite_queue)
 
     # ---------------- Parsen und Baum ----------------
 
