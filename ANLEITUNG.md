@@ -146,14 +146,21 @@ unsicheren Wörter zeigen, wo nachgesehen werden muss.
 
 - **Python 3.8+** mit Tkinter (in der Windows-Installation von
   [python.org](https://www.python.org) enthalten). Start per Doppelklick.
-- **Internetverbindung** für die kostenlose LanguageTool-API, *oder*
-  einmalig `pip install language_tool_python` (benötigt Java) für die
-  vollständig lokale Prüfung – wird automatisch bevorzugt.
-- *Optional:* `pip install python-docx` zum direkten Einlesen von
-  .docx-Dateien.
-- *Optional (PDF/Handschrift):* `pip install pymupdf easyocr` – dazu
-  empfohlen `pip install transformers torch` für die bestmögliche
-  Handschrifterkennung (TrOCR).
+- **Zusatzkomponenten installieren sich automatisch:** Wird eine Funktion
+  genutzt, deren Komponente fehlt (z. B. PDF laden → `pymupdf`,
+  Handschrifterkennung → `easyocr`, Word-Datei → `python-docx`), fragt das
+  Programm nach und installiert sie **auf Klick selbst** – mit
+  Fortschrittsfenster; danach wird der Vorgang automatisch fortgesetzt.
+  Nötig ist dafür nur eine Internetverbindung. (Wer lieber selbst
+  installiert: die pip-Befehle stehen im jeweiligen Dialog.)
+- **Sprachprüfung:** Internetverbindung für die kostenlose
+  LanguageTool-API, *oder* einmalig `pip install language_tool_python`
+  (benötigt zusätzlich Java) für die vollständig lokale Prüfung – wird
+  automatisch bevorzugt. (Diese Komponente wird wegen der
+  Java-Voraussetzung nicht automatisch installiert.)
+- *Optional (beste Handschrifterkennung):* `pip install transformers torch`
+  für TrOCR – groß (mehrere GB), daher ebenfalls bewusst nicht
+  automatisch; EasyOCR funktioniert auch ohne.
 
 ## JSON-Format des Erwartungshorizonts
 

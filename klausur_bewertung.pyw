@@ -43,10 +43,14 @@ pädagogische Beurteilung durch die Lehrkraft.
 """
 
 import difflib
+import importlib
 import json
 import math
+import os
 import queue
 import re
+import subprocess
+import sys
 import threading
 import tkinter as tk
 import urllib.parse
@@ -54,6 +58,137 @@ import urllib.request
 from tkinter import filedialog, messagebox, ttk
 
 APP_TITEL = "Klausur-Bewertung Englisch (Oberstufe, Erlass Hessen 2020)"
+
+
+# ----------------------------------------------------------------------------
+# Automatische Installation fehlender Komponenten
+# ----------------------------------------------------------------------------
+
+class FehlendePakete(RuntimeError):
+    """Signalisiert fehlende, per pip nachinstallierbare Komponenten."""
+
+    def __init__(self, pip_namen, zweck):
+        super().__init__(f"Für {zweck} fehlen folgende Komponenten: "
+                         + ", ".join(pip_namen))
+        self.pip_namen = list(pip_namen)
+        self.zweck = zweck
+
+
+class InstallationsDialog(tk.Toplevel):
+    """Installiert Pakete mit dem pip des laufenden Python und zeigt den
+    Fortschritt an. Ruft danach fertig(erfolg) im GUI-Thread auf."""
+
+    def __init__(self, parent, pip_namen, zweck, fertig):
+        super().__init__(parent)
+        self.title("Komponenten werden installiert …")
+        self.geometry("680x420")
+        self.transient(parent)
+        self.grab_set()
+        self._fertig = fertig
+        self._pakete = list(pip_namen)
+        self._queue = queue.Queue()
+
+        ttk.Label(self, padding=8, wraplength=650, justify=tk.LEFT,
+                  text=f"Für {zweck} werden folgende kostenlose Komponenten "
+                       f"installiert:\n{', '.join(pip_namen)}\n"
+                       f"Dies geschieht nur einmal und kann – je nach Paket – "
+                       f"einige Minuten dauern. Bitte Fenster geöffnet "
+                       f"lassen.").pack(anchor=tk.W)
+        rahmen = ttk.Frame(self, padding=(8, 0, 8, 0))
+        rahmen.pack(fill=tk.BOTH, expand=True)
+        self.log = tk.Text(rahmen, wrap=tk.WORD, font=("Consolas", 9),
+                           state=tk.DISABLED, height=14)
+        rollbalken = ttk.Scrollbar(rahmen, command=self.log.yview)
+        self.log.configure(yscrollcommand=rollbalken.set)
+        rollbalken.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log.pack(fill=tk.BOTH, expand=True)
+        self.knopf = ttk.Button(self, text="Bitte warten …",
+                                state=tk.DISABLED, command=self.destroy)
+        self.knopf.pack(pady=8)
+        self.protocol("WM_DELETE_WINDOW", self._schliessen_versuch)
+
+        self._laeuft = True
+        threading.Thread(target=self._installiere, args=(list(pip_namen),),
+                         daemon=True).start()
+        self.after(100, self._poll)
+
+    def _schliessen_versuch(self):
+        if not self._laeuft:
+            self.destroy()
+
+    def _installiere(self, pakete):
+        for zusatz in ([], ["--user"]):
+            befehl = [sys.executable, "-m", "pip", "install",
+                      "--upgrade"] + zusatz + pakete
+            self._queue.put(("zeile", "> " + " ".join(befehl)))
+            try:
+                flags = (subprocess.CREATE_NO_WINDOW
+                         if os.name == "nt" else 0)
+                prozess = subprocess.Popen(
+                    befehl, stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, text=True,
+                    encoding="utf-8", errors="replace",
+                    creationflags=flags)
+                for zeile in prozess.stdout:
+                    self._queue.put(("zeile", zeile.rstrip()))
+                if prozess.wait() == 0:
+                    self._queue.put(("ende", True))
+                    return
+                self._queue.put(("zeile", "Installation fehlgeschlagen – "
+                                          "versuche Alternative …"))
+            except Exception as fehler:
+                self._queue.put(("zeile", f"Fehler: {fehler}"))
+        self._queue.put(("ende", False))
+
+    def _poll(self):
+        try:
+            while True:
+                art, daten = self._queue.get_nowait()
+                if art == "zeile":
+                    self.log.configure(state=tk.NORMAL)
+                    self.log.insert(tk.END, daten + "\n")
+                    self.log.see(tk.END)
+                    self.log.configure(state=tk.DISABLED)
+                else:
+                    self._laeuft = False
+                    importlib.invalidate_caches()
+                    if daten:
+                        self._fertig(True)
+                        self.destroy()
+                        return
+                    self.title("Installation fehlgeschlagen")
+                    self.log.configure(state=tk.NORMAL)
+                    self.log.insert(
+                        tk.END,
+                        "\nDie automatische Installation hat nicht "
+                        "geklappt.\nBitte manuell in einer "
+                        "Eingabeaufforderung ausführen:\n"
+                        "pip install " + " ".join(self._pakete) + "\n"
+                        "und das Programm danach neu starten.\n")
+                    self.log.configure(state=tk.DISABLED)
+                    self.knopf.configure(state=tk.NORMAL, text="Schließen")
+                    self._fertig(False)
+                    return
+        except queue.Empty:
+            pass
+        self.after(100, self._poll)
+
+
+def biete_installation_an(parent, fehler, wiederholen, status_setzen=None):
+    """Fragt nach, installiert und wiederholt danach die Aktion.
+    fehler braucht die Attribute pip_namen und zweck."""
+    if messagebox.askyesno(
+            "Komponente installieren?",
+            f"Für {fehler.zweck} fehlen folgende kostenlose Komponenten:\n\n"
+            f"    {'  '.join(fehler.pip_namen)}\n\n"
+            f"Jetzt automatisch installieren?\n"
+            f"(einmalig, benötigt Internet; danach wird der Vorgang "
+            f"automatisch fortgesetzt)", parent=parent):
+        InstallationsDialog(
+            parent, fehler.pip_namen, fehler.zweck,
+            lambda erfolg: erfolg and parent.after(100, wiederholen))
+    elif status_setzen:
+        status_setzen("Installation abgelehnt – Vorgang abgebrochen.")
 
 LT_PUBLIC_API = "https://api.languagetool.org/v2/check"
 LT_CHUNK_LIMIT = 9000
@@ -451,9 +586,8 @@ class KlausurLoader:
         try:
             import fitz  # PyMuPDF
         except ImportError:
-            raise RuntimeError(
-                "Zum Einlesen von PDF bitte einmalig installieren:\n"
-                "pip install pymupdf")
+            raise FehlendePakete(["pymupdf"],
+                                 "das Einlesen von PDF-Dateien")
         dokument = fitz.open(pfad)
         textebene = "\n\n".join(seite.get_text().strip()
                                 for seite in dokument).strip()
@@ -465,9 +599,7 @@ class KlausurLoader:
         try:
             from PIL import Image
         except ImportError:
-            raise RuntimeError(
-                "Für die Handschrifterkennung bitte einmalig installieren:\n"
-                "pip install pillow easyocr")
+            raise FehlendePakete(["easyocr"], "die Handschrifterkennung")
         bilder = []
         for seite in dokument:
             pix = seite.get_pixmap(dpi=300)
@@ -514,11 +646,10 @@ class KlausurLoader:
         try:
             import easyocr
         except ImportError:
-            raise RuntimeError(
-                "Für die Handschrifterkennung bitte einmalig installieren:\n"
-                "pip install easyocr\n"
-                "(Beim ersten Start werden die Erkennungsmodelle "
-                "heruntergeladen.)")
+            raise FehlendePakete(
+                ["easyocr"],
+                "die Handschrifterkennung (die Erkennungsmodelle werden "
+                "beim ersten Start zusätzlich heruntergeladen)")
         self.status_melden("Lade Erkennungsmodell (erster Start: "
                            "Modell-Download) …")
         return easyocr.Reader(["en"], gpu=False, verbose=False)
@@ -1215,6 +1346,11 @@ class App(tk.Tk):
                        ("Alle Dateien", "*.*")])
         if not pfad:
             return
+        self._lade_datei(pfad)
+
+    def _lade_datei(self, pfad):
+        """Laedt eine Datei; bei fehlenden Komponenten wird die
+        automatische Installation angeboten und danach erneut geladen."""
         endung = pfad.lower().rsplit(".", 1)[-1]
         if endung in ("pdf", "png", "jpg", "jpeg"):
             self.knopf_pruefen.configure(state=tk.DISABLED)
@@ -1231,6 +1367,11 @@ class App(tk.Tk):
             else:
                 with open(pfad, encoding="utf-8", errors="replace") as datei:
                     inhalt = datei.read()
+        except FehlendePakete as fehler:
+            biete_installation_an(
+                self, fehler, lambda: self._lade_datei(pfad),
+                lambda text: self.status.configure(text=text))
+            return
         except Exception as fehler:
             messagebox.showerror("Fehler beim Laden",
                                  f"Datei konnte nicht gelesen werden:\n"
@@ -1248,7 +1389,7 @@ class App(tk.Tk):
             text, protokoll = loader.lese(pfad)
             self._queue.put(("dokument", (text, protokoll)))
         except Exception as fehler:
-            self._queue.put(("ladefehler", str(fehler)))
+            self._queue.put(("ladefehler", (fehler, pfad)))
 
     def _zeige_dokument(self, text, protokoll):
         self.knopf_pruefen.configure(state=tk.NORMAL)
@@ -1286,10 +1427,8 @@ class App(tk.Tk):
         try:
             import docx  # optional: python-docx
         except ImportError:
-            raise RuntimeError(
-                "Zum Einlesen von .docx bitte einmalig installieren:\n"
-                "pip install python-docx\n"
-                "Alternativ den Text als .txt speichern.")
+            raise FehlendePakete(["python-docx"],
+                                 "das Einlesen von Word-Dateien (.docx)")
         dokument = docx.Document(pfad)
         return "\n".join(absatz.text for absatz in dokument.paragraphs)
 
@@ -1342,9 +1481,18 @@ class App(tk.Tk):
                 elif art == "dokument":
                     self._zeige_dokument(*daten)
                 elif art == "ladefehler":
+                    fehler, pfad = daten
                     self.knopf_pruefen.configure(state=tk.NORMAL)
-                    self.status.configure(text="Einlesen fehlgeschlagen.")
-                    messagebox.showerror("Einlesen fehlgeschlagen", daten)
+                    if getattr(fehler, "pip_namen", None):
+                        biete_installation_an(
+                            self, fehler,
+                            lambda p=pfad: self._lade_datei(p),
+                            lambda text: self.status.configure(text=text))
+                    else:
+                        self.status.configure(
+                            text="Einlesen fehlgeschlagen.")
+                        messagebox.showerror("Einlesen fehlgeschlagen",
+                                             str(fehler))
                 else:
                     self.knopf_pruefen.configure(state=tk.NORMAL)
                     self.status.configure(text="Prüfung fehlgeschlagen.")

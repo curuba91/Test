@@ -40,17 +40,151 @@ Start: Doppelklick (Windows: .pyw ohne Konsolenfenster). Benötigt nur
 Python 3.8+ mit Tkinter; für PDF: pip install pymupdf.
 """
 
+import importlib
 import importlib.machinery
 import importlib.util
 import json
 import os
 import queue
 import re
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 APP_TITEL = "Erwartungshorizont-Editor (Klausur-Bewertung Englisch)"
+
+
+# ----------------------------------------------------------------------------
+# Automatische Installation fehlender Komponenten
+# ----------------------------------------------------------------------------
+
+class FehlendePakete(RuntimeError):
+    """Signalisiert fehlende, per pip nachinstallierbare Komponenten."""
+
+    def __init__(self, pip_namen, zweck):
+        super().__init__(f"Für {zweck} fehlen folgende Komponenten: "
+                         + ", ".join(pip_namen))
+        self.pip_namen = list(pip_namen)
+        self.zweck = zweck
+
+
+class InstallationsDialog(tk.Toplevel):
+    """Installiert Pakete mit dem pip des laufenden Python und zeigt den
+    Fortschritt an. Ruft danach fertig(erfolg) im GUI-Thread auf."""
+
+    def __init__(self, parent, pip_namen, zweck, fertig):
+        super().__init__(parent)
+        self.title("Komponenten werden installiert …")
+        self.geometry("680x420")
+        self.transient(parent)
+        self.grab_set()
+        self._fertig = fertig
+        self._pakete = list(pip_namen)
+        self._queue = queue.Queue()
+
+        ttk.Label(self, padding=8, wraplength=650, justify=tk.LEFT,
+                  text=f"Für {zweck} werden folgende kostenlose Komponenten "
+                       f"installiert:\n{', '.join(pip_namen)}\n"
+                       f"Dies geschieht nur einmal und kann – je nach Paket – "
+                       f"einige Minuten dauern. Bitte Fenster geöffnet "
+                       f"lassen.").pack(anchor=tk.W)
+        rahmen = ttk.Frame(self, padding=(8, 0, 8, 0))
+        rahmen.pack(fill=tk.BOTH, expand=True)
+        self.log = tk.Text(rahmen, wrap=tk.WORD, font=("Consolas", 9),
+                           state=tk.DISABLED, height=14)
+        rollbalken = ttk.Scrollbar(rahmen, command=self.log.yview)
+        self.log.configure(yscrollcommand=rollbalken.set)
+        rollbalken.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log.pack(fill=tk.BOTH, expand=True)
+        self.knopf = ttk.Button(self, text="Bitte warten …",
+                                state=tk.DISABLED, command=self.destroy)
+        self.knopf.pack(pady=8)
+        self.protocol("WM_DELETE_WINDOW", self._schliessen_versuch)
+
+        self._laeuft = True
+        threading.Thread(target=self._installiere, args=(list(pip_namen),),
+                         daemon=True).start()
+        self.after(100, self._poll)
+
+    def _schliessen_versuch(self):
+        if not self._laeuft:
+            self.destroy()
+
+    def _installiere(self, pakete):
+        for zusatz in ([], ["--user"]):
+            befehl = [sys.executable, "-m", "pip", "install",
+                      "--upgrade"] + zusatz + pakete
+            self._queue.put(("zeile", "> " + " ".join(befehl)))
+            try:
+                flags = (subprocess.CREATE_NO_WINDOW
+                         if os.name == "nt" else 0)
+                prozess = subprocess.Popen(
+                    befehl, stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, text=True,
+                    encoding="utf-8", errors="replace",
+                    creationflags=flags)
+                for zeile in prozess.stdout:
+                    self._queue.put(("zeile", zeile.rstrip()))
+                if prozess.wait() == 0:
+                    self._queue.put(("ende", True))
+                    return
+                self._queue.put(("zeile", "Installation fehlgeschlagen – "
+                                          "versuche Alternative …"))
+            except Exception as fehler:
+                self._queue.put(("zeile", f"Fehler: {fehler}"))
+        self._queue.put(("ende", False))
+
+    def _poll(self):
+        try:
+            while True:
+                art, daten = self._queue.get_nowait()
+                if art == "zeile":
+                    self.log.configure(state=tk.NORMAL)
+                    self.log.insert(tk.END, daten + "\n")
+                    self.log.see(tk.END)
+                    self.log.configure(state=tk.DISABLED)
+                else:
+                    self._laeuft = False
+                    importlib.invalidate_caches()
+                    if daten:
+                        self._fertig(True)
+                        self.destroy()
+                        return
+                    self.title("Installation fehlgeschlagen")
+                    self.log.configure(state=tk.NORMAL)
+                    self.log.insert(
+                        tk.END,
+                        "\nDie automatische Installation hat nicht "
+                        "geklappt.\nBitte manuell in einer "
+                        "Eingabeaufforderung ausführen:\n"
+                        "pip install " + " ".join(self._pakete) + "\n"
+                        "und das Programm danach neu starten.\n")
+                    self.log.configure(state=tk.DISABLED)
+                    self.knopf.configure(state=tk.NORMAL, text="Schließen")
+                    self._fertig(False)
+                    return
+        except queue.Empty:
+            pass
+        self.after(100, self._poll)
+
+
+def biete_installation_an(parent, fehler, wiederholen, status_setzen=None):
+    """Fragt nach, installiert und wiederholt danach die Aktion.
+    fehler braucht die Attribute pip_namen und zweck."""
+    if messagebox.askyesno(
+            "Komponente installieren?",
+            f"Für {fehler.zweck} fehlen folgende kostenlose Komponenten:\n\n"
+            f"    {'  '.join(fehler.pip_namen)}\n\n"
+            f"Jetzt automatisch installieren?\n"
+            f"(einmalig, benötigt Internet; danach wird der Vorgang "
+            f"automatisch fortgesetzt)", parent=parent):
+        InstallationsDialog(
+            parent, fehler.pip_namen, fehler.zweck,
+            lambda erfolg: erfolg and parent.after(100, wiederholen))
+    elif status_setzen:
+        status_setzen("Installation abgelehnt – Vorgang abgebrochen.")
 
 AUFGABE_MUSTER = re.compile(
     r"^\s*(?:Aufgabe|Task)\s*(\d+[a-z]?)\s*[.):–-]?\s*(.*)$", re.IGNORECASE)
@@ -287,6 +421,9 @@ class Editor(tk.Tk):
             filetypes=[("PDF-Dateien", "*.pdf"), ("Alle Dateien", "*.*")])
         if not pfad:
             return
+        self._starte_pdf(pfad)
+
+    def _starte_pdf(self, pfad):
         self.knopf_pdf.configure(state=tk.DISABLED)
         self.status.configure(text="PDF wird eingelesen …")
         threading.Thread(target=self._lese_pdf_im_hintergrund,
@@ -297,9 +434,8 @@ class Editor(tk.Tk):
             try:
                 import fitz  # PyMuPDF
             except ImportError:
-                raise RuntimeError(
-                    "Zum Einlesen von PDF bitte einmalig installieren:\n"
-                    "pip install pymupdf")
+                raise FehlendePakete(["pymupdf"],
+                                     "das Einlesen von PDF-Dateien")
             dokument = fitz.open(pfad)
             text = "\n".join(seite.get_text() for seite in dokument).strip()
             quelle = "PDF-Textebene"
@@ -315,7 +451,7 @@ class Editor(tk.Tk):
                 quelle = protokoll["quelle"]
             self._queue.put(("pdf", (text, quelle)))
         except Exception as fehler:
-            self._queue.put(("fehler", str(fehler)))
+            self._queue.put(("fehler", (fehler, pfad)))
 
     def _verarbeite_queue(self):
         try:
@@ -340,11 +476,18 @@ class Editor(tk.Tk):
                                  f"prüfen/anpassen, dann „→ Text in "
                                  f"Aufgaben umwandeln“ klicken.")
                 elif art == "fehler":
+                    fehler, pfad = daten
                     self.knopf_pdf.configure(state=tk.NORMAL)
-                    self.status.configure(text="PDF-Einlesen "
-                                               "fehlgeschlagen.")
-                    messagebox.showerror("PDF-Einlesen fehlgeschlagen",
-                                         daten)
+                    if getattr(fehler, "pip_namen", None):
+                        biete_installation_an(
+                            self, fehler,
+                            lambda p=pfad: self._starte_pdf(p),
+                            lambda text: self.status.configure(text=text))
+                    else:
+                        self.status.configure(text="PDF-Einlesen "
+                                                   "fehlgeschlagen.")
+                        messagebox.showerror("PDF-Einlesen fehlgeschlagen",
+                                             str(fehler))
         except queue.Empty:
             pass
         self.after(100, self._verarbeite_queue)
