@@ -1,0 +1,94 @@
+{
+  "titel": "Klausur Q1.1 – Globalization: Chances and Challenges",
+  "sprache": "en-GB",
+  "gewichtung": {
+    "inhalt": 0.4,
+    "sprache": 0.6
+  },
+  "sprachbewertung": {
+    "abzug_pro_fehler_pro_100_woerter": 10
+  },
+  "aufgaben": [
+    {
+      "nummer": "1",
+      "titel": "Comprehension: Summarize the author's main points on globalization",
+      "max_punkte": 12,
+      "erwartungen": [
+        {
+          "beschreibung": "Nennt die zentrale These des Autors (wachsende weltweite Verflechtung)",
+          "punkte": 4,
+          "schluesselwoerter": ["interconnected", "interdependence", "global trade", "worldwide exchange"],
+          "mindestens": 1
+        },
+        {
+          "beschreibung": "Benennt wirtschaftliche Aspekte (Handel, Outsourcing, multinationale Konzerne)",
+          "punkte": 4,
+          "schluesselwoerter": ["outsourcing", "multinational", "supply chain", "free trade", "corporations"],
+          "mindestens": 2
+        },
+        {
+          "beschreibung": "Fasst die im Text genannten Risiken zusammen",
+          "punkte": 4,
+          "schluesselwoerter": ["inequality", "exploitation", "job loss", "environmental damage"],
+          "mindestens": 2
+        }
+      ]
+    },
+    {
+      "nummer": "2",
+      "titel": "Analysis: Analyse the author's line of argument and use of language",
+      "max_punkte": 16,
+      "erwartungen": [
+        {
+          "beschreibung": "Beschreibt den Argumentationsaufbau (These, Beispiele, Schlussfolgerung)",
+          "punkte": 5,
+          "schluesselwoerter": ["thesis", "argument", "example", "conclusion", "structure"],
+          "mindestens": 2
+        },
+        {
+          "beschreibung": "Analysiert sprachliche Mittel mit Beleg (Metapher, Anapher, rhetorische Frage)",
+          "punkte": 6,
+          "schluesselwoerter": ["metaphor", "anaphora", "rhetorical question", "imagery", "repetition", "alliteration"],
+          "mindestens": 2
+        },
+        {
+          "beschreibung": "Erläutert die Wirkung auf den Leser / die Intention des Autors",
+          "punkte": 5,
+          "schluesselwoerter": ["effect", "reader", "intention", "persuade", "appeal", "convince"],
+          "mindestens": 2
+        }
+      ]
+    },
+    {
+      "nummer": "3",
+      "titel": "Comment: 'Globalization does more harm than good.' Discuss.",
+      "max_punkte": 12,
+      "erwartungen": [
+        {
+          "beschreibung": "Formuliert eine klare eigene Position mit Einleitung",
+          "punkte": 3,
+          "schluesselwoerter": ["in my opinion", "I believe", "I would argue", "from my point of view"],
+          "mindestens": 1
+        },
+        {
+          "beschreibung": "Nennt Pro-Argumente (Wohlstand, kultureller Austausch, Innovation)",
+          "punkte": 4,
+          "schluesselwoerter": ["prosperity", "cultural exchange", "innovation", "opportunities", "development"],
+          "mindestens": 2
+        },
+        {
+          "beschreibung": "Nennt Contra-Argumente (Ungleichheit, Umwelt, Abhängigkeit)",
+          "punkte": 4,
+          "schluesselwoerter": ["inequality", "pollution", "dependence", "exploitation", "climate"],
+          "mindestens": 2
+        },
+        {
+          "beschreibung": "Schließt mit einem begründeten Fazit",
+          "punkte": 1,
+          "schluesselwoerter": ["in conclusion", "to sum up", "all in all", "weighing"],
+          "mindestens": 1
+        }
+      ]
+    }
+  ]
+}

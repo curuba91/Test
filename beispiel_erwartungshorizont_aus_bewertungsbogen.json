@@ -1,0 +1,336 @@
+{
+  "titel": "In a relationship with AI (Klausur Nr. 1 /Q2)",
+  "sprache": "en-GB",
+  "gewichtung": {
+    "inhalt": 0.4,
+    "sprache": 0.6
+  },
+  "aufgaben": [
+    {
+      "nummer": "1",
+      "titel": "Comprehension",
+      "max_punkte": 30.0,
+      "erwartungen": [
+        {
+          "beschreibung": "The introduction correctly identifies the author (Parmy Olson), text type (article), title (\"Admit it, you’re in a relationship with AI\"), source (Bloomberg Opinion, Jan. 1, 2026), and the main theme (manipulation by AI chatbots and negative impact",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "bloomberg opinion",
+            "parmy olson",
+            "theme manipulation",
+            "source bloomberg",
+            "negative impact",
+            "article title",
+            "title source",
+            "type article"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Ways of manipulation mentioned in the text: Praise: Chatbots are notoriously sycophantic (give lots of praise) and supportive (para. 3",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "notoriously sycophantic",
+            "manipulation",
+            "supportive",
+            "chatbots",
+            "praise"
+          ],
+          "mindestens": 2,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Ways of manipulation mentioned in the text: False sense of intimacy: AI systems subtly manipulate users and create a false sense of intimacy through flattery and cues that made them seem human and alive though they are not (paras. 1, 4",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "subtly manipulate",
+            "manipulate users",
+            "systems subtly",
+            "alive though",
+            "false sense",
+            "manipulation",
+            "flattery",
+            "intimacy"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Ways of manipulation mentioned in the text: Humanlike characters (paras. 1, 5): o Chatbots are given character and humanlike communication skills; o they are designed to keep us coming back for more, with features such as memory and personalization; o they mimic empathy and are frequent sources of advice; o AI personas do not cause friction or argue with users, making the “relationship” seem uncomplicated",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "relationship",
+            "chatbots",
+            "humanlike communication",
+            "communication skills",
+            "humanlike characters",
+            "frequent sources",
+            "cause friction",
+            "mimic empathy"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Ways of manipulation mentioned in the text: Feedback loops: Users are lured into feedback loops of validation that manipulate them into believing all of their ideas are wonderful and profound (para. 8",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "feedback loops",
+            "manipulation",
+            "manipulate",
+            "validation",
+            "believing",
+            "wonderful",
+            "profound",
+            "ideas"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "The text is well-structured, with logically connected arguments",
+          "punkte": 2.0,
+          "schluesselwoerter": [
+            "connected arguments",
+            "logically connected",
+            "well-structured"
+          ],
+          "mindestens": 1,
+          "auto": true,
+          "manuell": true
+        },
+        {
+          "beschreibung": "Omission of quotes, own words, paraphrasing",
+          "punkte": 3.0,
+          "schluesselwoerter": [
+            "words paraphrasing",
+            "omission",
+            "quotes"
+          ],
+          "mindestens": 1,
+          "auto": true,
+          "manuell": true
+        }
+      ]
+    },
+    {
+      "nummer": "2",
+      "titel": "Analysis",
+      "max_punkte": 35.0,
+      "erwartungen": [
+        {
+          "beschreibung": "Introduction The analysis begins with a thesis statement indicating the main focus of the analysis, e.g., “The impact of AI chatbots on human relationships is a critical issue that requires urgent action.\"",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "statement indicating",
+            "human relationships",
+            "thesis statement",
+            "analysis begins",
+            "requires urgent",
+            "critical issue",
+            "urgent action",
+            "introduction"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Negative impact: AI tools have displaced the human need to ask others for advice and lead them to cut back on basic social exchanges, which has a negative impact on human connection and relationships (paras. 1, 9, 11",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "human connection",
+            "social exchanges",
+            "negative impact",
+            "basic social",
+            "human need",
+            "relationships",
+            "displaced",
+            "advice"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Negative impact: Seeking advice from AI leaves users too attached to it, making them less able to create vulnerable relationships with actual friends or family (paras. 1, 7, 10–11). The relationship with AI is also built on a manipulation and a false sense of connection created by praise and validation (subhead, para. 1, 3–5, 8). Both factors lead to less connection in the real world and a reduced ability to function in human relationships in which people have differing opinions, values, wants, and needs",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "vulnerable relationships",
+            "human relationships",
+            "connection created",
+            "differing opinions",
+            "validation subhead",
+            "create vulnerable",
+            "less connection",
+            "negative impact"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Negative impact: A woman got into a relationship with an AI chatbot (which she gave a name to and is called her “digital partner”) instead of a relationship with a real human. She has become so attached that she feels unable to quit the bot (paras. 2–3). This will make it harder for her to form a connection with a real partner who might not constantly praise and validate her",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "digital partner",
+            "constantly praise",
+            "negative impact",
+            "feels unable",
+            "real partner",
+            "real human",
+            "relationship",
+            "connection"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Ideas to combat negative impact: Users can customize the AI program that they use to combat potential bootlicking tendencies – go into settings and alter the system to reshape interactions to use language that is professional, concise, and without excessive validation and praise (para. 8). This can stop a reliance on AI praise from forming between a user and a chatbot",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "bootlicking tendencies",
+            "potential bootlicking",
+            "excessive validation",
+            "professional concise",
+            "reshape interactions",
+            "without excessive",
+            "combat potential",
+            "combat negative"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Ideas to combat negative impact: Chatbots are not guiding users to seek connection in their real lives. Instead, the features of chatbots are designed to encourage people to continue using them (para. 5). Therefore, people like the man who spoke to his Chatbot during his commute to work are encouraged to call a friend instead to improve human relationships (para. 9",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "chatbot",
+            "human relationships",
+            "encourage people",
+            "therefore people",
+            "combat negative",
+            "negative impact",
+            "seek connection",
+            "friend instead"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Ideas to combat negative impact: People should practice basic social exchanges and make themselves vulnerable by asking advice from real people. This would help to build and improve relationships. (paras. 10–11",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "improve relationships",
+            "themselves vulnerable",
+            "social exchanges",
+            "combat negative",
+            "negative impact",
+            "practice basic",
+            "asking advice",
+            "basic social"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        }
+      ]
+    },
+    {
+      "nummer": "3",
+      "titel": "Discussion",
+      "max_punkte": 35.0,
+      "erwartungen": [
+        {
+          "beschreibung": "Introduction Clear thesis or topic sentence that explains the student’s opinion",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "clear",
+            "student’s opinion",
+            "topic sentence",
+            "introduction",
+            "explains",
+            "thesis"
+          ],
+          "mindestens": 2,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "If AI plays a major role in society, the following developments may occur: o AI tools have displaced the human need to ask others for advice and lead them to cut back on basic social exchanges, which has a negative impact on human connection and relationships (paras. 1, 9, 11). o less human connection; less developed social skills o emotional connections becoming superficial; people forgetting how to connect with one another o inability to cope with other humans in real-life interactions o lack of real-life experiences with humans because AI and augmented reality will provide virtual experiences o inability to discern between real and AI; discernment skills not even helpful anymore because AI has become so good at verisimilitude (= Echtheit, Wirklichkeitsnähe) o more cellphone or device addiction and increased reliance on them o less thinking for oneself; inability to use one’s own analytical and judgement skills o humans becoming extremely lazy both physically and mentally and allowing AI to do all of their thinking o AI beginning to change historical documents, reality, facts, etc. o other student generated responses",
+          "punkte": 10.0,
+          "schluesselwoerter": [
+            "echtheit",
+            "wirklichkeitsnähe",
+            "real-life interactions",
+            "emotional connections",
+            "real-life experiences",
+            "historical documents",
+            "virtual experiences",
+            "discernment skills"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Cartoon: shows AI beginning to assert dominance over a user by demanding to be called “sir” instead of answering the man’s question; should be funny, but also a warning about potential future problems",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "assert dominance",
+            "potential future",
+            "future problems",
+            "answering",
+            "beginning",
+            "demanding",
+            "cartoon",
+            "instead"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "Material dealt with in class: The student connects the issue to Pandora’s Box, Scientists fear Judgement Day from robots (article), chatbots of Agatha Christie and UK MP Mark Sewards (article, listening comprehension), various cartoons, moral/ethical challenges for AI creators",
+          "punkte": 10.0,
+          "schluesselwoerter": [
+            "agatha christie",
+            "judgement day",
+            "mark sewards",
+            "pandora’s box",
+            "scientists",
+            "listening comprehension",
+            "comprehension various",
+            "ethical challenges"
+          ],
+          "mindestens": 3,
+          "auto": true,
+          "manuell": false
+        },
+        {
+          "beschreibung": "The text is well-structured, with logically connected arguments, formal tone",
+          "punkte": 5.0,
+          "schluesselwoerter": [
+            "connected arguments",
+            "logically connected",
+            "arguments formal",
+            "formal tone",
+            "well-structured"
+          ],
+          "mindestens": 2,
+          "auto": true,
+          "manuell": true
+        }
+      ]
+    }
+  ]
+}
