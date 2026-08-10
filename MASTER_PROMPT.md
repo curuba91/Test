@@ -6,6 +6,12 @@ anhängen. Die Antwort von Copilot kopieren und in **ProcessMap Studio** über
 den Button „Copilot-Antwort einfügen“ übernehmen — der Mermaid-Codeblock wird
 automatisch herausgelöst.
 
+Das Ergebnis speist **alle drei Ausgabewege**: HTML-Vorschau, PDF und die
+bearbeitbare Visio-Datei. Die unten festgelegten Knotentypen bestimmen dabei
+direkt die Visio-Formen (Stadion, Rechteck, Raute, Parallelogramm,
+Teilprozess), `subgraph` wird zu einem beschrifteten Rahmen. Deshalb lohnt
+es sich, die Konventionen einzuhalten — sie sind kein Selbstzweck.
+
 > Tipp: Der Prompt ist auch direkt im Tool hinterlegt
 > (Button „Master-Prompt kopieren“).
 
