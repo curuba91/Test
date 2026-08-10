@@ -42,12 +42,42 @@ den Prozess ändert, ändert den Mermaid-Code und exportiert neu.
 - Der **Visio-Export braucht weder Visio noch Internet** – die Datei wird
   komplett aus der Python-Standardbibliothek erzeugt
 
+## Die Oberfläche
+
+Links führt eine Leiste **„So läuft es ab“** durch die vier Schritte, oben
+nach unten mit Pfeilen verbunden; rechts steht der Editor:
+
+```
+┌──────────────────────┬──────────────────────────────────┐
+│ 1. Vorbereiten       │  Titel: [ Rechnungsprüfung     ] │
+│   [Master-Prompt…]   │                                  │
+│         ↓            │  Prozess-Code (Mermaid)          │
+│ 2. Übernehmen        │  ┌────────────────────────────┐  │
+│   [Copilot-Antwort…] │  │ flowchart TD               │  │
+│   [Beispiel laden]   │  │   A0(["Start"]) --> A1[…]  │  │
+│         ↓            │  │   …                        │  │
+│ 3. Prüfen            │  │                            │  │
+│   [Vorschau…]        │  │                            │  │
+│         ↓            │  │                            │  │
+│ 4. Ausgeben          │  │                            │  │
+│   [Visio (.vsdx)]    │  │                            │  │
+│   [PDF]  [HTML]      │  └────────────────────────────┘  │
+├──────────────────────┴──────────────────────────────────┤
+│ Statuszeile: sagt, welcher Schritt als Nächstes dran ist│
+└─────────────────────────────────────────────────────────┘
+```
+
+Schritt 3 und 4 sind **gesperrt, solange kein Code im Editor steht** – die
+Reihenfolge ist damit nicht nur beschriftet, sondern durchgesetzt. Sobald
+etwas im Editor steht, schalten sie sich frei. Die Statuszeile bestätigt
+jeden Schritt und nennt den nächsten.
+
 ## Verwendung
 
 1. `ProcessMapStudio.pyw` per Doppelklick starten.
 2. Mermaid-Code in den Editor schreiben (ein Beispiel ist vorgeladen) und auf
    **„Vorschau im Browser“** klicken – die Map öffnet sich im Standardbrowser.
-3. **„PDF exportieren…“** erzeugt direkt eine PDF-Datei. Ein Dialog fragt ab:
+3. **„PDF – zum Drucken“** erzeugt direkt eine PDF-Datei. Ein Dialog fragt ab:
    - **Ausrichtung:** Querformat oder Hochformat (A4)
    - **Darstellung:** auf eine Seite einpassen (verkleinert) oder wie
      angezeigt (mehrseitig, an der Seitenbreite ausgerichtet)
@@ -57,13 +87,13 @@ den Prozess ändert, ändert den Mermaid-Code und exportiert neu.
    jedem Windows-Rechner vorhanden. Wird kein passender Browser gefunden,
    öffnet sich als Fallback der Druckdialog des Standardbrowsers mit
    voreingestelltem Format (dort „Als PDF speichern“ wählen).
-4. **„Visio exportieren…“** erzeugt eine `.vsdx`-Datei (siehe unten).
-5. **„Als HTML speichern…“** erzeugt eine eigenständige HTML-Datei, die sich
-   per E-Mail teilen oder im Browser drucken lässt.
+4. **„Visio (.vsdx) – bearbeitbar“** erzeugt eine Visio-Datei (siehe unten).
+5. **„HTML – zum Teilen“** erzeugt eine eigenständige HTML-Datei, die sich
+   per E-Mail verschicken oder im Browser drucken lässt.
 
 ## Visio-Export (.vsdx)
 
-Die Schaltfläche **„Visio exportieren…“** schreibt eine echte
+Die Schaltfläche **„Visio (.vsdx) – bearbeitbar“** schreibt eine echte
 Visio-Zeichnung. Was in Visio ankommt:
 
 - **Native Visio-Formen**, keine Bilder – jede Form ist einzeln

@@ -37,9 +37,10 @@ import zipfile
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, font as tkfont, messagebox, ttk
 
 APP_TITLE = "ProcessMap Studio"
+SIDEBAR_WIDTH = 250          # Breite der Schrittleiste in Pixeln
 MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
 LOCAL_MERMAID = Path(__file__).resolve().parent / "mermaid.min.js"
 
@@ -1398,54 +1399,114 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("980x680")
-        self.minsize(720, 480)
+        self.geometry("1060x720")
+        self.minsize(880, 560)
         self._build_ui()
 
+    def _step_frame(self, parent, number, title, hint):
+        """Ein nummerierter Prozessschritt in der linken Leiste."""
+        frame = ttk.LabelFrame(parent, text="  %d.  %s  " % (number, title),
+                               padding=(9, 5, 9, 8))
+        frame.pack(fill="x")
+        ttk.Label(frame, text=hint, font=self.hint_font, foreground="#5A6672",
+                  wraplength=SIDEBAR_WIDTH - 40, justify="left").pack(
+            anchor="w", pady=(0, 6))
+        return frame
+
+    def _arrow(self, parent):
+        ttk.Label(parent, text="↓", foreground="#AAB3BD").pack(pady=(1, 1))
+
     def _build_ui(self):
-        toolbar = ttk.Frame(self, padding=(10, 8))
-        toolbar.pack(fill="x")
+        default_font = tkfont.nametofont("TkDefaultFont")
+        self.hint_font = default_font.copy()
+        self.hint_font.configure(size=max(7, int(default_font.cget("size")) - 1))
 
-        ttk.Label(toolbar, text="Titel:").pack(side="left")
+        outer = ttk.Frame(self)
+        outer.pack(fill="both", expand=True)
+
+        # ------------------------------------------------ linke Schrittleiste
+        sidebar = ttk.Frame(outer, padding=(12, 10, 6, 10), width=SIDEBAR_WIDTH)
+        sidebar.pack(side="left", fill="y")
+        sidebar.pack_propagate(False)
+
+        ttk.Label(sidebar, text="So läuft es ab",
+                  font=(default_font.cget("family"),
+                        int(default_font.cget("size")) + 1, "bold")).pack(
+            anchor="w", pady=(0, 8))
+
+        step1 = self._step_frame(
+            sidebar, 1, "Vorbereiten",
+            "Prompt kopieren, in Copilot einfügen und den Text bzw. die PDF "
+            "darunter anhängen.")
+        ttk.Button(step1, text="Master-Prompt kopieren",
+                   command=self.copy_prompt).pack(fill="x")
+        self._arrow(sidebar)
+
+        step2 = self._step_frame(
+            sidebar, 2, "Übernehmen",
+            "Antwort von Copilot kopieren und hier einsetzen. Der Codeblock "
+            "wird automatisch herausgelöst.")
+        ttk.Button(step2, text="Copilot-Antwort einfügen",
+                   command=self.paste_copilot).pack(fill="x")
+        ttk.Button(step2, text="Beispiel laden",
+                   command=self.load_example).pack(fill="x", pady=(4, 0))
+        self._arrow(sidebar)
+
+        step3 = self._step_frame(
+            sidebar, 3, "Prüfen",
+            "Diagramm ansehen und im Editor rechts bei Bedarf korrigieren.")
+        preview_button = ttk.Button(step3, text="Vorschau im Browser",
+                                    command=self.preview)
+        preview_button.pack(fill="x")
+        self._arrow(sidebar)
+
+        step4 = self._step_frame(
+            sidebar, 4, "Ausgeben",
+            "Ergebnis als Datei speichern.")
+        visio_button = ttk.Button(step4, text="Visio (.vsdx) – bearbeitbar",
+                                  command=self.export_visio)
+        visio_button.pack(fill="x")
+        pdf_button = ttk.Button(step4, text="PDF – zum Drucken",
+                                command=self.export_pdf)
+        pdf_button.pack(fill="x", pady=(4, 0))
+        html_button = ttk.Button(step4, text="HTML – zum Teilen",
+                                 command=self.save_html)
+        html_button.pack(fill="x", pady=(4, 0))
+
+        # Schritt 3 und 4 sind erst sinnvoll, wenn Code vorhanden ist.
+        self._needs_code = [preview_button, visio_button, pdf_button, html_button]
+
+        # ------------------------------------------------------ rechter Editor
+        right = ttk.Frame(outer, padding=(6, 10, 12, 10))
+        right.pack(side="left", fill="both", expand=True)
+
+        title_row = ttk.Frame(right)
+        title_row.pack(fill="x", pady=(0, 8))
+        ttk.Label(title_row, text="Titel der Prozesskarte:").pack(side="left")
         self.title_var = tk.StringVar(value="Process Map")
-        ttk.Entry(toolbar, textvariable=self.title_var, width=32).pack(
-            side="left", padx=(4, 16)
-        )
+        ttk.Entry(title_row, textvariable=self.title_var).pack(
+            side="left", fill="x", expand=True, padx=(8, 0))
 
-        ttk.Button(toolbar, text="Vorschau im Browser", command=self.preview).pack(
-            side="left", padx=2
-        )
-        ttk.Button(toolbar, text="PDF exportieren…", command=self.export_pdf).pack(
-            side="left", padx=2
-        )
-        ttk.Button(toolbar, text="Visio exportieren…", command=self.export_visio).pack(
-            side="left", padx=2
-        )
-        ttk.Button(toolbar, text="Als HTML speichern…", command=self.save_html).pack(
-            side="left", padx=2
-        )
-        ttk.Button(
-            toolbar, text="Copilot-Antwort einfügen", command=self.paste_copilot
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            toolbar, text="Master-Prompt kopieren", command=self.copy_prompt
-        ).pack(side="left", padx=2)
-        ttk.Button(toolbar, text="Beispiel laden", command=self.load_example).pack(
-            side="left", padx=2
-        )
+        ttk.Label(right, text="Prozess-Code (Mermaid) – jederzeit von Hand "
+                              "änderbar",
+                  font=self.hint_font, foreground="#5A6672").pack(
+            anchor="w", pady=(0, 3))
 
-        editor_frame = ttk.Frame(self, padding=(10, 0, 10, 0))
+        editor_frame = ttk.Frame(right)
         editor_frame.pack(fill="both", expand=True)
-
         self.text = tk.Text(
             editor_frame,
             wrap="none",
             undo=True,
             font=("Consolas", 11),
             background="#fdfdfd",
+            relief="solid",
+            borderwidth=1,
         )
-        yscroll = ttk.Scrollbar(editor_frame, orient="vertical", command=self.text.yview)
-        xscroll = ttk.Scrollbar(editor_frame, orient="horizontal", command=self.text.xview)
+        yscroll = ttk.Scrollbar(editor_frame, orient="vertical",
+                                command=self.text.yview)
+        xscroll = ttk.Scrollbar(editor_frame, orient="horizontal",
+                                command=self.text.xview)
         self.text.configure(yscrollcommand=yscroll.set, xscrollcommand=xscroll.set)
         self.text.grid(row=0, column=0, sticky="nsew")
         yscroll.grid(row=0, column=1, sticky="ns")
@@ -1453,13 +1514,31 @@ class App(tk.Tk):
         editor_frame.rowconfigure(0, weight=1)
         editor_frame.columnconfigure(0, weight=1)
 
-        self.status_var = tk.StringVar(
-            value="Bereit. Mermaid-Code eingeben oder Copilot-Antwort einfügen, "
-            "dann „Vorschau im Browser“."
-        )
-        ttk.Label(self, textvariable=self.status_var, padding=(10, 6)).pack(fill="x")
+        # ---------------------------------------------------------- Statuszeile
+        ttk.Separator(self, orient="horizontal").pack(fill="x")
+        self.status_var = tk.StringVar()
+        ttk.Label(self, textvariable=self.status_var, padding=(12, 6),
+                  anchor="w").pack(fill="x")
 
+        self._suppress_modified = False
+        self.text.bind("<<Modified>>", self._on_modified)
         self.load_example()
+        self.status_var.set("Bereit – mit Schritt 1 beginnen oder direkt "
+                            "Mermaid-Code eintippen.")
+
+    def _on_modified(self, _event=None):
+        if self._suppress_modified:
+            return
+        self._suppress_modified = True
+        self.text.edit_modified(False)
+        self._suppress_modified = False
+        self._update_actions()
+
+    def _update_actions(self):
+        """Schritt 3 und 4 nur freischalten, wenn es etwas auszugeben gibt."""
+        state = "normal" if self.get_code() else "disabled"
+        for button in self._needs_code:
+            button.configure(state=state)
 
     # -- Aktionen -----------------------------------------------------------
     def get_code(self) -> str:
@@ -1468,18 +1547,18 @@ class App(tk.Tk):
     def set_code(self, code: str):
         self.text.delete("1.0", "end")
         self.text.insert("1.0", code)
+        self._update_actions()
 
     def load_example(self):
         self.set_code(EXAMPLE_DIAGRAM)
-        self.status_var.set("Beispiel geladen.")
+        self.status_var.set("Beispiel geladen – weiter mit Schritt 3 (Prüfen).")
 
     def copy_prompt(self):
         self.clipboard_clear()
         self.clipboard_append(MASTER_PROMPT)
         self.status_var.set(
-            "Master-Prompt in Zwischenablage. In Copilot einfügen, darunter den "
-            "Quelltext/PDF-Inhalt anhängen, Antwort hier per "
-            "„Copilot-Antwort einfügen“ übernehmen."
+            "Schritt 1 erledigt: Prompt liegt in der Zwischenablage. In Copilot "
+            "einfügen, Text/PDF darunter anhängen – dann weiter mit Schritt 2."
         )
 
     def paste_copilot(self):
@@ -1495,7 +1574,10 @@ class App(tk.Tk):
             )
             return
         self.set_code(code)
-        self.status_var.set("Mermaid-Code aus Copilot-Antwort übernommen.")
+        self.status_var.set(
+            "Schritt 2 erledigt: Code übernommen. Bitte in Schritt 3 prüfen, "
+            "ob der Prozess wirklich so stimmt."
+        )
 
     def _validate(self, code: str) -> bool:
         if not code:
