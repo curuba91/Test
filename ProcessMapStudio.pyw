@@ -1277,18 +1277,24 @@ def _connector_xml(shape_id, from_id, to_id, path, label):
         _cell("EndArrow", 4),
         _cell("EndArrowSize", 2),
         # Beschriftung auf die Mitte der tatsaechlichen Strecke setzen (sonst
-        # erbt sie die Position des Masters und landet neben der Zielform)
-        _cell("TxtPinX", _num(label_x)),
-        _cell("TxtPinY", _num(label_y)),
+        # erbt sie die Position des Masters und landet neben der Zielform).
+        # Ebenfalls an Width/Height gebunden, damit sie beim Verschieben einer
+        # Form mitwandert statt stehen zu bleiben.
+        _cell("TxtPinX", _num(label_x),
+              "Width*%s" % _num(0.0 if abs(width) < 1e-9 else label_x / width)),
+        _cell("TxtPinY", _num(label_y),
+              "Height*%s" % _num(0.0 if abs(height) < 1e-9 else label_y / height)),
         _cell("TxtWidth", _num(0.6), "MAX(TEXTWIDTH(TheText),5*Char.Size)"),
         _cell("TxtHeight", _num(0.25), "TEXTHEIGHT(TheText,TxtWidth)"),
         _cell("TxtLocPinX", _num(0.3), "TxtWidth*0.5"),
         _cell("TxtLocPinY", _num(0.125), "TxtHeight*0.5"),
         _cell("TxtAngle", 0, "GUARD(0DA)"),
     ]
+    share_text_x = 0.0 if abs(width) < 1e-9 else label_x / width
+    share_text_y = 0.0 if abs(height) < 1e-9 else label_y / height
     parts.append("<Section N='Control'><Row N='TextPosition'>"
-                 + _cell("X", _num(label_x))
-                 + _cell("Y", _num(label_y))
+                 + _cell("X", _num(label_x), "Width*%s" % _num(share_text_x))
+                 + _cell("Y", _num(label_y), "Height*%s" % _num(share_text_y))
                  + _cell("XDyn", _num(label_x), "Controls.TextPosition")
                  + _cell("YDyn", _num(label_y), "Controls.TextPosition.Y")
                  + _cell("XCon", 0) + _cell("YCon", 0) + _cell("CanGlue", 0)
