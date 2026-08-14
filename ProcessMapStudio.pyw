@@ -517,6 +517,7 @@ DUMMY_WIDTH = 0.26     # Spurbreite fuer durchlaufende Kanten
 PARALLEL_GAP = 0.75    # Versatz zwischen mehreren Kanten derselben Formen
 LANE_CLEARANCE = 0.22  # Abstand einer Leitungsspur zur naechsten Form
 LANE_MIN = 0.30        # Mindestabstand zwischen zwei Leitungsspuren
+DEGENERATE_SPAN = 0.25 # Ersatzausdehnung fuer achsparallele Verbinder
 
 
 def wrap_limit(horizontal):
@@ -1120,9 +1121,13 @@ def _shape_xml(shape_id, node, x, y, width, height, horizontal=False):
     # Start/Ende hat bereits runde Kappen in der Geometrie
     rounding = 0.0 if node.kind in (K_TERMINATOR, K_DECISION) else 0.06
 
-    parts = ["<Shape ID='%d' NameU='%s' Name='%s' Type='Shape' "
-             "LineStyle='0' FillStyle='0' TextStyle='0'>"
-             % (shape_id, _attr(node.nid), _attr(node.nid))]
+    # BEWUSST OHNE Name/NameU: Visio spricht eine unbenannte Form ueber ihren
+    # Standardnamen "Sheet.<ID>" an. Genau darauf verweisen die Auslöser der
+    # Verbinder (_XFTRIGGER(Sheet.N!EventXFMod)). Bekommt die Form einen
+    # eigenen Namen, laeuft dieser Verweis ins Leere - die Verbinder wuerden
+    # beim Verschieben nicht mehr nachgefuehrt.
+    parts = ["<Shape ID='%d' Type='Shape' "
+             "LineStyle='0' FillStyle='0' TextStyle='0'>" % shape_id]
     parts += [
         _cell("PinX", _num(x)), _cell("PinY", _num(y)),
         _cell("Width", _num(width)), _cell("Height", _num(height)),
@@ -1242,14 +1247,34 @@ def _path_midpoint(path):
 
 
 def _connector_xml(shape_id, from_id, to_id, path, label):
-    """Dynamischer Verbinder entlang eines Streckenzugs, an beiden Formen verklebt."""
+    """Dynamischer Verbinder entlang eines Streckenzugs, an beiden Formen verklebt.
+
+    Aufbau bewusst genau wie in von Visio selbst erzeugten Dateien: feste
+    Zahlenwerte in der Geometrie. Visio rechnet das Dokument beim Oeffnen neu
+    (siehe RecalcDocument) und fuehrt die Linie danach selbst - eigene Formeln
+    wuerden dem Router nur in die Quere kommen.
+    """
     begin_x, begin_y = path[0]
     end_x, end_y = path[-1]
-    width = end_x - begin_x
-    height = end_y - begin_y
+    span_x, span_y = end_x - begin_x, end_y - begin_y
+    # Achsparallele Verbinder haetten eine Ausdehnung von exakt 0. Visio
+    # ersetzt die Formel dann durch eine feste Breite - ohne das entstuende
+    # eine Form ohne Ausdehnung, an der die Verklebung nicht sauber rechnet.
+    if abs(span_x) < 1e-6:
+        width, width_formula = DEGENERATE_SPAN, "GUARD(%sDL)" % _num(DEGENERATE_SPAN)
+    else:
+        width, width_formula = span_x, "GUARD(EndX-BeginX)"
+    if abs(span_y) < 1e-6:
+        height, height_formula = DEGENERATE_SPAN, "GUARD(%sDL)" % _num(DEGENERATE_SPAN)
+    else:
+        height, height_formula = span_y, "GUARD(EndY-BeginY)"
+
+    # Ursprung der Formkoordinaten = PinX - LocPinX (Pin liegt mittig)
+    origin_x = (begin_x + end_x) / 2.0 - width / 2.0
+    origin_y = (begin_y + end_y) / 2.0 - height / 2.0
     label_x, label_y = _path_midpoint(path)
-    label_x -= begin_x
-    label_y -= begin_y
+    label_x -= origin_x
+    label_y -= origin_y
     walk_begin = "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
     walk_end = "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)"
 
@@ -1258,8 +1283,8 @@ def _connector_xml(shape_id, from_id, to_id, path, label):
     parts += [
         _cell("PinX", _num((begin_x + end_x) / 2.0), "Inh"),
         _cell("PinY", _num((begin_y + end_y) / 2.0), "Inh"),
-        _cell("Width", _num(width), "GUARD(EndX-BeginX)"),
-        _cell("Height", _num(height), "GUARD(EndY-BeginY)"),
+        _cell("Width", _num(width), width_formula),
+        _cell("Height", _num(height), height_formula),
         _cell("LocPinX", _num(width / 2.0), "Inh"),
         _cell("LocPinY", _num(height / 2.0), "Inh"),
         _cell("BeginX", _num(begin_x), walk_begin),
@@ -1268,59 +1293,41 @@ def _connector_xml(shape_id, from_id, to_id, path, label):
         _cell("EndY", _num(end_y), walk_end),
         _cell("BegTrigger", 2, "_XFTRIGGER(Sheet.%d!EventXFMod)" % from_id),
         _cell("EndTrigger", 2, "_XFTRIGGER(Sheet.%d!EventXFMod)" % to_id),
+        _cell("ObjType", 2),                  # 2 = 1D-Form, also routbar
         _cell("ShapeRouteStyle", 1),          # 1 = rechtwinklig (Flussdiagramm)
-        _cell("ConFixedCode", 0),
-        _cell("ConLineRouteExt", 0),
+        _cell("ConLineRouteExt", 1),
+        _cell("WalkPreference", 0),           # von _WALKGLUE referenziert
         _cell("LayerMember", 0),
         _cell("LineColor", "#4D5B6B"),
         _cell("LineWeight", _num(1 / 72.0)),
         _cell("EndArrow", 4),
         _cell("EndArrowSize", 2),
-        # Beschriftung auf die Mitte der tatsaechlichen Strecke setzen (sonst
-        # erbt sie die Position des Masters und landet neben der Zielform).
-        # Ebenfalls an Width/Height gebunden, damit sie beim Verschieben einer
-        # Form mitwandert statt stehen zu bleiben.
-        _cell("TxtPinX", _num(label_x),
-              "Width*%s" % _num(0.0 if abs(width) < 1e-9 else label_x / width)),
-        _cell("TxtPinY", _num(label_y),
-              "Height*%s" % _num(0.0 if abs(height) < 1e-9 else label_y / height)),
+        # ConFixedCode wird bewusst NICHT gesetzt: geerbte 0 = frei neu fuehren
+        # Beschriftung auf die Mitte der tatsaechlichen Strecke setzen, sonst
+        # erbt sie die Position des Masters und landet neben der Zielform
+        _cell("TxtPinX", _num(label_x)),
+        _cell("TxtPinY", _num(label_y)),
         _cell("TxtWidth", _num(0.6), "MAX(TEXTWIDTH(TheText),5*Char.Size)"),
         _cell("TxtHeight", _num(0.25), "TEXTHEIGHT(TheText,TxtWidth)"),
         _cell("TxtLocPinX", _num(0.3), "TxtWidth*0.5"),
         _cell("TxtLocPinY", _num(0.125), "TxtHeight*0.5"),
         _cell("TxtAngle", 0, "GUARD(0DA)"),
     ]
-    share_text_x = 0.0 if abs(width) < 1e-9 else label_x / width
-    share_text_y = 0.0 if abs(height) < 1e-9 else label_y / height
     parts.append("<Section N='Control'><Row N='TextPosition'>"
-                 + _cell("X", _num(label_x), "Width*%s" % _num(share_text_x))
-                 + _cell("Y", _num(label_y), "Height*%s" % _num(share_text_y))
+                 + _cell("X", _num(label_x))
+                 + _cell("Y", _num(label_y))
                  + _cell("XDyn", _num(label_x), "Controls.TextPosition")
                  + _cell("YDyn", _num(label_y), "Controls.TextPosition.Y")
                  + _cell("XCon", 0) + _cell("YCon", 0) + _cell("CanGlue", 0)
                  + "</Row></Section>")
-    # Geometrie ueberschreibt die des Masters: Streckenzug in Formkoordinaten.
-    # Jeder Punkt haengt per Formel an Width/Height. Verschiebt der Anwender
-    # spaeter eine Form, aendern sich Width/Height (= EndX-BeginX bzw.
-    # EndY-BeginY) und der Streckenzug wandert mit. Mit festen Zahlenwerten
-    # bliebe die gezeichnete Linie stehen, waehrend die Endpunkte wegwandern -
-    # die Pfeilspitze laege dann mitten in einer Form.
-    def anchor(value, extent):
-        return 0.0 if abs(extent) < 1e-9 else value / extent
-
-    rows = ["<Section N='Geometry' IX='0'>",
-            "<Row T='MoveTo' IX='1'>%s%s</Row>"
-            % (_cell("X", 0, "Width*0"), _cell("Y", 0, "Height*0"))]
-    last = len(path) - 1
-    for position, (x, y) in enumerate(path[1:], start=2):
-        local_x, local_y = x - begin_x, y - begin_y
-        # Der Endpunkt sitzt exakt auf (Width, Height) - fest verankern
-        share_x = 1.0 if position - 1 == last else anchor(local_x, width)
-        share_y = 1.0 if position - 1 == last else anchor(local_y, height)
-        rows.append("<Row T='LineTo' IX='%d'>%s%s</Row>"
-                    % (position,
-                       _cell("X", _num(local_x), "Width*%s" % _num(share_x)),
-                       _cell("Y", _num(local_y), "Height*%s" % _num(share_y))))
+    # Streckenzug in Formkoordinaten (Ursprung siehe oben)
+    rows = ["<Section N='Geometry' IX='0'>"]
+    for position, (x, y) in enumerate(path, start=1):
+        kind = "MoveTo" if position == 1 else "LineTo"
+        rows.append("<Row T='%s' IX='%d'>%s%s</Row>"
+                    % (kind, position,
+                       _cell("X", _num(x - origin_x)),
+                       _cell("Y", _num(y - origin_y))))
     # Der Master bringt drei Zeilen mit; ueberzaehlige entfernen
     for position in range(len(path) + 1, 4):
         rows.append("<Row T='LineTo' IX='%d' Del='1'/>" % position)
@@ -1464,6 +1471,8 @@ def _master1_xml():
             + _cell("LockHeight", 1) + _cell("LockCalcWH", 1)
             + _cell("NoAlignBox", 1) + _cell("DynFeedback", 2)
             + _cell("GlueType", 2) + _cell("ObjType", 2)
+            # Von den _WALKGLUE-Formeln der Verbinder referenziert
+            + _cell("WalkPreference", 0)
             + _cell("NoLiveDynamics", 1) + _cell("ShapeSplittable", 1)
             + _cell("LayerMember", 0)
             + _cell("LineColor", "#4D5B6B") + _cell("EndArrow", 4)
@@ -1625,7 +1634,26 @@ CONTENT_TYPES_XML = (
     'vnd.ms-visio.windows+xml"/>'
     '<Override PartName="/docProps/core.xml" ContentType="application/'
     'vnd.openxmlformats-package.core-properties+xml"/>'
+    '<Override PartName="/docProps/custom.xml" ContentType="application/'
+    'vnd.openxmlformats-officedocument.custom-properties+xml"/>'
     '</Types>'
+)
+
+# Weist Visio an, das Dokument beim Oeffnen einmal komplett neu zu rechnen.
+# Microsoft nennt als Anwendungsfall ausdruecklich Diagramme mit Verbindern,
+# deren Formen von aussen positioniert wurden: ohne diese Eigenschaft laesst
+# Visio den Router nie laufen, und die Verbinder werden beim Verschieben
+# einer Form nicht neu gefuehrt.
+CUSTOM_PROPS_XML = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/'
+    '2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/'
+    'officeDocument/2006/docPropsVTypes">'
+    '<property pid="2" name="RecalcDocument" '
+    'fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}">'
+    '<vt:bool>true</vt:bool>'
+    '</property>'
+    '</Properties>'
 )
 
 ROOT_RELS_XML = (
@@ -1636,6 +1664,9 @@ ROOT_RELS_XML = (
     'relationships/document" Target="visio/document.xml"/>'
     '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/'
     '2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/'
+    'officeDocument/2006/relationships/custom-properties" '
+    'Target="docProps/custom.xml"/>'
     '</Relationships>'
 )
 
@@ -1696,6 +1727,7 @@ def write_vsdx(graph, path, title="Prozess"):
         "[Content_Types].xml": CONTENT_TYPES_XML,
         "_rels/.rels": ROOT_RELS_XML,
         "docProps/core.xml": _core_xml(title or "Prozess"),
+        "docProps/custom.xml": CUSTOM_PROPS_XML,
         "visio/document.xml": _document_xml(),
         "visio/_rels/document.xml.rels": DOCUMENT_RELS_XML,
         "visio/masters/masters.xml": _masters_xml(),
