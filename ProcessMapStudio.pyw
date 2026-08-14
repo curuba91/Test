@@ -1293,13 +1293,28 @@ def _connector_xml(shape_id, from_id, to_id, path, label):
                  + _cell("YDyn", _num(label_y), "Controls.TextPosition.Y")
                  + _cell("XCon", 0) + _cell("YCon", 0) + _cell("CanGlue", 0)
                  + "</Row></Section>")
-    # Geometrie ueberschreibt die des Masters: Streckenzug in Formkoordinaten
+    # Geometrie ueberschreibt die des Masters: Streckenzug in Formkoordinaten.
+    # Jeder Punkt haengt per Formel an Width/Height. Verschiebt der Anwender
+    # spaeter eine Form, aendern sich Width/Height (= EndX-BeginX bzw.
+    # EndY-BeginY) und der Streckenzug wandert mit. Mit festen Zahlenwerten
+    # bliebe die gezeichnete Linie stehen, waehrend die Endpunkte wegwandern -
+    # die Pfeilspitze laege dann mitten in einer Form.
+    def anchor(value, extent):
+        return 0.0 if abs(extent) < 1e-9 else value / extent
+
     rows = ["<Section N='Geometry' IX='0'>",
-            "<Row T='MoveTo' IX='1'>%s%s</Row>" % (_cell("X", 0), _cell("Y", 0))]
+            "<Row T='MoveTo' IX='1'>%s%s</Row>"
+            % (_cell("X", 0, "Width*0"), _cell("Y", 0, "Height*0"))]
+    last = len(path) - 1
     for position, (x, y) in enumerate(path[1:], start=2):
+        local_x, local_y = x - begin_x, y - begin_y
+        # Der Endpunkt sitzt exakt auf (Width, Height) - fest verankern
+        share_x = 1.0 if position - 1 == last else anchor(local_x, width)
+        share_y = 1.0 if position - 1 == last else anchor(local_y, height)
         rows.append("<Row T='LineTo' IX='%d'>%s%s</Row>"
-                    % (position, _cell("X", _num(x - begin_x)),
-                       _cell("Y", _num(y - begin_y))))
+                    % (position,
+                       _cell("X", _num(local_x), "Width*%s" % _num(share_x)),
+                       _cell("Y", _num(local_y), "Height*%s" % _num(share_y))))
     # Der Master bringt drei Zeilen mit; ueberzaehlige entfernen
     for position in range(len(path) + 1, 4):
         rows.append("<Row T='LineTo' IX='%d' Del='1'/>" % position)
@@ -1486,6 +1501,15 @@ def _pages_xml(page_width, page_height, title):
             + _cell("ShdwType", 0) + _cell("ShdwObliqueAngle", 0)
             + _cell("ShdwScaleFactor", 1) + _cell("DrawingResizeType", 1)
             + _cell("PageShapeSplit", 1)
+            # Ebene "Connector": die Verbinder verweisen per LayerMember darauf.
+            # Ohne diese Definition zeigt der Verweis ins Leere.
+            + "<Section N='Layer'><Row IX='0'>"
+            + _cell("Name", "Connector") + _cell("Color", 255)
+            + _cell("Status", 0) + _cell("Visible", 1) + _cell("Print", 1)
+            + _cell("Active", 0) + _cell("Lock", 0) + _cell("Snap", 1)
+            + _cell("Glue", 1) + _cell("NameUniv", "Connector")
+            + _cell("ColorTrans", 0)
+            + "</Row></Section>"
             + "</PageSheet>"
             + "<Rel r:id='rId1'/>"
             + "</Page></Pages>")
