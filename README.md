@@ -111,8 +111,17 @@ Visio-Zeichnung. Was in Visio ankommt:
   lassen sich in Visio frei verschieben.
 - **Subgraphs** aus dem Mermaid-Code werden als beschriftete
   Hintergrundrahmen (Rolle/Abteilung) gezeichnet.
-- **Automatisches Layout** in Ebenen mit Kreuzungsminimierung; Zyklen
-  (Rücksprünge) werden erkannt und brechen das Layout nicht.
+- **Automatisches Layout** nach dem Sugiyama-Verfahren: Ebenen,
+  Kreuzungsminimierung und – entscheidend – **Hilfsknoten für Kanten, die
+  Ebenen überspringen**. Eine Kante, die z. B. von einer Prüfung weit nach
+  unten auf einen gemeinsamen Fehlerpfad springt, bekommt auf jeder
+  Zwischenebene einen schmalen Platzhalter. Der nimmt an der Sortierung
+  teil und hält eine eigene Spur frei, sodass parallele Prozessstränge
+  nebeneinander stehen und Linien **außen herum** statt quer durch die
+  Formen laufen. Zyklen (Rücksprünge) brechen das Layout nicht.
+- **Mehrfachkanten getrennt geführt:** Zeigen Ja- und Nein-Zweig einer
+  Entscheidung auf dieselbe Form, verlassen sie die Raute an
+  verschiedenen Stellen und behalten lesbare, getrennte Beschriftungen.
 
 Die Seitengröße wächst mit dem Diagramm, mindestens A4 hoch.
 
@@ -124,7 +133,8 @@ XML-Wohlgeformtheit, Auflösung aller Beziehungen, Eindeutigkeit der
 Form-IDs, Vollständigkeit der Klebeverbindungen). Zusätzlich wurde jede
 erzeugte Datei mit **libvisio** (der Visio-Importfilter von
 LibreOffice, eine unabhängige zweite Implementierung) eingelesen und
-gerendert.
+gerendert. Ein weiterer Test prüft geometrisch, dass **keine
+Verbindungslinie durch eine fremde Form** verläuft.
 
 > **Ehrliche Einschränkung:** Auf dem Rechner, auf dem dieses Tool
 > entwickelt wurde, stand kein Microsoft Visio zur Verfügung. Struktur

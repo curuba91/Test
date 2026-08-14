@@ -496,6 +496,8 @@ H_GAP = 0.5            # horizontaler Abstand zwischen Formen
 V_GAP = 0.62           # vertikaler Abstand zwischen Ebenen
 GROUP_PAD = 0.28       # Innenabstand einer Subgraph-Umrandung
 CHARS_PER_LINE = 22    # Umbruchbreite fuer die Groessenschaetzung
+DUMMY_WIDTH = 0.26     # Spurbreite fuer durchlaufende Kanten
+PARALLEL_GAP = 0.75    # Versatz zwischen mehreren Kanten derselben Formen
 
 
 def _node_size(kind, label):
@@ -566,18 +568,51 @@ def _rank_nodes(graph):
     return rank
 
 
-def _order_layers(graph, rank):
+def _insert_dummies(graph, rank):
+    """Zerlegt Kanten ueber mehrere Ebenen in Teilstuecke mit Hilfsknoten.
+
+    Das ist der entscheidende Schritt des Sugiyama-Verfahrens: Eine Kante,
+    die Ebenen ueberspringt, bekommt auf jeder Zwischenebene einen schmalen
+    Platzhalter. Dieser nimmt an der Sortierung teil und haelt so eine eigene
+    Spur frei - sonst wuerde die Kante quer durch die Formen laufen und alle
+    Knoten fielen in eine einzige Spalte.
+    """
+    dummy_rank = {}
+    layout_edges = []
+    chains = []
+    for index, edge in enumerate(graph.edges):
+        start, end = rank[edge.src], rank[edge.dst]
+        if edge.src == edge.dst or abs(end - start) <= 1:
+            if edge.src != edge.dst:
+                layout_edges.append((edge.src, edge.dst))
+            chains.append([])
+            continue
+        step = 1 if end > start else -1
+        chain = []
+        for level in range(start + step, end, step):
+            dummy = "\x00%d_%d" % (index, level)
+            dummy_rank[dummy] = level
+            chain.append(dummy)
+        previous = edge.src
+        for dummy in chain:
+            layout_edges.append((previous, dummy))
+            previous = dummy
+        layout_edges.append((previous, edge.dst))
+        chains.append(chain)
+    return dummy_rank, layout_edges, chains
+
+
+def _order_layers(node_ids, layout_edges, rank):
     """Sortiert die Knoten je Ebene, um Kantenkreuzungen zu reduzieren."""
     layers = {}
-    for nid in graph.nodes:
+    for nid in node_ids:
         layers.setdefault(rank[nid], []).append(nid)
 
-    pred = {nid: [] for nid in graph.nodes}
-    succ = {nid: [] for nid in graph.nodes}
-    for edge in graph.edges:
-        if edge.src != edge.dst:
-            succ[edge.src].append(edge.dst)
-            pred[edge.dst].append(edge.src)
+    pred = {nid: [] for nid in node_ids}
+    succ = {nid: [] for nid in node_ids}
+    for src, dst in layout_edges:
+        succ[src].append(dst)
+        pred[dst].append(src)
 
     levels = sorted(layers)
     position = {}
@@ -603,14 +638,13 @@ def _order_layers(graph, rank):
     return layers, levels
 
 
-def _assign_coordinates(graph, layers, levels, sizes):
+def _assign_coordinates(node_ids, layout_edges, layers, levels, sizes):
     """Berechnet Mittelpunkte; Ursprung oben links, wird spaeter gespiegelt."""
-    pred = {nid: [] for nid in graph.nodes}
-    succ = {nid: [] for nid in graph.nodes}
-    for edge in graph.edges:
-        if edge.src != edge.dst:
-            succ[edge.src].append(edge.dst)
-            pred[edge.dst].append(edge.src)
+    pred = {nid: [] for nid in node_ids}
+    succ = {nid: [] for nid in node_ids}
+    for src, dst in layout_edges:
+        succ[src].append(dst)
+        pred[dst].append(src)
 
     # Ebenen-Y (nach unten wachsend)
     layer_y = {}
@@ -669,24 +703,55 @@ def _assign_coordinates(graph, layers, levels, sizes):
             for level in levels for nid in layers[level]}
 
 
-def layout_graph(graph):
-    """Liefert (placements, page_width, page_height) in Zoll fuer Visio.
+def _parallel_offsets(graph):
+    """Seitlicher Versatz fuer mehrfach vorhandene Kanten zwischen zwei Formen.
 
-    placements: nid -> (center_x, center_y, width, height) mit Visio-Koordinaten
+    Ohne das laegen z. B. der Ja- und der Nein-Zweig einer Entscheidung, die
+    beide auf dieselbe Form zeigen, exakt uebereinander - samt Beschriftung.
+    """
+    buckets = {}
+    for index, edge in enumerate(graph.edges):
+        buckets.setdefault((edge.src, edge.dst), []).append(index)
+    offsets = {}
+    for indices in buckets.values():
+        if len(indices) < 2:
+            continue
+        middle = (len(indices) - 1) / 2.0
+        for position, index in enumerate(indices):
+            offsets[index] = (position - middle) * PARALLEL_GAP
+    return offsets
+
+
+def layout_graph(graph):
+    """Liefert (placements, routes, page_width, page_height) in Zoll.
+
+    placements: nid -> (center_x, center_y, width, height) in Visio-Koordinaten
     (Ursprung unten links, Y waechst nach oben).
+    routes:     Kantenindex -> Liste von Stuetzpunkten (x, y) zwischen den
+                beiden Formen; leer bei direkten Nachbarn ohne Versatz.
     """
     sizes = {nid: _node_size(node.kind, node.label)
              for nid, node in graph.nodes.items()}
     rank = _rank_nodes(graph)
-    layers, levels = _order_layers(graph, rank)
-    centers = _assign_coordinates(graph, layers, levels, sizes)
 
-    # Platz fuer Subgraph-Rahmen einplanen
+    # Hilfsknoten fuer Kanten ueber mehrere Ebenen einziehen
+    dummy_rank, layout_edges, chains = _insert_dummies(graph, rank)
+    combined_rank = dict(rank)
+    combined_rank.update(dummy_rank)
+    for dummy in dummy_rank:
+        sizes[dummy] = (DUMMY_WIDTH, 0.0)
+    node_ids = list(graph.nodes) + list(dummy_rank)
+
+    layers, levels = _order_layers(node_ids, layout_edges, combined_rank)
+    centers = _assign_coordinates(node_ids, layout_edges, layers, levels, sizes)
+
+    # Platz fuer Subgraph-Rahmen einplanen (nur echte Knoten begrenzen die Seite)
     pad = GROUP_PAD + 0.18 if graph.groups else 0.0
+    real = list(graph.nodes)
     xs_min = min(centers[n][0] - sizes[n][0] / 2.0 for n in centers) - pad
     xs_max = max(centers[n][0] + sizes[n][0] / 2.0 for n in centers) + pad
-    ys_min = min(centers[n][1] - sizes[n][1] / 2.0 for n in centers) - pad
-    ys_max = max(centers[n][1] + sizes[n][1] / 2.0 for n in centers) + pad
+    ys_min = min(centers[n][1] - sizes[n][1] / 2.0 for n in real) - pad
+    ys_max = max(centers[n][1] + sizes[n][1] / 2.0 for n in real) + pad
 
     page_width = max(8.2677, (xs_max - xs_min) + 2 * MARGIN)
     page_height = max(11.6929, (ys_max - ys_min) + 2 * MARGIN)
@@ -694,12 +759,30 @@ def layout_graph(graph):
     offset_x = (page_width - (xs_max - xs_min)) / 2.0 - xs_min
     offset_y = page_height - MARGIN + ys_min
 
+    def to_page(point):
+        return (round(point[0] + offset_x, 6), round(offset_y - point[1], 6))
+
     placements = {}
-    for nid, (cx, cy) in centers.items():
+    for nid in real:
+        x, y = to_page(centers[nid])
         width, height = sizes[nid]
-        placements[nid] = (round(cx + offset_x, 6),
-                           round(offset_y - cy, 6), width, height)
-    return placements, round(page_width, 4), round(page_height, 4)
+        placements[nid] = (x, y, width, height)
+
+    offsets = _parallel_offsets(graph)
+    routes = {}
+    for index, edge in enumerate(graph.edges):
+        points = [to_page(centers[dummy]) for dummy in chains[index]]
+        shift = offsets.get(index)
+        if shift and not points and edge.src in placements and edge.dst in placements:
+            # Direkte Nachbarn: einen Stuetzpunkt seitlich versetzt einziehen
+            sx, sy = placements[edge.src][0], placements[edge.src][1]
+            tx, ty = placements[edge.dst][0], placements[edge.dst][1]
+            points = [((sx + tx) / 2.0 + shift, (sy + ty) / 2.0)]
+        elif shift and points:
+            points = [(x + shift, y) for x, y in points]
+        routes[index] = points
+
+    return placements, routes, round(page_width, 4), round(page_height, 4)
 
 
 # ===========================================================================
@@ -897,12 +980,53 @@ def _boundary_point(x, y, width, height, target_x, target_y):
     return x + dx * scale, y + dy * scale
 
 
-def _connector_xml(shape_id, from_id, to_id, begin, end, label):
-    """Dynamischer Verbinder, an beiden Formen verklebt."""
-    begin_x, begin_y = begin
-    end_x, end_y = end
+def _orthogonal_path(points):
+    """Macht aus Stuetzpunkten einen rechtwinkligen Streckenzug."""
+    path = [points[0]]
+    for previous, following in zip(points, points[1:]):
+        if abs(following[0] - previous[0]) > 0.01:
+            middle_y = (previous[1] + following[1]) / 2.0
+            path.append((previous[0], middle_y))
+            path.append((following[0], middle_y))
+        path.append(following)
+    # aufeinanderfolgende Doppelpunkte entfernen
+    cleaned = [path[0]]
+    for point in path[1:]:
+        if (abs(point[0] - cleaned[-1][0]) > 0.005
+                or abs(point[1] - cleaned[-1][1]) > 0.005):
+            cleaned.append(point)
+    return cleaned
+
+
+def _path_midpoint(path):
+    """Punkt auf halber Streckenlaenge - Ankerpunkt fuer die Beschriftung."""
+    lengths = []
+    total = 0.0
+    for previous, following in zip(path, path[1:]):
+        step = abs(following[0] - previous[0]) + abs(following[1] - previous[1])
+        lengths.append(step)
+        total += step
+    if total <= 0:
+        return path[0]
+    walked = 0.0
+    for (previous, following), step in zip(zip(path, path[1:]), lengths):
+        if walked + step >= total / 2.0:
+            share = (total / 2.0 - walked) / step if step else 0.0
+            return (previous[0] + (following[0] - previous[0]) * share,
+                    previous[1] + (following[1] - previous[1]) * share)
+        walked += step
+    return path[-1]
+
+
+def _connector_xml(shape_id, from_id, to_id, path, label):
+    """Dynamischer Verbinder entlang eines Streckenzugs, an beiden Formen verklebt."""
+    begin_x, begin_y = path[0]
+    end_x, end_y = path[-1]
     width = end_x - begin_x
     height = end_y - begin_y
+    label_x, label_y = _path_midpoint(path)
+    label_x -= begin_x
+    label_y -= begin_y
     walk_begin = "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
     walk_end = "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)"
 
@@ -929,10 +1053,10 @@ def _connector_xml(shape_id, from_id, to_id, begin, end, label):
         _cell("LineWeight", _num(1 / 72.0)),
         _cell("EndArrow", 4),
         _cell("EndArrowSize", 2),
-        # Beschriftung in die Mitte des Verbinders (sonst erbt sie die
-        # Position des Masters und landet neben der Zielform)
-        _cell("TxtPinX", _num(width / 2.0), "Width*0.5"),
-        _cell("TxtPinY", _num(height / 2.0), "Height*0.5"),
+        # Beschriftung auf die Mitte der tatsaechlichen Strecke setzen (sonst
+        # erbt sie die Position des Masters und landet neben der Zielform)
+        _cell("TxtPinX", _num(label_x)),
+        _cell("TxtPinY", _num(label_y)),
         _cell("TxtWidth", _num(0.6), "MAX(TEXTWIDTH(TheText),5*Char.Size)"),
         _cell("TxtHeight", _num(0.25), "TEXTHEIGHT(TheText,TxtWidth)"),
         _cell("TxtLocPinX", _num(0.3), "TxtWidth*0.5"),
@@ -940,26 +1064,22 @@ def _connector_xml(shape_id, from_id, to_id, begin, end, label):
         _cell("TxtAngle", 0, "GUARD(0DA)"),
     ]
     parts.append("<Section N='Control'><Row N='TextPosition'>"
-                 + _cell("X", _num(width / 2.0), "Width*0.5")
-                 + _cell("Y", _num(height / 2.0), "Height*0.5")
-                 + _cell("XDyn", _num(width / 2.0), "Controls.TextPosition")
-                 + _cell("YDyn", _num(height / 2.0), "Controls.TextPosition.Y")
+                 + _cell("X", _num(label_x))
+                 + _cell("Y", _num(label_y))
+                 + _cell("XDyn", _num(label_x), "Controls.TextPosition")
+                 + _cell("YDyn", _num(label_y), "Controls.TextPosition.Y")
                  + _cell("XCon", 0) + _cell("YCon", 0) + _cell("CanGlue", 0)
                  + "</Row></Section>")
-    # Geometrie ueberschreibt die des Masters: gerade Linie oder Z-Verlauf
+    # Geometrie ueberschreibt die des Masters: Streckenzug in Formkoordinaten
     rows = ["<Section N='Geometry' IX='0'>",
             "<Row T='MoveTo' IX='1'>%s%s</Row>" % (_cell("X", 0), _cell("Y", 0))]
-    if abs(width) < 0.02:
-        rows.append("<Row T='LineTo' IX='2'>%s%s</Row>"
-                    % (_cell("X", _num(width)), _cell("Y", _num(height))))
-        rows.append("<Row T='LineTo' IX='3' Del='1'/>")
-    else:
-        rows.append("<Row T='LineTo' IX='2'>%s%s</Row>"
-                    % (_cell("X", 0), _cell("Y", _num(height / 2.0))))
-        rows.append("<Row T='LineTo' IX='3'>%s%s</Row>"
-                    % (_cell("X", _num(width)), _cell("Y", _num(height / 2.0))))
-        rows.append("<Row T='LineTo' IX='4'>%s%s</Row>"
-                    % (_cell("X", _num(width)), _cell("Y", _num(height))))
+    for position, (x, y) in enumerate(path[1:], start=2):
+        rows.append("<Row T='LineTo' IX='%d'>%s%s</Row>"
+                    % (position, _cell("X", _num(x - begin_x)),
+                       _cell("Y", _num(y - begin_y))))
+    # Der Master bringt drei Zeilen mit; ueberzaehlige entfernen
+    for position in range(len(path) + 1, 4):
+        rows.append("<Row T='LineTo' IX='%d' Del='1'/>" % position)
     rows.append("</Section>")
     parts.append("".join(rows))
     if label:
@@ -1148,7 +1268,7 @@ def _pages_xml(page_width, page_height, title):
             + "</Page></Pages>")
 
 
-def _page1_xml(graph, placements):
+def _page1_xml(graph, placements, routes):
     """Baut den Seiteninhalt: Rahmen, Formen, verklebte Verbinder."""
     shapes = []
     connects = []
@@ -1179,16 +1299,21 @@ def _page1_xml(graph, placements):
         next_id += 1
 
     # 3. Verbinder (liegen vorn) inklusive Klebeverbindungen
-    for edge in graph.edges:
+    for index, edge in enumerate(graph.edges):
         if edge.src not in shape_ids or edge.dst not in shape_ids:
             continue
         sx, sy, sw, sh = placements[edge.src]
         tx, ty, tw, th = placements[edge.dst]
-        begin = _boundary_point(sx, sy, sw, sh, tx, ty)
-        end = _boundary_point(tx, ty, tw, th, sx, sy)
+        waypoints = routes.get(index) or []
+        # Austrittspunkt Richtung erster Stuetzpunkt, Eintritt vom letzten her -
+        # dadurch verlassen parallele Kanten die Form an verschiedenen Stellen.
+        first = waypoints[0] if waypoints else (tx, ty)
+        last = waypoints[-1] if waypoints else (sx, sy)
+        begin = _boundary_point(sx, sy, sw, sh, first[0], first[1])
+        end = _boundary_point(tx, ty, tw, th, last[0], last[1])
+        path = _orthogonal_path([begin] + waypoints + [end])
         from_id, to_id = shape_ids[edge.src], shape_ids[edge.dst]
-        shapes.append(_connector_xml(next_id, from_id, to_id,
-                                     begin, end, edge.label))
+        shapes.append(_connector_xml(next_id, from_id, to_id, path, edge.label))
         # FromPart 9 = Anfangspunkt, 12 = Endpunkt; ToPart 3 = ganze Form
         connects.append("<Connect FromSheet='%d' FromCell='BeginX' FromPart='9' "
                         "ToSheet='%d' ToCell='PinX' ToPart='3'/>"
@@ -1302,7 +1427,7 @@ def write_vsdx(graph, path, title="Prozess"):
     """Schreibt den Graphen als bearbeitbare Visio-Datei (.vsdx)."""
     if not graph.nodes:
         raise ValueError("Der Mermaid-Code enthält keine erkennbaren Schritte.")
-    placements, page_width, page_height = layout_graph(graph)
+    placements, routes, page_width, page_height = layout_graph(graph)
     page_name = (title or "Prozess")[:40] or "Prozess"
 
     parts = {
@@ -1317,7 +1442,7 @@ def write_vsdx(graph, path, title="Prozess"):
         "visio/masters/master1.xml": _master1_xml(),
         "visio/pages/pages.xml": _pages_xml(page_width, page_height, page_name),
         "visio/pages/_rels/pages.xml.rels": _simple_rels("page1.xml", "page"),
-        "visio/pages/page1.xml": _page1_xml(graph, placements),
+        "visio/pages/page1.xml": _page1_xml(graph, placements, routes),
         "visio/pages/_rels/page1.xml.rels":
             _simple_rels("../masters/master1.xml", "master"),
         "visio/windows.xml": _windows_xml(page_width, page_height),
