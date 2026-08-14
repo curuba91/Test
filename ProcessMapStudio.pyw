@@ -507,30 +507,66 @@ MARGIN = 0.7           # Seitenrand in Zoll
 H_GAP = 0.5            # horizontaler Abstand zwischen Formen
 V_GAP = 0.62           # vertikaler Abstand zwischen Ebenen
 GROUP_PAD = 0.28       # Innenabstand einer Subgraph-Umrandung
-CHARS_PER_LINE = 22    # Umbruchbreite fuer die Groessenschaetzung
+WRAP_TD = 26           # Zeichen je Zeile bei senkrechtem Fluss
+WRAP_LR = 18           # Zeichen je Zeile bei waagerechtem Fluss
+CHAR_WIDTH = 0.075     # grosszuegige Zeichenbreite bei 9 pt (Ersatzschriften)
+TEXT_PAD = 0.10        # seitlicher Innenabstand im Feld
+LINE_HEIGHT = 0.20     # Zeilenhoehe
+TEXT_TOP = 0.24        # Grundhoehe ueber der ersten Zeile
 DUMMY_WIDTH = 0.26     # Spurbreite fuer durchlaufende Kanten
 PARALLEL_GAP = 0.75    # Versatz zwischen mehreren Kanten derselben Formen
 LANE_CLEARANCE = 0.22  # Abstand einer Leitungsspur zur naechsten Form
 LANE_MIN = 0.30        # Mindestabstand zwischen zwei Leitungsspuren
 
 
-def _node_size(kind, label):
+def wrap_limit(horizontal):
+    """Zeichen je Zeile. Waagerecht enger, weil die Breite dort in
+    Flussrichtung zeigt und lange Felder die Zeichnung endlos ziehen."""
+    return WRAP_LR if horizontal else WRAP_TD
+
+
+def _label_lines(label, limit):
+    """Bricht die Beschriftung an Wortgrenzen um."""
+    result = []
+    for paragraph in (label or "").split("\n"):
+        words = paragraph.split()
+        if not words:
+            result.append("")
+            continue
+        line = ""
+        for word in words:
+            while len(word) > limit:            # ueberlanges Einzelwort teilen
+                if line:
+                    result.append(line)
+                    line = ""
+                result.append(word[:limit - 1] + "-")
+                word = word[limit - 1:]
+            if not line:
+                line = word
+            elif len(line) + 1 + len(word) <= limit:
+                line += " " + word
+            else:
+                result.append(line)
+                line = word
+        if line:
+            result.append(line)
+    return result or [""]
+
+
+def _node_size(kind, label, horizontal=False):
     """Schaetzt eine passende Formgroesse (Breite, Hoehe) in Zoll."""
-    lines = label.split("\n") if label else [""]
+    lines = _label_lines(label, wrap_limit(horizontal))
     longest = max((len(part) for part in lines), default=0)
-    wrapped = sum(max(1, -(-len(part) // CHARS_PER_LINE)) for part in lines)
-    width = 2.05
-    if longest > CHARS_PER_LINE:
-        width = min(3.3, 2.05 + 0.055 * (min(longest, 46) - CHARS_PER_LINE))
-    height = 0.62 + 0.19 * (wrapped - 1)
+    width = max(1.55, longest * CHAR_WIDTH + 2 * TEXT_PAD)
+    height = max(0.6, TEXT_TOP + len(lines) * LINE_HEIGHT)
     if kind == K_DECISION:
-        width = max(width, 2.35)
-        height = max(height + 0.38, 1.05)
+        # Die Raute verjuengt sich zu den Spitzen, der Text braucht mehr Flaeche
+        width = max(width * 1.4, 2.1)
+        height = max(height * 1.7, 1.0)
     elif kind == K_TERMINATOR:
-        width = max(width * 0.92, 1.5)
-        height = max(height, 0.55)
+        width += 0.25
     elif kind == K_DATA:
-        width += 0.3
+        width += 0.35
     return round(width, 4), round(height, 4)
 
 
@@ -835,7 +871,7 @@ def layout_graph(graph):
                 beiden Formen; leer bei direkten Nachbarn ohne Versatz.
     """
     horizontal = getattr(graph, "direction", "TD") == "LR"
-    real_size = {nid: _node_size(node.kind, node.label)
+    real_size = {nid: _node_size(node.kind, node.label, horizontal)
                  for nid, node in graph.nodes.items()}
     # Im Layoutraum ist Index 0 immer quer zur Flussrichtung, Index 1 laengs.
     # Fuer "links nach rechts" werden dazu Breite und Hoehe getauscht; erst am
@@ -1077,7 +1113,7 @@ def _text_sections(font_pt, color="#000000", h_align=1, bold=False):
             + "</Row></Section>")
 
 
-def _shape_xml(shape_id, node, x, y, width, height):
+def _shape_xml(shape_id, node, x, y, width, height, horizontal=False):
     """Eine Prozessform als Visio-Shape (2D, frei bearbeitbar)."""
     fill, line = KIND_COLORS.get(node.kind, KIND_COLORS[K_PROCESS])
     rows = _shape_geometry(node.kind, width, height)
@@ -1110,7 +1146,10 @@ def _shape_xml(shape_id, node, x, y, width, height):
         parts.append(_geometry_section(_rel_polygon([(0.92, 0), (0.92, 1)]),
                                        index=2, no_fill=True))
     parts.append(_text_sections(9))
-    parts.append("<Text>%s</Text>" % html.escape(node.label))
+    # Umbruch fest hinterlegen: so steht die Zeilenzahl unabhaengig davon
+    # fest, wie breit die Schrift auf dem Zielrechner tatsaechlich baut.
+    wrapped = "\n".join(_label_lines(node.label, wrap_limit(horizontal)))
+    parts.append("<Text>%s</Text>" % html.escape(wrapped))
     parts.append("</Shape>")
     return "".join(parts)
 
@@ -1140,14 +1179,23 @@ def _group_shape_xml(shape_id, name, x, y, width, height):
     return "".join(parts)
 
 
-def _boundary_point(x, y, width, height, target_x, target_y):
-    """Schnittpunkt der Verbindungslinie mit dem Formrand."""
+def _boundary_point(x, y, width, height, target_x, target_y, kind=None):
+    """Schnittpunkt der Verbindungslinie mit dem Formrand.
+
+    Fuer die Raute wird die tatsaechliche Kontur gerechnet. Auf dem
+    umschliessenden Rechteck laege der Punkt bei schraeger Richtung neben
+    der Form - der Pfeil begaenne dann sichtbar abgerueckt in der Luft.
+    """
     dx, dy = target_x - x, target_y - y
     if abs(dx) < 1e-9 and abs(dy) < 1e-9:
         return x, y
-    scale_x = (width / 2.0) / abs(dx) if abs(dx) > 1e-9 else float("inf")
-    scale_y = (height / 2.0) / abs(dy) if abs(dy) > 1e-9 else float("inf")
-    scale = min(scale_x, scale_y)
+    if kind == K_DECISION:
+        denominator = abs(dx) / (width / 2.0) + abs(dy) / (height / 2.0)
+        scale = 1.0 / denominator if denominator > 1e-9 else 0.0
+    else:
+        scale_x = (width / 2.0) / abs(dx) if abs(dx) > 1e-9 else float("inf")
+        scale_y = (height / 2.0) / abs(dy) if abs(dy) > 1e-9 else float("inf")
+        scale = min(scale_x, scale_y)
     return x + dx * scale, y + dy * scale
 
 
@@ -1470,7 +1518,8 @@ def _page1_xml(graph, placements, routes, horizontal=False):
             continue
         x, y, width, height = placements[nid]
         shape_ids[nid] = next_id
-        shapes.append(_shape_xml(next_id, node, x, y, width, height))
+        shapes.append(_shape_xml(next_id, node, x, y, width, height,
+                                 horizontal))
         next_id += 1
 
     # 3. Verbinder (liegen vorn) inklusive Klebeverbindungen
@@ -1484,8 +1533,10 @@ def _page1_xml(graph, placements, routes, horizontal=False):
         # dadurch verlassen parallele Kanten die Form an verschiedenen Stellen.
         first = waypoints[0] if waypoints else (tx, ty)
         last = waypoints[-1] if waypoints else (sx, sy)
-        begin = _boundary_point(sx, sy, sw, sh, first[0], first[1])
-        end = _boundary_point(tx, ty, tw, th, last[0], last[1])
+        begin = _boundary_point(sx, sy, sw, sh, first[0], first[1],
+                                graph.nodes[edge.src].kind)
+        end = _boundary_point(tx, ty, tw, th, last[0], last[1],
+                              graph.nodes[edge.dst].kind)
         path = _orthogonal_path([begin] + waypoints + [end], horizontal)
         from_id, to_id = shape_ids[edge.src], shape_ids[edge.dst]
         shapes.append(_connector_xml(next_id, from_id, to_id, path, edge.label))

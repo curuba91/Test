@@ -86,6 +86,13 @@ aufeinanderfolgenden Schritten (druckt sich auf Hochformat gut).
 Waagerecht lohnt sich bei wenigen Ebenen mit vielen parallelen Zweigen –
 bei langen Ketten wird die Zeichnung sonst sehr breit.
 
+Die Beschriftungen werden dabei **fest umgebrochen** – waagerecht enger
+(18 Zeichen je Zeile) als senkrecht (26), weil die Feldbreite dort in
+Flussrichtung zeigt und lange Felder die Zeichnung sonst endlos ziehen.
+Der Umbruch steht in der Datei und nicht nur in der Breitenschätzung;
+die Zeilenzahl stimmt dadurch unabhängig davon, wie breit die Schrift
+auf dem jeweiligen Rechner tatsächlich baut.
+
 ## Verwendung
 
 1. `ProcessMapStudio.pyw` per Doppelklick starten.
