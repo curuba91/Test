@@ -40,6 +40,7 @@ import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox, ttk
 
 APP_TITLE = "ProcessMap Studio"
+APP_VERSION = "0.1"
 SIDEBAR_WIDTH = 250          # Breite der Schrittleiste in Pixeln
 MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
 LOCAL_MERMAID = Path(__file__).resolve().parent / "mermaid.min.js"
@@ -127,7 +128,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 {mermaid_script}
 </head>
 <body>
-<header><h1>{title}</h1><small>erstellt mit ProcessMap Studio &middot; {stamp}</small></header>
+<header><h1>{title}</h1><small>erstellt mit ProcessMap Studio {version} &middot; {stamp}</small></header>
 <div id="wrap"><div id="diagram">
 <pre class="mermaid">
 {code}
@@ -152,6 +153,7 @@ def build_html(code: str, title: str) -> str:
         title=html.escape(title) or "Process Map",
         stamp=datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
         code=html.escape(code),
+        version=APP_VERSION,
         mermaid_script=_mermaid_script_tag(),
     )
 
@@ -317,11 +319,17 @@ class MEdge:
         self.label = label
 
 
+def normalise_direction(token):
+    """'LR'/'RL' -> waagerecht, alles andere -> senkrecht."""
+    return "LR" if (token or "").strip().upper() in ("LR", "RL") else "TD"
+
+
 class MGraph:
     def __init__(self):
         self.nodes = {}        # nid -> MNode (Einfuegereihenfolge bleibt erhalten)
         self.edges = []
         self.groups = []       # Liste von (Name, [nid, ...])
+        self.direction = "TD"  # Flussrichtung aus der flowchart-Zeile
 
     def touch(self, nid, label=None, kind=None, group=None):
         node = self.nodes.get(nid)
@@ -458,6 +466,10 @@ def parse_mermaid(code):
             continue
         lower = line.lower()
         if lower.startswith(("flowchart", "graph")):
+            match = re.match(r"(?:flowchart|graph)\s+([A-Za-z]{2})", line,
+                             re.IGNORECASE)
+            if match:
+                graph.direction = normalise_direction(match.group(1))
             continue
         if lower.startswith(("style ", "classdef", "class ", "click ",
                              "linkstyle", "direction ")):
@@ -822,8 +834,15 @@ def layout_graph(graph):
     routes:     Kantenindex -> Liste von Stuetzpunkten (x, y) zwischen den
                 beiden Formen; leer bei direkten Nachbarn ohne Versatz.
     """
-    sizes = {nid: _node_size(node.kind, node.label)
-             for nid, node in graph.nodes.items()}
+    horizontal = getattr(graph, "direction", "TD") == "LR"
+    real_size = {nid: _node_size(node.kind, node.label)
+                 for nid, node in graph.nodes.items()}
+    # Im Layoutraum ist Index 0 immer quer zur Flussrichtung, Index 1 laengs.
+    # Fuer "links nach rechts" werden dazu Breite und Hoehe getauscht; erst am
+    # Ende dreht die Zeichnung zurueck. So bleibt die gesamte, gepruefte
+    # Ebenen- und Linienlogik unveraendert gueltig.
+    layout_size = {nid: ((height, width) if horizontal else (width, height))
+                   for nid, (width, height) in real_size.items()}
     rank = _rank_nodes(graph)
 
     # Hilfsknoten fuer Kanten ueber mehrere Ebenen einziehen
@@ -831,38 +850,42 @@ def layout_graph(graph):
     combined_rank = dict(rank)
     combined_rank.update(dummy_rank)
     for dummy in dummy_rank:
-        sizes[dummy] = (DUMMY_WIDTH, 0.0)
+        layout_size[dummy] = (DUMMY_WIDTH, 0.0)
     node_ids = list(graph.nodes) + list(dummy_rank)
 
     layers, levels = _order_layers(node_ids, layout_edges, combined_rank)
-    centers = _assign_coordinates(node_ids, layout_edges, layers, levels,
-                                  sizes, chains)
+    raw = _assign_coordinates(node_ids, layout_edges, layers, levels,
+                              layout_size, chains)
 
-    # Platz fuer Subgraph-Rahmen einplanen (nur echte Knoten begrenzen die Seite)
-    pad = GROUP_PAD + 0.18 if graph.groups else 0.0
+    # Vorlaeufige Zeichenkoordinaten (Y waechst nach oben wie in Visio).
+    # raw[nid] = (quer, laengs); laengs waechst mit der Ebene.
+    def spread(nid):
+        across, along = raw[nid]
+        return (along, -across) if horizontal else (across, -along)
+
     real = list(graph.nodes)
-    xs_min = min(centers[n][0] - sizes[n][0] / 2.0 for n in centers) - pad
-    xs_max = max(centers[n][0] + sizes[n][0] / 2.0 for n in centers) + pad
-    ys_min = min(centers[n][1] - sizes[n][1] / 2.0 for n in real) - pad
-    ys_max = max(centers[n][1] + sizes[n][1] / 2.0 for n in real) + pad
+    placements = {nid: (spread(nid)[0], spread(nid)[1],
+                        real_size[nid][0], real_size[nid][1]) for nid in real}
+    dummy_at = {dummy: spread(dummy) for dummy in dummy_rank}
 
-    page_width = max(8.2677, (xs_max - xs_min) + 2 * MARGIN)
-    page_height = max(11.6929, (ys_max - ys_min) + 2 * MARGIN)
-    # Zeichnung horizontal zentrieren, oben ausrichten; Y spiegeln
-    offset_x = (page_width - (xs_max - xs_min)) / 2.0 - xs_min
-    offset_y = page_height - MARGIN + ys_min
+    # ---------------------------------------------------------------- Führung
+    # Die Linienfuehrung rechnet immer "von oben nach unten". Bei waagerechtem
+    # Fluss wird dafuer gedreht und das Ergebnis anschliessend zurueckgedreht.
+    def to_route(point):
+        return (point[1], -point[0]) if horizontal else point
 
-    def to_page(point):
-        return (round(point[0] + offset_x, 6), round(offset_y - point[1], 6))
+    def from_route(point):
+        return (-point[1], point[0]) if horizontal else point
 
-    placements = {}
-    for nid in real:
-        x, y = to_page(centers[nid])
-        width, height = sizes[nid]
-        placements[nid] = (x, y, width, height)
+    route_place = {}
+    for nid, (x, y, width, height) in placements.items():
+        rx, ry = to_route((x, y))
+        route_place[nid] = (rx, ry,
+                            height if horizontal else width,
+                            width if horizontal else height)
 
     offsets = _parallel_offsets(graph)
-    bands = _free_bands(placements)
+    bands = _free_bands(route_place)
     routes = {}
     used_lanes = []
     # Laengere Kanten zuerst: sie bekommen die aussen liegenden Spuren
@@ -873,51 +896,63 @@ def layout_graph(graph):
             routes[index] = []
             continue
         shift = offsets.get(index, 0.0)
+        sx, sy, sw, sh = route_place[edge.src]
+        tx, ty, tw, th = route_place[edge.dst]
         if not chains[index]:
             # Direkte Nachbarn: nur bei Mehrfachkanten seitlich versetzen
-            if shift:
-                sx, sy = placements[edge.src][0], placements[edge.src][1]
-                tx, ty = placements[edge.dst][0], placements[edge.dst][1]
-                routes[index] = [((sx + tx) / 2.0 + shift, (sy + ty) / 2.0)]
-            else:
-                routes[index] = []
+            routes[index] = ([from_route(((sx + tx) / 2.0 + shift,
+                                          (sy + ty) / 2.0))] if shift else [])
             continue
         # Kante ueber mehrere Ebenen: eine gerade, freie Spur waehlen. Die
         # Hilfsknoten liefern nur noch den Wunschwert - ihre einzelnen
-        # x-Positionen wuerden die Linie sonst staendig pendeln lassen.
-        lane_x = [to_page(centers[dummy])[0] for dummy in chains[index]]
-        lane_x.sort()
-        wish = lane_x[len(lane_x) // 2] + shift
-        sx, sy, sw, sh = placements[edge.src]
-        tx, ty, tw, th = placements[edge.dst]
+        # Positionen wuerden die Linie sonst staendig pendeln lassen.
+        lane_wish = sorted(to_route(dummy_at[dummy])[0]
+                           for dummy in chains[index])
+        wish = lane_wish[len(lane_wish) // 2] + shift
         downward = ty < sy
-        # Die waagerechten Stuecke muessen in den freien Streifen zwischen den
+        # Die querlaufenden Stuecke muessen in den freien Streifen zwischen den
         # Ebenen liegen - auf Hoehe der Formmitte wuerden sie Nachbarn schneiden.
         band_out = _band_beyond(bands, sy - sh / 2.0 if downward else sy + sh / 2.0,
                                 downward, V_GAP / 2.0)
         band_in = _band_beyond(bands, ty + th / 2.0 if downward else ty - th / 2.0,
                                not downward, V_GAP / 2.0)
-        y_low, y_high = sorted((band_out, band_in))
-        lane = _channel_lane(wish, y_low, y_high, placements,
+        low, high = sorted((band_out, band_in))
+        lane = _channel_lane(wish, low, high, route_place,
                              {edge.src, edge.dst}, used_lanes)
-        used_lanes.append((lane, y_low, y_high))
-        routes[index] = [(sx, band_out), (lane, band_out),
-                         (lane, band_in), (tx, band_in)]
+        used_lanes.append((lane, low, high))
+        routes[index] = [from_route(point) for point in
+                         ((sx, band_out), (lane, band_out),
+                          (lane, band_in), (tx, band_in))]
 
-    # Seite verbreitern, falls eine Spur ueber den Rand hinausragt
-    lanes = [lane for lane, _, _ in used_lanes]
-    if lanes:
-        left = min(lanes) - MARGIN / 2.0
-        right = max(lanes) + MARGIN / 2.0
-        if left < 0:
-            placements = {n: (x - left, y, w, h)
-                          for n, (x, y, w, h) in placements.items()}
-            routes = {i: [(x - left, y) for x, y in pts]
-                      for i, pts in routes.items()}
-            page_width += -left
-            right += -left
-        page_width = max(page_width, right)
+    # ------------------------------------------------- Seite und Verschiebung
+    pad = GROUP_PAD + 0.18 if graph.groups else 0.0
+    xs, ys = [], []
+    for x, y, width, height in placements.values():
+        xs += [x - width / 2.0 - pad, x + width / 2.0 + pad]
+        ys += [y - height / 2.0 - pad, y + height / 2.0 + pad]
+    for points in routes.values():
+        for x, y in points:
+            xs.append(x)
+            ys.append(y)
+    min_a4, max_a4 = 8.2677, 11.6929
+    page_width = max(max_a4 if horizontal else min_a4,
+                     (max(xs) - min(xs)) + 2 * MARGIN)
+    page_height = max(min_a4 if horizontal else max_a4,
+                      (max(ys) - min(ys)) + 2 * MARGIN)
+    # Laengs der Flussrichtung am Anfang ausrichten, quer dazu zentrieren
+    if horizontal:
+        offset_x = MARGIN - min(xs)
+        offset_y = (page_height - (max(ys) - min(ys))) / 2.0 - min(ys)
+    else:
+        offset_x = (page_width - (max(xs) - min(xs))) / 2.0 - min(xs)
+        offset_y = page_height - MARGIN - max(ys)
 
+    placements = {nid: (round(x + offset_x, 6), round(y + offset_y, 6),
+                        width, height)
+                  for nid, (x, y, width, height) in placements.items()}
+    routes = {index: [(round(x + offset_x, 6), round(y + offset_y, 6))
+                      for x, y in points]
+              for index, points in routes.items()}
     return (placements, routes, round(page_width, 4), round(page_height, 4))
 
 
@@ -1116,11 +1151,15 @@ def _boundary_point(x, y, width, height, target_x, target_y):
     return x + dx * scale, y + dy * scale
 
 
-def _orthogonal_path(points):
+def _orthogonal_path(points, horizontal=False):
     """Macht aus Stuetzpunkten einen rechtwinkligen Streckenzug."""
     path = [points[0]]
     for previous, following in zip(points, points[1:]):
-        if abs(following[0] - previous[0]) > 0.01:
+        if horizontal and abs(following[1] - previous[1]) > 0.01:
+            middle_x = (previous[0] + following[0]) / 2.0
+            path.append((middle_x, previous[1]))
+            path.append((middle_x, following[1]))
+        elif not horizontal and abs(following[0] - previous[0]) > 0.01:
             middle_y = (previous[1] + following[1]) / 2.0
             path.append((previous[0], middle_y))
             path.append((following[0], middle_y))
@@ -1404,7 +1443,7 @@ def _pages_xml(page_width, page_height, title):
             + "</Page></Pages>")
 
 
-def _page1_xml(graph, placements, routes):
+def _page1_xml(graph, placements, routes, horizontal=False):
     """Baut den Seiteninhalt: Rahmen, Formen, verklebte Verbinder."""
     shapes = []
     connects = []
@@ -1447,7 +1486,7 @@ def _page1_xml(graph, placements, routes):
         last = waypoints[-1] if waypoints else (sx, sy)
         begin = _boundary_point(sx, sy, sw, sh, first[0], first[1])
         end = _boundary_point(tx, ty, tw, th, last[0], last[1])
-        path = _orthogonal_path([begin] + waypoints + [end])
+        path = _orthogonal_path([begin] + waypoints + [end], horizontal)
         from_id, to_id = shape_ids[edge.src], shape_ids[edge.dst]
         shapes.append(_connector_xml(next_id, from_id, to_id, path, edge.label))
         # FromPart 9 = Anfangspunkt, 12 = Endpunkt; ToPart 3 = ganze Form
@@ -1542,6 +1581,10 @@ def _simple_rels(target, rel_type):
             '</Relationships>' % (rel_type, target))
 
 
+def _producer():
+    return "%s %s" % (APP_TITLE, APP_VERSION)
+
+
 def _core_xml(title):
     stamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
     return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
@@ -1552,11 +1595,12 @@ def _core_xml(title):
             'xmlns:dcterms="http://purl.org/dc/terms/" '
             'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
             '<dc:title>%s</dc:title>'
-            '<dc:creator>ProcessMap Studio</dc:creator>'
-            '<cp:lastModifiedBy>ProcessMap Studio</cp:lastModifiedBy>'
+            '<dc:creator>%s</dc:creator>'
+            '<cp:lastModifiedBy>%s</cp:lastModifiedBy>'
             '<dcterms:created xsi:type="dcterms:W3CDTF">%s</dcterms:created>'
             '<dcterms:modified xsi:type="dcterms:W3CDTF">%s</dcterms:modified>'
-            '</cp:coreProperties>' % (html.escape(title), stamp, stamp))
+            '</cp:coreProperties>'
+            % (html.escape(title), _producer(), _producer(), stamp, stamp))
 
 
 def write_vsdx(graph, path, title="Prozess"):
@@ -1564,6 +1608,7 @@ def write_vsdx(graph, path, title="Prozess"):
     if not graph.nodes:
         raise ValueError("Der Mermaid-Code enthält keine erkennbaren Schritte.")
     placements, routes, page_width, page_height = layout_graph(graph)
+    horizontal = getattr(graph, "direction", "TD") == "LR"
     page_name = (title or "Prozess")[:40] or "Prozess"
 
     parts = {
@@ -1578,7 +1623,8 @@ def write_vsdx(graph, path, title="Prozess"):
         "visio/masters/master1.xml": _master1_xml(),
         "visio/pages/pages.xml": _pages_xml(page_width, page_height, page_name),
         "visio/pages/_rels/pages.xml.rels": _simple_rels("page1.xml", "page"),
-        "visio/pages/page1.xml": _page1_xml(graph, placements, routes),
+        "visio/pages/page1.xml": _page1_xml(graph, placements, routes,
+                                           horizontal),
         "visio/pages/_rels/page1.xml.rels":
             _simple_rels("../masters/master1.xml", "master"),
         "visio/windows.xml": _windows_xml(page_width, page_height),
@@ -1659,7 +1705,7 @@ class PdfOptionsDialog(tk.Toplevel):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE)
+        self.title("%s %s" % (APP_TITLE, APP_VERSION))
         self.geometry("1060x720")
         self.minsize(880, 560)
         self._build_ui()
@@ -1748,6 +1794,17 @@ class App(tk.Tk):
         ttk.Entry(title_row, textvariable=self.title_var).pack(
             side="left", fill="x", expand=True, padx=(8, 0))
 
+        direction_row = ttk.Frame(right)
+        direction_row.pack(fill="x", pady=(0, 8))
+        ttk.Label(direction_row, text="Fließrichtung:").pack(side="left")
+        self.direction_var = tk.StringVar(value="TD")
+        ttk.Radiobutton(direction_row, text="senkrecht (von oben nach unten)",
+                        value="TD", variable=self.direction_var,
+                        command=self.apply_direction).pack(side="left", padx=(8, 0))
+        ttk.Radiobutton(direction_row, text="waagerecht (von links nach rechts)",
+                        value="LR", variable=self.direction_var,
+                        command=self.apply_direction).pack(side="left", padx=(12, 0))
+
         ttk.Label(right, text="Prozess-Code (Mermaid) – jederzeit von Hand "
                               "änderbar",
                   font=self.hint_font, foreground="#5A6672").pack(
@@ -1800,6 +1857,47 @@ class App(tk.Tk):
         state = "normal" if self.get_code() else "disabled"
         for button in self._needs_code:
             button.configure(state=state)
+        self._sync_direction()
+
+    def _sync_direction(self):
+        """Radiobutton an die Richtung im Code angleichen (ohne Rueckschreiben)."""
+        code = self.get_code()
+        if not code:
+            return
+        match = re.search(r"^\s*(?:flowchart|graph)\s+([A-Za-z]{2})", code,
+                          re.IGNORECASE | re.MULTILINE)
+        if match:
+            found = normalise_direction(match.group(1))
+            if found != self.direction_var.get():
+                self.direction_var.set(found)
+
+    def apply_direction(self):
+        """Schreibt die gewaehlte Richtung in die flowchart-Zeile des Codes.
+
+        Der Code bleibt damit die einzige Wahrheit: Vorschau, PDF und Visio
+        richten sich alle nach dieser Zeile.
+        """
+        wanted = self.direction_var.get()
+        code = self.get_code()
+        if not code:
+            return
+        new_code, count = re.subn(
+            r"^(\s*(?:flowchart|graph))\s+[A-Za-z]{2}\b",
+            lambda mm: "%s %s" % (mm.group(1), wanted),
+            code, count=1, flags=re.IGNORECASE | re.MULTILINE)
+        if not count:
+            # Keine Richtungsangabe vorhanden: eine ergaenzen bzw. voranstellen
+            new_code, count = re.subn(
+                r"^(\s*(?:flowchart|graph))\b",
+                lambda mm: "%s %s" % (mm.group(1), wanted),
+                code, count=1, flags=re.IGNORECASE | re.MULTILINE)
+        if not count:
+            new_code = "flowchart %s\n%s" % (wanted, code)
+        if new_code != code:
+            self.set_code(new_code)
+        self.status_var.set(
+            "Fließrichtung auf %s gestellt – wirkt auf Vorschau, PDF und Visio."
+            % ("senkrecht (TD)" if wanted == "TD" else "waagerecht (LR)"))
 
     # -- Aktionen -----------------------------------------------------------
     def get_code(self) -> str:

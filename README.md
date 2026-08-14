@@ -1,4 +1,4 @@
-# ProcessMap Studio
+# ProcessMap Studio 0.1
 
 Einfaches `.pyw`-Tool zum Erstellen von Process Maps mit
 [Mermaid.js](https://mermaid.js.org/) – gedacht für gesperrte
@@ -71,6 +71,20 @@ Schritt 3 und 4 sind **gesperrt, solange kein Code im Editor steht** – die
 Reihenfolge ist damit nicht nur beschriftet, sondern durchgesetzt. Sobald
 etwas im Editor steht, schalten sie sich frei. Die Statuszeile bestätigt
 jeden Schritt und nennt den nächsten.
+
+## Fließrichtung: senkrecht oder waagerecht
+
+Über dem Editor schaltet ein Radiobutton zwischen **senkrecht (von oben
+nach unten)** und **waagerecht (von links nach rechts)** um. Die Auswahl
+schreibt die Richtung in die `flowchart`-Zeile des Codes – dieser bleibt
+damit die einzige Wahrheit, und **Vorschau, PDF und Visio folgen
+gemeinsam**. Wird Code mit `flowchart LR` eingefügt, stellt sich der
+Radiobutton automatisch passend ein.
+
+Faustregel: Senkrecht passt zu langen Abläufen mit vielen
+aufeinanderfolgenden Schritten (druckt sich auf Hochformat gut).
+Waagerecht lohnt sich bei wenigen Ebenen mit vielen parallelen Zweigen –
+bei langen Ketten wird die Zeichnung sonst sehr breit.
 
 ## Verwendung
 
