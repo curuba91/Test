@@ -169,6 +169,26 @@ Verbindungslinie durch eine fremde Form** verläuft.
 > exportierte Datei einmal in Visio öffnen. Falls Visio eine Reparatur
 > vorschlägt, bitte melden – die Ursache ist dann gezielt behebbar.
 
+### Verbinder: rechtwinklig oder gerade
+
+Über dem Editor lässt sich wählen, wie die Verbinder in der Visio-Datei
+gezeichnet werden:
+
+| | Aussehen | Beim Bearbeiten in Visio |
+|---|---|---|
+| **rechtwinklig** | klassische Flussdiagramm-Optik | Knicke normaler Verbindungen wandern mit; die festen Spuren langer Kanten können nach dem Verschieben Umwege ergeben |
+| **gerade Linien** | schlichter, diagonale Verbindungen | unempfindlich – eine Strecke zwischen zwei Klebepunkten ist immer korrekt, egal wohin verschoben wird |
+
+Wer die Datei in Visio nur ansieht und druckt, ist mit *rechtwinklig* besser
+bedient. Wer darin **umbaut und Formen verschiebt**, fährt mit *gerade
+Linien* verlässlicher.
+
+> Ehrlicher Hinweis: Visio führt Verbinder, die von fremder Software erzeugt
+> wurden, nicht selbsttätig neu. Die rechtwinklige Variante bringt ihre
+> Führung deshalb selbst mit – das deckt das Verschieben normaler
+> Verbindungen ab, aber nicht jeden Fall. Die gerade Variante hat dieses
+> Problem bauartbedingt nicht.
+
 ## Workflow mit Copilot (Vorverarbeitung ohne API)
 
 1. Im Tool auf **„Master-Prompt kopieren“** klicken.

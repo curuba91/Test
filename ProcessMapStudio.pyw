@@ -1088,23 +1088,6 @@ def _shape_geometry(kind, width, height):
     return _rel_polygon(KIND_GEOMETRY.get(kind, KIND_GEOMETRY[K_PROCESS]))
 
 
-def _connection_section(width, height):
-    """Vier Klebepunkte (oben/rechts/unten/links) fuer eigene Verbinder."""
-    points = [
-        (width / 2.0, height, "Width*0.5", "Height*1", 0, 1),
-        (width, height / 2.0, "Width*1", "Height*0.5", 1, 0),
-        (width / 2.0, 0, "Width*0.5", "Height*0", 0, -1),
-        (0, height / 2.0, "Width*0", "Height*0.5", -1, 0),
-    ]
-    rows = []
-    for index, (x, y, fx, fy, dir_x, dir_y) in enumerate(points):
-        rows.append("<Row IX='%d'>%s%s%s%s%s</Row>"
-                    % (index,
-                       _cell("X", _num(x), fx), _cell("Y", _num(y), fy),
-                       _cell("DirX", dir_x), _cell("DirY", dir_y),
-                       _cell("Type", 0)))
-    return "<Section N='Connection'>" + "".join(rows) + "</Section>"
-
 
 def _text_sections(font_pt, color="#000000", h_align=1, bold=False):
     # Font MUSS gesetzt werden: diese Row ersetzt die des Stylesheets komplett,
@@ -1149,7 +1132,10 @@ def _shape_xml(shape_id, node, x, y, width, height, horizontal=False):
         _cell("LeftMargin", 0.05), _cell("RightMargin", 0.05),
         _cell("TopMargin", 0.03), _cell("BottomMargin", 0.03),
     ]
-    parts.append(_connection_section(width, height))
+    # BEWUSST OHNE Connection-Section: von Visio erzeugte Formen tragen keine
+    # eigenen Klebepunkte. Sind welche vorhanden, rastet ein neu gezeichneter
+    # Verbinder auf einem festen Punkt ein statt dynamisch an der ganzen Form
+    # zu kleben - und springt beim Verschieben auf diesen Punkt zurueck.
     parts.append(_geometry_section(rows))
     if node.kind == K_SUBPROCESS:
         # Zwei senkrechte Balken kennzeichnen den Teilprozess
@@ -1591,10 +1577,14 @@ def _pages_xml(page_width, page_height, title):
             + _cell("PageHeight", _num(page_height))
             + _cell("ShdwOffsetX", _num(0.1181102362))
             + _cell("ShdwOffsetY", _num(-0.1181102362))
-            + _cell("PageScale", _num(1), unit="IN")
-            + _cell("DrawingScale", _num(1), unit="IN")
+            # Massstab 1:1, geschrieben wie in von Visio erzeugten Dateien
+            + _cell("PageScale", _num(0.03937007874015748), unit="MM")
+            + _cell("DrawingScale", _num(0.03937007874015748), unit="MM")
             + _cell("DrawingSizeType", 0) + _cell("DrawingScaleType", 0)
-            + _cell("InhibitSnap", 0) + _cell("UIVisibility", 0)
+            + _cell("InhibitSnap", 0)
+            + _cell("PageLockReplace", 0, unit="BOOL")
+            + _cell("PageLockDuplicate", 0, unit="BOOL")
+            + _cell("UIVisibility", 0)
             + _cell("ShdwType", 0) + _cell("ShdwObliqueAngle", 0)
             + _cell("ShdwScaleFactor", 1) + _cell("DrawingResizeType", 1)
             + _cell("PageShapeSplit", 1)
@@ -1612,7 +1602,7 @@ def _pages_xml(page_width, page_height, title):
             + "</Page></Pages>")
 
 
-def _page1_xml(graph, placements, routes, horizontal=False):
+def _page1_xml(graph, placements, routes, horizontal=False, straight=False):
     """Baut den Seiteninhalt: Rahmen, Formen, verklebte Verbinder."""
     shapes = []
     connects = []
@@ -1659,13 +1649,23 @@ def _page1_xml(graph, placements, routes, horizontal=False):
         else:
             out_flow = tx if horizontal else ty
             in_flow = sx if horizontal else sy
-        aim_begin = (out_flow, sy) if horizontal else (sx, out_flow)
-        aim_end = (in_flow, ty) if horizontal else (tx, in_flow)
-        begin = _boundary_point(sx, sy, sw, sh, aim_begin[0], aim_begin[1],
-                                graph.nodes[edge.src].kind)
-        end = _boundary_point(tx, ty, tw, th, aim_end[0], aim_end[1],
-                              graph.nodes[edge.dst].kind)
-        path = _anchored_path(begin, end, route, horizontal)
+        if straight:
+            # Gerade Linie: unempfindlich gegen jede Verschiebung, da eine
+            # Strecke zwischen zwei Punkten immer korrekt ist.
+            begin = _boundary_point(sx, sy, sw, sh, tx, ty,
+                                    graph.nodes[edge.src].kind)
+            end = _boundary_point(tx, ty, tw, th, sx, sy,
+                                  graph.nodes[edge.dst].kind)
+            path = [(begin[0], begin[1], ("begin",), ("begin",)),
+                    (end[0], end[1], ("end",), ("end",))]
+        else:
+            aim_begin = (out_flow, sy) if horizontal else (sx, out_flow)
+            aim_end = (in_flow, ty) if horizontal else (tx, in_flow)
+            begin = _boundary_point(sx, sy, sw, sh, aim_begin[0], aim_begin[1],
+                                    graph.nodes[edge.src].kind)
+            end = _boundary_point(tx, ty, tw, th, aim_end[0], aim_end[1],
+                                  graph.nodes[edge.dst].kind)
+            path = _anchored_path(begin, end, route, horizontal)
         from_id, to_id = shape_ids[edge.src], shape_ids[edge.dst]
         shapes.append(_connector_xml(next_id, from_id, to_id, path, edge.label))
         # FromPart 9 = Anfangspunkt, 12 = Endpunkt; ToPart 3 = ganze Form
@@ -1783,7 +1783,7 @@ def _core_xml(title):
             % (html.escape(title), _producer(), _producer(), stamp, stamp))
 
 
-def write_vsdx(graph, path, title="Prozess"):
+def write_vsdx(graph, path, title="Prozess", straight=False):
     """Schreibt den Graphen als bearbeitbare Visio-Datei (.vsdx)."""
     if not graph.nodes:
         raise ValueError("Der Mermaid-Code enthält keine erkennbaren Schritte.")
@@ -1804,7 +1804,7 @@ def write_vsdx(graph, path, title="Prozess"):
         "visio/pages/pages.xml": _pages_xml(page_width, page_height, page_name),
         "visio/pages/_rels/pages.xml.rels": _simple_rels("page1.xml", "page"),
         "visio/pages/page1.xml": _page1_xml(graph, placements, routes,
-                                           horizontal),
+                                           horizontal, straight),
         "visio/pages/_rels/page1.xml.rels":
             _simple_rels("../masters/master1.xml", "master"),
         "visio/windows.xml": _windows_xml(page_width, page_height),
@@ -1817,8 +1817,8 @@ def write_vsdx(graph, path, title="Prozess"):
     return len(graph.nodes), len(graph.edges)
 
 
-def mermaid_to_vsdx(code, path, title="Prozess"):
-    return write_vsdx(parse_mermaid(code), path, title)
+def mermaid_to_vsdx(code, path, title="Prozess", straight=False):
+    return write_vsdx(parse_mermaid(code), path, title, straight)
 
 
 # ---------------------------------------------------------------------------
@@ -1984,6 +1984,17 @@ class App(tk.Tk):
         ttk.Radiobutton(direction_row, text="waagerecht (von links nach rechts)",
                         value="LR", variable=self.direction_var,
                         command=self.apply_direction).pack(side="left", padx=(12, 0))
+
+        style_row = ttk.Frame(right)
+        style_row.pack(fill="x", pady=(0, 8))
+        ttk.Label(style_row, text="Verbinder in Visio:").pack(side="left")
+        self.connector_var = tk.StringVar(value="angle")
+        ttk.Radiobutton(style_row, text="rechtwinklig", value="angle",
+                        variable=self.connector_var).pack(side="left", padx=(8, 0))
+        ttk.Radiobutton(style_row, text="gerade Linien (unempfindlich beim "
+                                        "Verschieben)",
+                        value="straight",
+                        variable=self.connector_var).pack(side="left", padx=(12, 0))
 
         ttk.Label(right, text="Prozess-Code (Mermaid) – jederzeit von Hand "
                               "änderbar",
@@ -2229,7 +2240,9 @@ class App(tk.Tk):
         if not path:
             return
         try:
-            nodes, edges = mermaid_to_vsdx(code, path, title)
+            nodes, edges = mermaid_to_vsdx(
+                code, path, title,
+                straight=self.connector_var.get() == "straight")
         except Exception as error:  # defekter Mermaid-Code o. ae.
             messagebox.showerror(
                 APP_TITLE,
