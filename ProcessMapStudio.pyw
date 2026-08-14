@@ -929,22 +929,21 @@ def layout_graph(graph):
     for index in order:
         edge = graph.edges[index]
         if edge.src not in placements or edge.dst not in placements:
-            routes[index] = []
+            routes[index] = ("simple", [], 0.0)
             continue
         shift = offsets.get(index, 0.0)
         sx, sy, sw, sh = route_place[edge.src]
         tx, ty, tw, th = route_place[edge.dst]
         if not chains[index]:
             if not shift:
-                routes[index] = []
+                routes[index] = ("simple", [], 0.0)
                 continue
             # Mehrfachkanten zwischen denselben Formen: eine eigene Spur
             # seitlich daneben, mit zwei Stuetzstellen, damit ein sichtbarer
             # Bogen entsteht statt zweier deckungsgleicher Linien.
             middle = (sy + ty) / 2.0
             step = V_GAP / 5.0 if ty < sy else -V_GAP / 5.0
-            routes[index] = [from_route(((sx + tx) / 2.0 + shift, middle + step)),
-                             from_route(((sx + tx) / 2.0 + shift, middle - step))]
+            routes[index] = ("parallel", [], shift)
             continue
         # Kante ueber mehrere Ebenen: eine gerade, freie Spur waehlen. Die
         # Hilfsknoten liefern nur noch den Wunschwert - ihre einzelnen
@@ -965,8 +964,9 @@ def layout_graph(graph):
         used_lanes.append((lane, low, high))
         # Nur die Spurpunkte merken; die Anschluesse an die Formen ergaenzt
         # der Verbinder selbst, damit sie an den Klebepunkten haengen.
-        routes[index] = [from_route(point) for point in
-                         ((lane, band_out), (lane, band_in))]
+        routes[index] = ("channel",
+                         [from_route(point) for point in
+                          ((lane, band_out), (lane, band_in))], 0.0)
 
     # ------------------------------------------------- Seite und Verschiebung
     pad = GROUP_PAD + 0.18 if graph.groups else 0.0
@@ -974,7 +974,7 @@ def layout_graph(graph):
     for x, y, width, height in placements.values():
         xs += [x - width / 2.0 - pad, x + width / 2.0 + pad]
         ys += [y - height / 2.0 - pad, y + height / 2.0 + pad]
-    for points in routes.values():
+    for _kind, points, _shift in routes.values():
         for x, y in points:
             xs.append(x)
             ys.append(y)
@@ -994,9 +994,9 @@ def layout_graph(graph):
     placements = {nid: (round(x + offset_x, 6), round(y + offset_y, 6),
                         width, height)
                   for nid, (x, y, width, height) in placements.items()}
-    routes = {index: [(round(x + offset_x, 6), round(y + offset_y, 6))
-                      for x, y in points]
-              for index, points in routes.items()}
+    routes = {index: (kind, [(round(x + offset_x, 6), round(y + offset_y, 6))
+                             for x, y in points], shift)
+              for index, (kind, points, shift) in routes.items()}
     return (placements, routes, round(page_width, 4), round(page_height, 4))
 
 
@@ -1211,44 +1211,59 @@ def _boundary_point(x, y, width, height, target_x, target_y, kind=None):
     return x + dx * scale, y + dy * scale
 
 
-def _anchored_path(begin, end, waypoints, horizontal):
+def _anchored_path(begin, end, route, horizontal):
     """Baut den Streckenzug mit ausdruecklicher Bindung je Achse.
 
-    Jeder Punkt bekommt fuer beide Achsen eine Angabe, woran er haengt:
-    am Startpunkt, am Zielpunkt oder an einer festen Lage. Daraus entsteht
-    eine Treppe, die bei jeder Verschiebung rechtwinklig bleibt - der erste
-    und letzte Punkt folgen den Formen, die Spur dazwischen bleibt liegen.
+    Jeder Punkt bekommt fuer beide Achsen an, woran er haengt: am Startpunkt,
+    am Zielpunkt, an der Mitte zwischen beiden (mit optionalem Versatz) oder
+    an einer festen Lage. Kurze Verbindungen haengen an der Mitte und wandern
+    damit sauber mit, wenn eine Form verschoben wird. Nur die langen Kanten
+    behalten ihre feste Spur - die muss frei bleiben, um Formen zu umgehen.
     """
-    begin_x, begin_y = begin
-    end_x, end_y = end
-    points = [(begin_x, begin_y, "begin", "begin")]
-    if waypoints:
-        first_flow = waypoints[0][0] if horizontal else waypoints[0][1]
-        last_flow = waypoints[-1][0] if horizontal else waypoints[-1][1]
+    kind, waypoints, shift = route
+
+    def make(cross_value, flow_value, cross_anchor, flow_anchor):
         if horizontal:
-            points.append((first_flow, begin_y, "const", "begin"))
-            for way_x, way_y in waypoints:
-                points.append((way_x, way_y, "const", "const"))
-            points.append((last_flow, end_y, "const", "end"))
-        else:
-            points.append((begin_x, first_flow, "begin", "const"))
-            for way_x, way_y in waypoints:
-                points.append((way_x, way_y, "const", "const"))
-            points.append((end_x, last_flow, "end", "const"))
+            return (flow_value, cross_value, flow_anchor, cross_anchor)
+        return (cross_value, flow_value, cross_anchor, flow_anchor)
+
+    begin_cross, begin_flow = (begin[1], begin[0]) if horizontal else begin
+    end_cross, end_flow = (end[1], end[0]) if horizontal else end
+    middle_flow = (begin_flow + end_flow) / 2.0
+    middle_cross = (begin_cross + end_cross) / 2.0
+    points = [make(begin_cross, begin_flow, ("begin",), ("begin",))]
+
+    if kind == "channel" and waypoints:
+        lane = waypoints[0][1] if horizontal else waypoints[0][0]
+        band_out = waypoints[0][0] if horizontal else waypoints[0][1]
+        band_in = waypoints[-1][0] if horizontal else waypoints[-1][1]
+        points.append(make(begin_cross, band_out,
+                           ("begin",), ("const", band_out)))
+        points.append(make(lane, band_out,
+                           ("const", lane), ("const", band_out)))
+        points.append(make(lane, band_in,
+                           ("const", lane), ("const", band_in)))
+        points.append(make(end_cross, band_in, ("end",), ("const", band_in)))
+    elif kind == "parallel":
+        # Bogen seitlich neben der Mitte, damit Mehrfachkanten sichtbar
+        # auseinanderlaufen - alles an der Mitte aufgehaengt, also mitwandernd.
+        step = V_GAP / 5.0 if end_flow < begin_flow else -V_GAP / 5.0
+        points.append(make(begin_cross, middle_flow + step,
+                           ("begin",), ("mid", step)))
+        points.append(make(middle_cross + shift, middle_flow + step,
+                           ("mid", shift), ("mid", step)))
+        points.append(make(middle_cross + shift, middle_flow - step,
+                           ("mid", shift), ("mid", -step)))
+        points.append(make(end_cross, middle_flow - step,
+                           ("end",), ("mid", -step)))
     else:
-        # Ohne Stuetzstelle trotzdem einen Knick vorsehen: eine reine
-        # Zwei-Punkt-Linie koennte nach einer seitlichen Verschiebung nicht
-        # mehr rechtwinklig bleiben.
-        if horizontal:
-            middle = (begin_x + end_x) / 2.0
-            points.append((middle, begin_y, "const", "begin"))
-            points.append((middle, end_y, "const", "end"))
-        else:
-            middle = (begin_y + end_y) / 2.0
-            points.append((begin_x, middle, "begin", "const"))
-            points.append((end_x, middle, "end", "const"))
-    points.append((end_x, end_y, "end", "end"))
-    # Aufeinanderfolgende Doppelpunkte entfernen
+        # Einfache Verbindung: Knick genau mittig zwischen beiden Formen.
+        # Eine reine Zwei-Punkt-Linie koennte nach einer seitlichen
+        # Verschiebung nicht mehr rechtwinklig bleiben.
+        points.append(make(begin_cross, middle_flow, ("begin",), ("mid", 0.0)))
+        points.append(make(end_cross, middle_flow, ("end",), ("mid", 0.0)))
+
+    points.append(make(end_cross, end_flow, ("end",), ("end",)))
     cleaned = [points[0]]
     for point in points[1:]:
         if (abs(point[0] - cleaned[-1][0]) > 0.004
@@ -1326,15 +1341,21 @@ def _connector_xml(shape_id, from_id, to_id, path, label):
     # den Formen folgen. Punkte, die auf einem Endpunkt liegen, werden an
     # diesen gebunden - so bleibt der Streckenzug bei jeder Verschiebung
     # rechtwinklig und beginnt bzw. endet exakt am Klebepunkt.
-    def axis_formula(value, kind, axis):
+    def axis_formula(anchor, axis):
         pin, loc = ("PinX", "LocPinX") if axis == "X" else ("PinY", "LocPinY")
+        kind = anchor[0]
         if kind == "begin":
-            anchor = "Begin" + axis
-        elif kind == "end":
-            anchor = "End" + axis
-        else:
-            anchor = _num(value)              # Spur/Streifen bleibt, wo sie ist
-        return "%s-%s+%s" % (anchor, pin, loc)
+            return "Begin%s-%s+%s" % (axis, pin, loc)
+        if kind == "end":
+            return "End%s-%s+%s" % (axis, pin, loc)
+        if kind == "mid":
+            # Der Pin liegt genau mittig zwischen den Klebepunkten, in
+            # Formkoordinaten ist das LocPin - der Punkt wandert also mit.
+            offset = anchor[1]
+            if abs(offset) < 1e-9:
+                return loc
+            return "%s%s%s" % (loc, "+" if offset > 0 else "-", _num(abs(offset)))
+        return "%s-%s+%s" % (_num(anchor[1]), pin, loc)   # feste Spur
     walk_begin = "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
     walk_end = "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)"
 
@@ -1386,9 +1407,9 @@ def _connector_xml(shape_id, from_id, to_id, path, label):
         rows.append("<Row T='%s' IX='%d'>%s%s</Row>"
                     % (row_type, index + 1,
                        _cell("X", _num(x - origin_x),
-                             axis_formula(x, x_kind, "X")),
+                             axis_formula(x_kind, "X")),
                        _cell("Y", _num(y - origin_y),
-                             axis_formula(y, y_kind, "Y"))))
+                             axis_formula(y_kind, "Y"))))
     # Der Master bringt drei Zeilen mit; ueberzaehlige entfernen
     for position in range(len(path) + 1, 4):
         rows.append("<Row T='LineTo' IX='%d' Del='1'/>" % position)
@@ -1628,7 +1649,8 @@ def _page1_xml(graph, placements, routes, horizontal=False):
             continue
         sx, sy, sw, sh = placements[edge.src]
         tx, ty, tw, th = placements[edge.dst]
-        waypoints = routes.get(index) or []
+        route = routes.get(index) or ("simple", [], 0.0)
+        waypoints = route[1]
         # Die Linie verlaesst die Form laengs der Flussrichtung und tritt
         # ebenso wieder ein; den seitlichen Versatz nimmt die Treppe auf.
         if waypoints:
@@ -1643,7 +1665,7 @@ def _page1_xml(graph, placements, routes, horizontal=False):
                                 graph.nodes[edge.src].kind)
         end = _boundary_point(tx, ty, tw, th, aim_end[0], aim_end[1],
                               graph.nodes[edge.dst].kind)
-        path = _anchored_path(begin, end, waypoints, horizontal)
+        path = _anchored_path(begin, end, route, horizontal)
         from_id, to_id = shape_ids[edge.src], shape_ids[edge.dst]
         shapes.append(_connector_xml(next_id, from_id, to_id, path, edge.label))
         # FromPart 9 = Anfangspunkt, 12 = Endpunkt; ToPart 3 = ganze Form
