@@ -122,6 +122,11 @@ Visio-Zeichnung. Was in Visio ankommt:
 - **Mehrfachkanten getrennt geführt:** Zeigen Ja- und Nein-Zweig einer
   Entscheidung auf dieselbe Form, verlassen sie die Raute an
   verschiedenen Stellen und behalten lesbare, getrennte Beschriftungen.
+- **Lange Linien laufen gerade.** Eine Kante über mehrere Ebenen bekommt
+  eine eigene senkrechte Spur, die vorab gegen alle Formen im
+  betroffenen Höhenbereich freigeprüft wird. Die waagerechten Endstücke
+  liegen in den freien Streifen *zwischen* den Ebenen. Dadurch hat jede
+  lange Verbindung genau zwei Knicke statt eines Zickzackkurses.
 
 Die Seitengröße wächst mit dem Diagramm, mindestens A4 hoch.
 

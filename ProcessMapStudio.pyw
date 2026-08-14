@@ -498,6 +498,8 @@ GROUP_PAD = 0.28       # Innenabstand einer Subgraph-Umrandung
 CHARS_PER_LINE = 22    # Umbruchbreite fuer die Groessenschaetzung
 DUMMY_WIDTH = 0.26     # Spurbreite fuer durchlaufende Kanten
 PARALLEL_GAP = 0.75    # Versatz zwischen mehreren Kanten derselben Formen
+LANE_CLEARANCE = 0.22  # Abstand einer Leitungsspur zur naechsten Form
+LANE_MIN = 0.30        # Mindestabstand zwischen zwei Leitungsspuren
 
 
 def _node_size(kind, label):
@@ -638,7 +640,7 @@ def _order_layers(node_ids, layout_edges, rank):
     return layers, levels
 
 
-def _assign_coordinates(node_ids, layout_edges, layers, levels, sizes):
+def _assign_coordinates(node_ids, layout_edges, layers, levels, sizes, chains=()):
     """Berechnet Mittelpunkte; Ursprung oben links, wird spaeter gespiegelt."""
     pred = {nid: [] for nid in node_ids}
     succ = {nid: [] for nid in node_ids}
@@ -699,8 +701,98 @@ def _assign_coordinates(node_ids, layout_edges, layers, levels, sizes):
                     x_of[nid] = sum(values) / len(values)
             compact(level)
 
+    # Hilfsknoten einer Kante auf eine gemeinsame Spur ziehen. Ohne das
+    # bekaeme jede Zwischenebene ihre eigene x-Position und eine lange
+    # Linie wuerde auf ihrem Weg staendig seitlich pendeln.
+    slot = {}
+    for level in levels:
+        for position, nid in enumerate(layers[level]):
+            slot[nid] = (level, position)
+
+    def feasible(nid, wish):
+        """Naechstmoegliche Position zu 'wish', ohne die Nachbarn zu stoeren."""
+        level, position = slot[nid]
+        order = layers[level]
+        low, high = float("-inf"), float("inf")
+        if position > 0:
+            left = order[position - 1]
+            low = (x_of[left] + sizes[left][0] / 2.0
+                   + H_GAP + sizes[nid][0] / 2.0)
+        if position < len(order) - 1:
+            right = order[position + 1]
+            high = (x_of[right] - sizes[right][0] / 2.0
+                    - H_GAP - sizes[nid][0] / 2.0)
+        if low > high:
+            return x_of[nid]
+        return min(max(wish, low), high)
+
+    long_chains = [chain for chain in chains if len(chain) > 1]
+    for _ in range(4):
+        for chain in long_chains:
+            values = sorted(x_of[dummy] for dummy in chain)
+            target = values[len(values) // 2]        # Median = stabile Spur
+            for dummy in chain:
+                x_of[dummy] = feasible(dummy, target)
+
     return {nid: (x_of[nid], layer_y[level])
             for level in levels for nid in layers[level]}
+
+
+def _nearest_free(wish, intervals):
+    """Naechstgelegener Wert zu 'wish', der in keinem gesperrten Bereich liegt."""
+    merged = []
+    for start, stop in sorted(intervals):
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], stop)
+        else:
+            merged.append([start, stop])
+    for start, stop in merged:
+        if start < wish < stop:
+            return start if (wish - start) <= (stop - wish) else stop
+    return wish
+
+
+def _free_bands(placements):
+    """Waagerechte Streifen zwischen den Ebenen, in denen keine Form liegt."""
+    spans = sorted((y - height / 2.0, y + height / 2.0)
+                   for _, y, _, height in placements.values())
+    merged = []
+    for low, high in spans:
+        if merged and low <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], high)
+        else:
+            merged.append([low, high])
+    return [(lower[1], upper[0]) for lower, upper in zip(merged, merged[1:])]
+
+
+def _band_beyond(bands, edge_y, downward, fallback):
+    """Mitte des freien Streifens direkt unterhalb bzw. oberhalb von edge_y."""
+    if downward:
+        candidates = [band for band in bands if band[1] <= edge_y + 1e-6]
+        band = max(candidates, key=lambda b: b[1]) if candidates else None
+    else:
+        candidates = [band for band in bands if band[0] >= edge_y - 1e-6]
+        band = min(candidates, key=lambda b: b[0]) if candidates else None
+    if band is None:
+        return edge_y - fallback if downward else edge_y + fallback
+    return (band[0] + band[1]) / 2.0
+
+
+def _channel_lane(wish, y_low, y_high, placements, exclude, used):
+    """Sucht eine senkrechte Spur, die im Hoehenbereich keine Form beruehrt."""
+    blocked = []
+    for nid, (x, y, width, height) in placements.items():
+        if nid in exclude:
+            continue
+        if y + height / 2.0 < y_low or y - height / 2.0 > y_high:
+            continue                                   # kein Hoehenueberlapp
+        blocked.append((x - width / 2.0 - LANE_CLEARANCE,
+                        x + width / 2.0 + LANE_CLEARANCE))
+    for lane, low, high in used:                       # schon belegte Spuren
+        if high < y_low or low > y_high:
+            continue
+        blocked.append((lane - LANE_MIN, lane + LANE_MIN))
+    return _nearest_free(wish, blocked)
 
 
 def _parallel_offsets(graph):
@@ -743,7 +835,8 @@ def layout_graph(graph):
     node_ids = list(graph.nodes) + list(dummy_rank)
 
     layers, levels = _order_layers(node_ids, layout_edges, combined_rank)
-    centers = _assign_coordinates(node_ids, layout_edges, layers, levels, sizes)
+    centers = _assign_coordinates(node_ids, layout_edges, layers, levels,
+                                  sizes, chains)
 
     # Platz fuer Subgraph-Rahmen einplanen (nur echte Knoten begrenzen die Seite)
     pad = GROUP_PAD + 0.18 if graph.groups else 0.0
@@ -769,20 +862,63 @@ def layout_graph(graph):
         placements[nid] = (x, y, width, height)
 
     offsets = _parallel_offsets(graph)
+    bands = _free_bands(placements)
     routes = {}
-    for index, edge in enumerate(graph.edges):
-        points = [to_page(centers[dummy]) for dummy in chains[index]]
-        shift = offsets.get(index)
-        if shift and not points and edge.src in placements and edge.dst in placements:
-            # Direkte Nachbarn: einen Stuetzpunkt seitlich versetzt einziehen
-            sx, sy = placements[edge.src][0], placements[edge.src][1]
-            tx, ty = placements[edge.dst][0], placements[edge.dst][1]
-            points = [((sx + tx) / 2.0 + shift, (sy + ty) / 2.0)]
-        elif shift and points:
-            points = [(x + shift, y) for x, y in points]
-        routes[index] = points
+    used_lanes = []
+    # Laengere Kanten zuerst: sie bekommen die aussen liegenden Spuren
+    order = sorted(range(len(graph.edges)), key=lambda i: -len(chains[i]))
+    for index in order:
+        edge = graph.edges[index]
+        if edge.src not in placements or edge.dst not in placements:
+            routes[index] = []
+            continue
+        shift = offsets.get(index, 0.0)
+        if not chains[index]:
+            # Direkte Nachbarn: nur bei Mehrfachkanten seitlich versetzen
+            if shift:
+                sx, sy = placements[edge.src][0], placements[edge.src][1]
+                tx, ty = placements[edge.dst][0], placements[edge.dst][1]
+                routes[index] = [((sx + tx) / 2.0 + shift, (sy + ty) / 2.0)]
+            else:
+                routes[index] = []
+            continue
+        # Kante ueber mehrere Ebenen: eine gerade, freie Spur waehlen. Die
+        # Hilfsknoten liefern nur noch den Wunschwert - ihre einzelnen
+        # x-Positionen wuerden die Linie sonst staendig pendeln lassen.
+        lane_x = [to_page(centers[dummy])[0] for dummy in chains[index]]
+        lane_x.sort()
+        wish = lane_x[len(lane_x) // 2] + shift
+        sx, sy, sw, sh = placements[edge.src]
+        tx, ty, tw, th = placements[edge.dst]
+        downward = ty < sy
+        # Die waagerechten Stuecke muessen in den freien Streifen zwischen den
+        # Ebenen liegen - auf Hoehe der Formmitte wuerden sie Nachbarn schneiden.
+        band_out = _band_beyond(bands, sy - sh / 2.0 if downward else sy + sh / 2.0,
+                                downward, V_GAP / 2.0)
+        band_in = _band_beyond(bands, ty + th / 2.0 if downward else ty - th / 2.0,
+                               not downward, V_GAP / 2.0)
+        y_low, y_high = sorted((band_out, band_in))
+        lane = _channel_lane(wish, y_low, y_high, placements,
+                             {edge.src, edge.dst}, used_lanes)
+        used_lanes.append((lane, y_low, y_high))
+        routes[index] = [(sx, band_out), (lane, band_out),
+                         (lane, band_in), (tx, band_in)]
 
-    return placements, routes, round(page_width, 4), round(page_height, 4)
+    # Seite verbreitern, falls eine Spur ueber den Rand hinausragt
+    lanes = [lane for lane, _, _ in used_lanes]
+    if lanes:
+        left = min(lanes) - MARGIN / 2.0
+        right = max(lanes) + MARGIN / 2.0
+        if left < 0:
+            placements = {n: (x - left, y, w, h)
+                          for n, (x, y, w, h) in placements.items()}
+            routes = {i: [(x - left, y) for x, y in pts]
+                      for i, pts in routes.items()}
+            page_width += -left
+            right += -left
+        page_width = max(page_width, right)
+
+    return (placements, routes, round(page_width, 4), round(page_height, 4))
 
 
 # ===========================================================================
