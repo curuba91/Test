@@ -1,0 +1,831 @@
+<title>Gemba-Frühwarnsystem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{
+  --paper:#EEF0ED; --surface:#F8FAF8; --surface-2:#E3E8E4; --sunk:#E7EBE7;
+  --ink:#14201D; --ink-2:#43524E; --ink-3:#6D7B76;
+  --rule:#CBD3CE; --rule-strong:#AAB6B1;
+  --accent:#0E5F6B; --accent-2:#0A4750; --accent-soft:#D8E6E8;
+  --ok:#2E7050; --watch:#9A6A15; --alert:#A83A2B;
+  --ok-bg:#DCE9E1; --watch-bg:#F0E5CE; --alert-bg:#F2DED9;
+  --shadow:0 1px 2px rgba(20,32,29,.06), 0 8px 24px -16px rgba(20,32,29,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1414; --surface:#141D1D; --surface-2:#1D2A29; --sunk:#101818;
+    --ink:#E5EAE7; --ink-2:#A6B4AF; --ink-3:#7A8883;
+    --rule:#2A3735; --rule-strong:#3C4B48;
+    --accent:#5DB9C6; --accent-2:#8AD2DC; --accent-soft:#123137;
+    --ok:#6BAE87; --watch:#D3A251; --alert:#E27866;
+    --ok-bg:#16291F; --watch-bg:#2C2417; --alert-bg:#2E1C18;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1414; --surface:#141D1D; --surface-2:#1D2A29; --sunk:#101818;
+  --ink:#E5EAE7; --ink-2:#A6B4AF; --ink-3:#7A8883;
+  --rule:#2A3735; --rule-strong:#3C4B48;
+  --accent:#5DB9C6; --accent-2:#8AD2DC; --accent-soft:#123137;
+  --ok:#6BAE87; --watch:#D3A251; --alert:#E27866;
+  --ok-bg:#16291F; --watch-bg:#2C2417; --alert-bg:#2E1C18;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px 96px}
+
+/* ---------- document header ---------- */
+.masthead{border-bottom:1px solid var(--rule-strong); padding:56px 0 22px; margin-bottom:44px}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 18px;
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+}
+.eyebrow .sep{color:var(--rule-strong)}
+h1{
+  font-family:"IBM Plex Serif",Georgia,serif; font-weight:500;
+  font-size:clamp(2.1rem,5.2vw,3.15rem); line-height:1.06; letter-spacing:-.022em;
+  margin:0 0 18px; text-wrap:balance; max-width:20ch;
+}
+.standfirst{
+  font-size:1.09rem; line-height:1.55; color:var(--ink-2); max-width:62ch; margin:0 0 26px;
+  font-family:"IBM Plex Serif",Georgia,serif;
+}
+.docmeta{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-3);
+  display:flex; flex-wrap:wrap; gap:6px 20px;
+}
+.docmeta b{color:var(--ink-2); font-weight:500}
+
+/* ---------- toc ---------- */
+.toc{
+  background:var(--surface); border:1px solid var(--rule); border-radius:2px;
+  padding:22px 24px; margin:0 0 56px;
+}
+.toc h2{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:600;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); margin:0 0 14px;
+}
+.toc ol{list-style:none; margin:0; padding:0; display:grid; gap:2px 32px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); counter-reset:toc}
+.toc li{counter-increment:toc; display:flex; gap:10px; font-size:14.5px; line-height:1.45; padding:3px 0}
+.toc li::before{
+  content:counter(toc,decimal-leading-zero);
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; color:var(--accent);
+  padding-top:3px; flex:none;
+}
+.toc a{color:var(--ink); text-decoration:none; border-bottom:1px solid transparent}
+.toc a:hover, .toc a:focus-visible{border-bottom-color:var(--accent); color:var(--accent)}
+
+/* ---------- section grid with margin rail ---------- */
+section{
+  display:grid; grid-template-columns:7.5rem minmax(0,1fr);
+  gap:0 40px; padding:0 0 12px; margin:0 0 60px;
+  border-top:1px solid var(--rule); padding-top:34px;
+}
+.rail{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; line-height:1.6;
+  color:var(--ink-3); grid-column:1; align-self:start; position:sticky; top:24px;
+}
+.rail .num{display:block; font-size:22px; color:var(--accent); font-weight:500; letter-spacing:-.02em; margin-bottom:8px}
+.rail .note{display:block; border-left:2px solid var(--rule-strong); padding-left:9px; margin-top:14px; color:var(--ink-3)}
+.body{grid-column:2; max-width:70ch}
+section > h2{
+  grid-column:2; margin:0 0 16px;
+  font-family:"IBM Plex Serif",Georgia,serif; font-weight:500; font-size:1.62rem;
+  line-height:1.2; letter-spacing:-.015em; text-wrap:balance;
+}
+@media (max-width:880px){
+  section{grid-template-columns:1fr; gap:0}
+  section > h2, .body{grid-column:1}
+  .rail{grid-column:1; position:static; margin-bottom:12px; display:flex; gap:14px; align-items:baseline; flex-wrap:wrap}
+  .rail .num{margin:0; font-size:15px}
+  .rail .note{border-left:0; padding-left:0; margin:0}
+}
+
+h3{
+  font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:1.02rem;
+  letter-spacing:.005em; margin:34px 0 10px; color:var(--ink);
+}
+h3:first-child{margin-top:0}
+p{margin:0 0 15px}
+.body > p:last-child{margin-bottom:0}
+strong{font-weight:600}
+em{font-style:italic}
+a{color:var(--accent)}
+code, .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.86em}
+code{background:var(--sunk); padding:1px 5px; border-radius:2px; color:var(--ink-2)}
+
+ul,ol{margin:0 0 15px; padding-left:1.15em}
+li{margin-bottom:7px}
+li::marker{color:var(--ink-3)}
+
+.lede{font-size:1.06rem; color:var(--ink-2); font-family:"IBM Plex Serif",Georgia,serif; line-height:1.55}
+
+/* pull quote / key statement */
+.key{
+  border-left:3px solid var(--accent); background:var(--accent-soft);
+  padding:16px 20px; margin:24px 0; border-radius:0 2px 2px 0;
+  font-family:"IBM Plex Serif",Georgia,serif; font-size:1.02rem; line-height:1.5; color:var(--ink);
+}
+.key p{margin:0}
+.key p + p{margin-top:10px}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow-x:auto; margin:22px 0; border:1px solid var(--rule); border-radius:2px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; min-width:520px; font-size:14px}
+th,td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+thead th{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+  background:var(--surface-2); border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td.mono, th.mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12.5px; white-space:nowrap; font-variant-numeric:tabular-nums}
+td strong{font-weight:600}
+
+/* ---------- status chips ---------- */
+.chip{
+  display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; font-weight:600;
+  letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:2px; border:1px solid;
+}
+.chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor; flex:none}
+.chip.ok{color:var(--ok); background:var(--ok-bg); border-color:var(--ok)}
+.chip.watch{color:var(--watch); background:var(--watch-bg); border-color:var(--watch)}
+.chip.alert{color:var(--alert); background:var(--alert-bg); border-color:var(--alert)}
+
+/* ---------- figures ---------- */
+figure{
+  margin:30px 0; padding:22px 22px 16px; background:var(--surface);
+  border:1px solid var(--rule); border-radius:2px;
+}
+figure.bleed{grid-column:1 / -1; max-width:none}
+figure svg{display:block; width:100%; max-width:100%; height:auto}
+figcaption{
+  margin-top:14px; padding-top:12px; border-top:1px solid var(--rule);
+  font-size:13px; line-height:1.5; color:var(--ink-2);
+}
+figcaption b{font-weight:600; color:var(--ink)}
+
+/* ---------- record card ---------- */
+.record{
+  grid-column:1 / -1; margin:30px 0; background:var(--surface);
+  border:1px solid var(--rule-strong); border-radius:2px; overflow:hidden;
+}
+.record-head{
+  display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; justify-content:space-between;
+  padding:11px 18px; background:var(--surface-2); border-bottom:1px solid var(--rule-strong);
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-2);
+}
+.record-head .id{color:var(--ink); font-weight:600; letter-spacing:.04em}
+.record-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:0}
+.field{padding:13px 18px; border-right:1px solid var(--rule); border-bottom:1px solid var(--rule)}
+.field .label{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10px; font-weight:600;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3); display:block; margin-bottom:5px;
+}
+.field .val{font-size:14px; line-height:1.42; color:var(--ink)}
+.field .val .code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--accent); display:block; margin-top:3px}
+.field.wide{grid-column:1 / -1; border-right:0}
+.field.wide .val{font-size:14.5px; color:var(--ink-2)}
+.record-foot{
+  padding:10px 18px; font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:10.5px; color:var(--ink-3); line-height:1.7;
+}
+
+/* ---------- signal cards ---------- */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(255px,1fr)); gap:14px; margin:24px 0}
+.card{background:var(--surface); border:1px solid var(--rule); border-radius:2px; padding:16px 18px}
+.card h4{
+  margin:0 0 4px; font-size:14.5px; font-weight:600; font-family:"IBM Plex Sans",sans-serif;
+  display:flex; align-items:baseline; gap:8px;
+}
+.card h4 .n{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; color:var(--accent); font-weight:500}
+.card p{margin:0 0 8px; font-size:13.5px; line-height:1.5; color:var(--ink-2)}
+.card p:last-child{margin:0}
+.card .trig{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-3);
+  border-top:1px dashed var(--rule-strong); padding-top:8px; margin-top:10px; display:block; line-height:1.5;
+}
+
+/* ---------- pitfalls ---------- */
+.pitfalls{list-style:none; padding:0; margin:22px 0}
+.pitfalls li{
+  display:grid; grid-template-columns:auto 1fr; gap:4px 14px; padding:14px 0;
+  border-bottom:1px solid var(--rule); margin:0;
+}
+.pitfalls li:first-child{border-top:1px solid var(--rule)}
+.pitfalls .risk{grid-column:2; font-weight:600; font-size:14.5px}
+.pitfalls .mark{
+  grid-row:1 / span 2; font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11px; color:var(--alert); padding-top:3px;
+}
+.pitfalls .fix{grid-column:2; font-size:13.8px; color:var(--ink-2); line-height:1.5}
+.pitfalls .fix b{color:var(--ink); font-weight:600}
+
+/* ---------- phases ---------- */
+.phases{display:grid; gap:0; margin:24px 0; border:1px solid var(--rule); border-radius:2px; background:var(--surface)}
+.phase{display:grid; grid-template-columns:6.5rem 1fr; gap:18px; padding:16px 18px; border-bottom:1px solid var(--rule)}
+.phase:last-child{border-bottom:0}
+.phase .when{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--accent); line-height:1.5; padding-top:2px}
+.phase .when b{display:block; color:var(--ink-3); font-weight:500; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px}
+.phase h4{margin:0 0 5px; font-size:14.5px; font-weight:600}
+.phase p{margin:0; font-size:13.8px; color:var(--ink-2); line-height:1.5}
+@media (max-width:560px){ .phase{grid-template-columns:1fr; gap:8px} }
+
+footer{
+  border-top:1px solid var(--rule-strong); margin-top:8px; padding-top:22px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; color:var(--ink-3); line-height:1.8;
+}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Konzeptpapier <span class="sep">/</span> Continuous Improvement &amp; AI <span class="sep">/</span> Entwurf zur Entscheidung</p>
+  <h1>Gemba-Frühwarnsystem</h1>
+  <p class="standfirst">Ein Dokumentations- und Signalsystem, das Beobachtungen aus Begehungen aller Gebäude und Abteilungen zu einem gemeinsamen Standortbild verdichtet — und einen Anstieg dort sichtbar macht, wo er noch klein ist.</p>
+  <p class="docmeta">
+    <span><b>Geltungsbereich</b> gesamter Standort, alle Produktions- und Supportbereiche</span>
+    <span><b>Status</b> Entwurf v0.1</span>
+    <span><b>Einstufung</b> GMP-nah, nicht validierungspflichtig</span>
+  </p>
+</header>
+
+<nav class="toc" aria-label="Inhalt">
+  <h2>Inhalt</h2>
+  <ol>
+    <li><a href="#ziel">Zielbild und Abgrenzung</a></li>
+    <li><a href="#prinzip">Grundprinzip: Beobachtung als Datensatz</a></li>
+    <li><a href="#modell">Datenmodell</a></li>
+    <li><a href="#taxonomie">Taxonomie — das Herzstück</a></li>
+    <li><a href="#erfassung">Erfassung im Feld</a></li>
+    <li><a href="#analytik">Analytik: wie ein Signal entsteht</a></li>
+    <li><a href="#signale">Die sechs Signalklassen</a></li>
+    <li><a href="#spiegelung">Der Spiegelungs-Regelkreis</a></li>
+    <li><a href="#rollen">Rollen und Taktung</a></li>
+    <li><a href="#doku">Dokumentationskonzept</a></li>
+    <li><a href="#technik">Technische Umsetzung</a></li>
+    <li><a href="#ki">Wo KI hilft — und wo nicht</a></li>
+    <li><a href="#kpi">Kennzahlen des Systems selbst</a></li>
+    <li><a href="#risiken">Fallstricke</a></li>
+    <li><a href="#roadmap">Einführung in vier Phasen</a></li>
+  </ol>
+</nav>
+
+<!-- 1 -->
+<section id="ziel">
+  <div class="rail"><span class="num">01</span>Zielbild<span class="note">Was das System ist — und was es ausdrücklich nicht ist.</span></div>
+  <h2>Zielbild und Abgrenzung</h2>
+  <div class="body">
+    <p class="lede">Heute erzeugt jede Begehung ein Dokument. Das Dokument bleibt im Bereich, der Befund wird abgearbeitet, und das Wissen darüber, dass drei Gebäude weiter dasselbe passiert, entsteht nie. Ziel ist der Bruch mit dieser Struktur: aus jeder Beobachtung wird ein Datenpunkt, der standortweit sichtbar und auswertbar ist.</p>
+
+    <p>Das System erfüllt drei Funktionen, die zusammengehören und einzeln wenig wert sind:</p>
+    <ul>
+      <li><strong>Dokumentation</strong> — jede Begehung, jeder geprüfte Punkt, jeder Befund und jede Maßnahme wird nachvollziehbar und unveränderlich festgehalten.</li>
+      <li><strong>Frühwarnung</strong> — aus den Datenpunkten werden Raten gebildet, gegen eine Basislinie gestellt und automatisch auf Abweichung geprüft. Nicht der einzelne Befund alarmiert, sondern seine Häufung.</li>
+      <li><strong>Spiegelung</strong> — ein bestätigtes Signal wird aktiv in alle anderen Bereiche getragen, mit einer konkreten Prüfaufgabe und einer Rückmeldepflicht. Das ist der eigentliche Zweck; die ersten beiden Funktionen sind die Voraussetzung dafür.</li>
+    </ul>
+
+    <div class="key">
+      <p><strong>Bewusste Abgrenzung zum QMS.</strong> Dieses System ist kein validiertes GMP-System und soll keines werden. Es ist ein <em>Vorfeldsystem</em>: es beobachtet, verdichtet und warnt. Sobald ein Befund GMP-Relevanz hat, wird daraus im validierten QMS eine Abweichung — das System erzeugt den Anstoß und verlinkt die Vorgangsnummer, führt den Vorgang aber nicht selbst.</p>
+      <p>Diese Grenze muss von Tag eins scharf sein, sonst entsteht eine Schattendokumentation neben dem QMS. Das ist das größte regulatorische Risiko des gesamten Vorhabens.</p>
+    </div>
+
+    <h3>Was es nicht ist</h3>
+    <ul>
+      <li><strong>Kein Bereichs-Ranking.</strong> Es gibt keine Rangliste von Abteilungen nach Befundzahl. Wer viel findet, prüft gut.</li>
+      <li><strong>Kein Instrument der Personalbeurteilung.</strong> Beobachtungen beschreiben Zustände, nicht Personen. Auswertungen sind niemals personenbezogen.</li>
+      <li><strong>Kein CAPA-Ersatz.</strong> Maßnahmen werden verknüpft und im Status verfolgt, aber wirksamkeitsgeprüfte CAPAs bleiben im QMS.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="prinzip">
+  <div class="rail"><span class="num">02</span>Prinzip<span class="note">Nur was kodiert ist, ist auswertbar.</span></div>
+  <h2>Grundprinzip: die Beobachtung als Datensatz</h2>
+  <div class="body">
+    <p>Der entscheidende konzeptionelle Schritt ist klein und hat große Folgen: <strong>eine Begehung ist kein Dokument mehr, sondern ein Bündel typisierter Datensätze.</strong> Das Begehungsprotokoll ist nur noch eine Ansicht auf diese Datensätze — es wird gerendert, nicht geschrieben.</p>
+
+    <p>Daraus folgt eine harte Regel für alles Weitere: <strong>Freitext ist Beleg, nicht Träger.</strong> Was ausschließlich im Freitext steht, existiert für die Analyse nicht. Jede Beobachtung trägt deshalb eine Handvoll kodierter Achsen (Abschnitt 4) und zusätzlich eine Beschreibung. Die Beschreibung überzeugt den Menschen, die Codes tragen die Auswertung.</p>
+
+    <p>Der zweite, meistens vergessene Schritt: <strong>auch „geprüft, in Ordnung" ist ein Datensatz.</strong> Ohne diese Nenner-Information lässt sich keine Rate bilden, und ohne Rate misst jede Auswertung nur, wie fleißig ein Bereich begeht. Ein Bereich mit vier Begehungen im Monat sieht dann schlechter aus als einer mit einer — das Gegenteil der gewünschten Kultur.</p>
+
+  </div>
+
+    <div class="record">
+      <div class="record-head">
+        <span class="id">OBS-2026-0914-0037</span>
+        <span>erfasst 14.09.2026 09:41 · Version 2 von 2 · Autor: Schichtleitung Bau 7</span>
+      </div>
+      <div class="record-grid">
+        <div class="field"><span class="label">Ort</span><span class="val">Bau 7 · Feststoff · Linie 3 · Raum 7.214<span class="code">LOC.B7.FST.L3.R214</span></span></div>
+        <div class="field"><span class="label">Prüfpunkt</span><span class="val">Kennzeichnung Zwischenprodukt<span class="code">CHK.MAT.014 · Vorlage v3.2</span></span></div>
+        <div class="field"><span class="label">Kategorie</span><span class="val">Materialfluss → Kennzeichnung unvollständig<span class="code">KAT.MAT.03</span></span></div>
+        <div class="field"><span class="label">Ursachenklasse</span><span class="val">Prozessdesign (vorläufig)<span class="code">URS.PRZ · Konfidenz: niedrig</span></span></div>
+        <div class="field"><span class="label">Schweregrad</span><span class="val"><span class="chip watch">Stufe 2 — erhöht</span></span></div>
+        <div class="field"><span class="label">GMP-Relevanz</span><span class="val">unklar → QA-Triage<span class="code">DEV-Prüfung offen</span></span></div>
+        <div class="field wide">
+          <span class="label">Beobachtung</span>
+          <span class="val">Auf dem Zwischenlagerplatz Linie 3 standen zwei IBC ohne Statusetikett; Chargennummer nur handschriftlich auf dem Deckel. Der Statusdrucker an Position 3 war seit der Frühschicht ohne Etikettenrolle.</span>
+        </div>
+      </div>
+      <div class="record-foot">
+        Beleg: IMG-a41c9f… (SHA-256, unbearbeitet) · Beobachtungszeit 09:38 ≠ Erfassungszeit 09:41 · Taxonomie v4 · Änderung v1→v2: Ursachenklasse durch Triage ergänzt, Begründung hinterlegt · Vorgänger unverändert erhalten
+      </div>
+    </div>
+
+  <div class="body">
+    <p style="font-size:13.5px;color:var(--ink-2);margin-top:-14px">Ein einzelner Datensatz, wie ihn das System speichert. Sieben kodierte Achsen, ein Freitext, ein gehashter Beleg — und ein vollständiger Änderungspfad statt einer Überschreibung.</p>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="modell">
+  <div class="rail"><span class="num">03</span>Modell<span class="note">Neun Entitäten reichen für den vollständigen Regelkreis.</span></div>
+  <h2>Datenmodell</h2>
+  <div class="body">
+    <p>Das Modell bleibt bewusst klein. Jede zusätzliche Entität kostet Pflegeaufwand und Akzeptanz; die folgenden neun tragen den gesamten Regelkreis von der Erfassung bis zur Wirksamkeitsprüfung.</p>
+  </div>
+  <div class="tablewrap" style="grid-column:2">
+    <table>
+      <thead><tr><th>Entität</th><th>Trägt</th><th>Warum sie eigenständig ist</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Ort</strong></td><td>Standort → Gebäude → Bereich → Raum/Linie</td><td>Hierarchie erlaubt Aggregation auf jeder Ebene ohne Umkodierung</td></tr>
+        <tr><td><strong>Prozess/Produkt</strong></td><td>Was dort hergestellt wird (Darreichungsform, Technologie)</td><td>Vergleichbarkeit über Gebäude hinweg: Steril mit Steril, nicht mit Verpackung</td></tr>
+        <tr><td><strong>Vorlage</strong></td><td>Versionierte Checkliste, Menge von Prüfpunkten</td><td>Versionierung hält Zeitreihen auswertbar, wenn sich die Checkliste ändert</td></tr>
+        <tr><td><strong>Prüfpunkt</strong></td><td>Einzelne prüfbare Frage, standortweit eindeutige ID</td><td>Der gemeinsame Nenner: derselbe Punkt wird überall gleich gezählt</td></tr>
+        <tr><td><strong>Begehung</strong></td><td>Anlass, Ort, Zeit, Teilnehmer, verwendete Vorlage</td><td>Kontext und Nenner-Klammer für alle Beobachtungen darin</td></tr>
+        <tr><td><strong>Prüfergebnis</strong></td><td>Prüfpunkt × Begehung → i.O. / n.i.O. / nicht anwendbar</td><td><strong>Der Nenner.</strong> Ohne diese Zeile gibt es keine Rate, nur Zählungen</td></tr>
+        <tr><td><strong>Beobachtung</strong></td><td>Befund oder Positivbefund mit allen Achsen (Abschnitt 4)</td><td>Die eigentliche Analyseeinheit</td></tr>
+        <tr><td><strong>Maßnahme</strong></td><td>Sofortmaßnahme, Verantwortung, Frist, Status, QMS-Referenz</td><td>Ermöglicht Wiederholungserkennung <em>trotz</em> Maßnahme — das stärkste Signal</td></tr>
+        <tr><td><strong>Signal</strong></td><td>Erkanntes Muster, Regel, Zeitfenster, Triage-Entscheid, Spiegelungsstatus</td><td>Macht die Frühwarnung selbst dokumentiert und rückprüfbar</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="body">
+    <p style="margin-top:20px">Ergänzend, aber nicht als eigene Entität geführt: <strong>Beleg</strong> (Foto, Datei) hängt an der Beobachtung, <strong>Rückmeldung</strong> aus der Spiegelung ist technisch eine Beobachtung mit Verweis auf das auslösende Signal. Letzteres ist eine bewusste Modellentscheidung — sie sorgt dafür, dass Spiegelungsergebnisse automatisch in derselben Statistik landen wie alles andere.</p>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="taxonomie">
+  <div class="rail"><span class="num">04</span>Taxonomie<span class="note">Sechs Achsen. Zwei Ebenen. Additiv versioniert.</span></div>
+  <h2>Die Taxonomie — das Herzstück</h2>
+  <div class="body">
+    <p>Steht und fällt alles mit. Eine zu grobe Taxonomie erzeugt keine Signale, eine zu feine wird nicht sauber kodiert. Die Erfahrung aus vergleichbaren Systemen: <strong>8–12 Oberkategorien mit je 5–10 Unterkategorien</strong> sind die Obergrenze dessen, was im Feld noch zuverlässig getroffen wird.</p>
+
+    <p>Entscheidend ist, dass nicht <em>eine</em> Klassifikation vergeben wird, sondern mehrere unabhängige Achsen. Erst dadurch lassen sich Fragen wie „nimmt Kennzeichnungsproblematik gerade überall zu, oder nur in Feststoff?" und „liegt es an Technik oder an Wissen?" getrennt beantworten.</p>
+  </div>
+  <div class="tablewrap" style="grid-column:2">
+    <table>
+      <thead><tr><th class="mono">Achse</th><th>Frage</th><th>Ausprägung</th><th>Vergeben durch</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">KAT</td><td>Was wurde beobachtet?</td><td>2-stufig, kontrolliertes Vokabular: Hygiene/Reinheit · Materialfluss &amp; Kennzeichnung · Dokumentation vor Ort · Anlagenzustand · Kalibrier-/Wartungsstatus · Zutritt &amp; Gowning · Lagerung &amp; Temperaturführung · Ordnung/5S · Arbeitssicherheit · Datenintegrität/IT · Schulung/Qualifikation</td><td>Erfasser</td></tr>
+        <tr><td class="mono">LOC</td><td>Wo?</td><td>Ortshierarchie, bis Raum/Linie</td><td>automatisch (Vorlage/Scan)</td></tr>
+        <tr><td class="mono">CHK</td><td>Woran erkannt?</td><td>Prüfpunkt-ID der Vorlage, oder <code>ad-hoc</code></td><td>automatisch</td></tr>
+        <tr><td class="mono">SEV</td><td>Wie schwer?</td><td>4 Stufen, an beobachtbaren Kriterien festgemacht — nicht am Bauchgefühl</td><td>Erfasser, Triage kann korrigieren</td></tr>
+        <tr><td class="mono">URS</td><td>Woran liegt es vermutlich?</td><td>Technik · Prozessdesign · Verfügbarkeit/Material · Wissen &amp; Training · Arbeitsbelastung · Kommunikation/Schnittstelle · unklar</td><td>Triage (mit Konfidenz)</td></tr>
+        <tr><td class="mono">SYS</td><td>Einzelfall oder Muster?</td><td>Einzelfall · wiederkehrend · Systemverdacht</td><td>Triage bzw. automatisch aus Historie</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="body">
+    <h3>Wie die Taxonomie lebt, ohne die Zeitreihe zu zerstören</h3>
+    <p>Eine Taxonomie, die man nicht ändern darf, veraltet; eine, die man frei ändert, macht jeden Vorjahresvergleich wertlos. Der Kompromiss besteht aus drei Regeln:</p>
+    <ul>
+      <li><strong>Nur additive Änderungen.</strong> Codes werden hinzugefügt oder als <em>deprecated</em> markiert, nie umdefiniert oder gelöscht.</li>
+      <li><strong>Jede Beobachtung speichert die Taxonomie-Version</strong>, gegen die sie kodiert wurde. Auswertungen über einen Bruch hinweg nutzen eine explizite Mapping-Tabelle alt→neu.</li>
+      <li><strong>Der „Sonstiges"-Eimer wird monatlich getriaged.</strong> Häuft sich dort ein Thema, ist das der Antrag auf einen neuen Code — und gleichzeitig selbst ein Frühwarnsignal auf ein Phänomen, für das der Standort noch keine Sprache hat.</li>
+    </ul>
+    <p>Pflege der Taxonomie ist eine benannte Rolle mit Vertretung, kein Nebenprodukt. Ohne diese Rolle zerfasert das Vokabular innerhalb eines Jahres.</p>
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="erfassung">
+  <div class="rail"><span class="num">05</span>Erfassung<span class="note">Unter 60 Sekunden, sonst wird es nicht benutzt.</span></div>
+  <h2>Erfassung im Feld</h2>
+  <div class="body">
+    <p>Die Erfassung ist der Punkt, an dem solche Systeme scheitern. Wenn eine Beobachtung länger als etwa eine Minute dauert, wird am Ende der Begehung nachgetragen, aus dem Gedächtnis, verkürzt — und die Datenqualität bricht ein, bevor die erste Auswertung überhaupt läuft.</p>
+
+    <h3>Harte Anforderungen</h3>
+    <ul>
+      <li><strong>Mobil und offline.</strong> Reinräume und Technikbereiche haben keine verlässliche Netzabdeckung. Erfassung muss vollständig offline funktionieren und beim Verlassen synchronisieren, mit sichtbarem Sync-Status.</li>
+      <li><strong>Drei Pflichtfelder plus Foto.</strong> Ort und Prüfpunkt kommen aus dem Kontext (QR-Code am Raum, gewählte Vorlage). Der Erfasser wählt Kategorie und Schweregrad und diktiert oder tippt zwei Sätze. Alles andere ist optional oder kommt in der Triage dazu.</li>
+      <li><strong>Handschuhtauglich.</strong> Große Ziele, kein Freitext-Zwang, Diktierfunktion. Wer Handschuhe trägt, tippt nicht.</li>
+      <li><strong>Ad-hoc jederzeit möglich.</strong> Auch ohne laufende Begehung, auch ohne Vorlage. Die beste Beobachtung ist die auf dem Weg zur Kantine.</li>
+      <li><strong>Positivbeobachtungen sind gleichberechtigt.</strong> Eigener Erfassungstyp, gleiche Achsen. Sie speisen die Best-Practice-Spiegelung und sind das wirksamste Gegenmittel gegen die Wahrnehmung, das System sei ein Fehlersuchgerät.</li>
+      <li><strong>Nenner mitschreiben.</strong> Beim Abarbeiten einer Vorlage wird jeder Prüfpunkt quittiert, auch das „in Ordnung". Ein Sammelhaken „alles Übrige i.O." ist zulässig, sonst wird es nicht gemacht.</li>
+    </ul>
+
+    <h3>Triage innerhalb von 48 Stunden</h3>
+    <p>Was im Feld erfasst wird, ist roh. Eine benannte Triage-Rolle je Bereich prüft binnen zwei Arbeitstagen: Kategorie plausibel? Schweregrad angemessen? Ursachenklasse ergänzbar? Dublette? GMP-relevant, also QMS-Vorgang nötig? Erst nach der Triage geht eine Beobachtung in die Signalberechnung ein — das hält die Basislinie sauber und macht Fehlkodierung korrigierbar, ohne den Erfasser zu belasten.</p>
+  </div>
+</section>
+
+<!-- 6 -->
+<section id="analytik">
+  <div class="rail"><span class="num">06</span>Analytik<span class="note">Rate statt Zahl. Sonst misst man Begehungsfleiß.</span></div>
+  <h2>Analytik: wie ein Signal entsteht</h2>
+  <div class="body">
+    <p>Die Frühwarnung ist kein Machine-Learning-Problem, sondern zunächst ein sauber gerechnetes Qualitätsregelkarten-Problem. Drei Dinge müssen stimmen, bevor irgendein Verfahren greift.</p>
+
+    <h3>Erstens: der Nenner</h3>
+    <p>Ausgewertet wird nie die absolute Befundzahl, sondern <strong>Befunde je 100 Prüfungen desselben Prüfpunkts</strong>. Wer die absolute Zahl auswertet, misst die Begehungsintensität und bestraft genau die Bereiche, die genau hinsehen.</p>
+
+    <h3>Zweitens: die Basislinie</h3>
+    <p>Für jede Kombination aus Kategorie und Bereich wird eine rollierende Basislinie über 6–12 Monate geführt, saisonbereinigt wo nötig (Shutdown-Phasen, Kampagnenbetrieb, Urlaubszeiten). Neue Bereiche oder neue Prüfpunkte laufen zunächst ohne eigene Basislinie und werden gegen den Standortdurchschnitt vergleichbarer Bereiche gestellt.</p>
+
+    <h3>Drittens: das passende Verfahren</h3>
+    <ul>
+      <li><strong>u-Chart mit Regelsatz</strong> für die Standardüberwachung: ein Punkt über der 3σ-Eingriffsgrenze; zwei von drei Punkten über 2σ; sieben Punkte in Folge steigend.</li>
+      <li><strong>EWMA</strong> für schleichende Drift, die keine einzelne Grenze reißt — der praktisch häufigste und am schwersten von Hand erkennbare Fall.</li>
+      <li><strong>CUSUM</strong> für kleine, aber anhaltende Verschiebungen des Mittelwerts.</li>
+      <li><strong>Exakte Poisson- oder Negativ-Binomial-Tests</strong> bei kleinen Zahlen. Bei drei Befunden im Quartal trägt keine Regelkarte; hier wird über vergleichbare Bereiche gepoolt, statt Zufall als Trend zu verkaufen.</li>
+    </ul>
+
+  </div>
+
+    <figure class="bleed">
+      <svg viewBox="0 0 740 268" role="img" aria-label="Schematische Regelkarte: eine Befundrate schwankt zwölf Monate lang um die Basislinie, steigt dann vier Punkte in Folge und durchbricht zuletzt die 3-Sigma-Eingriffsgrenze.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g fill="none" stroke="currentColor" stroke-opacity=".22">
+          <line x1="70" y1="216" x2="712" y2="216"/>
+        </g>
+        <!-- limit lines -->
+        <line x1="70" y1="150" x2="672" y2="150" stroke="currentColor" stroke-opacity=".45" stroke-width="1.5"/>
+        <line x1="70" y1="98" x2="672" y2="98" stroke="var(--watch)" stroke-width="1.5" stroke-dasharray="2 4"/>
+        <line x1="70" y1="66" x2="672" y2="66" stroke="var(--alert)" stroke-width="1.5" stroke-dasharray="7 4"/>
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" fill-opacity=".72">
+          <text x="680" y="153">Basislinie</text>
+          <text x="680" y="101" fill="var(--watch)" fill-opacity="1">Warnung 2σ</text>
+          <text x="680" y="69" fill="var(--alert)" fill-opacity="1">Eingriff 3σ</text>
+        </g>
+        <!-- series -->
+        <polyline points="90,152 134,146 178,157 222,149 266,143 310,156 354,147 398,153 442,141 486,148 530,139 574,127 618,94 662,66"
+                  fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <g fill="var(--accent)">
+          <circle cx="90" cy="152" r="3.5"/><circle cx="134" cy="146" r="3.5"/><circle cx="178" cy="157" r="3.5"/>
+          <circle cx="222" cy="149" r="3.5"/><circle cx="266" cy="143" r="3.5"/><circle cx="310" cy="156" r="3.5"/>
+          <circle cx="354" cy="147" r="3.5"/><circle cx="398" cy="153" r="3.5"/><circle cx="442" cy="141" r="3.5"/>
+          <circle cx="486" cy="148" r="3.5"/><circle cx="530" cy="139" r="3.5"/>
+        </g>
+        <circle cx="574" cy="127" r="4.5" fill="var(--watch)" stroke="var(--surface)" stroke-width="2"/>
+        <circle cx="618" cy="94" r="4.5" fill="var(--watch)" stroke="var(--surface)" stroke-width="2"/>
+        <circle cx="662" cy="66" r="6" fill="var(--alert)" stroke="var(--surface)" stroke-width="2"/>
+        <!-- annotations -->
+        <line x1="596" y1="196" x2="640" y2="176" stroke="currentColor" stroke-opacity=".5" stroke-width="1.2" marker-end="url(#ah)"/>
+        <text x="470" y="200" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" fill-opacity=".72">vier Punkte in Folge steigend</text>
+        <line x1="662" y1="40" x2="662" y2="54" stroke="var(--alert)" stroke-width="1.2" marker-end="url(#ah)"/>
+        <text x="662" y="32" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="600" fill="var(--alert)">Signal</text>
+        <!-- axes -->
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" fill-opacity=".6" text-anchor="middle">
+          <text x="90" y="234">Jan</text><text x="222" y="234">Apr</text><text x="354" y="234">Jul</text>
+          <text x="486" y="234">Okt</text><text x="618" y="234">Jan</text>
+        </g>
+        <text x="70" y="256" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" fill-opacity=".6">Befunde je 100 Prüfungen · Kategorie KAT.MAT.03 · Bereich Feststoff</text>
+      </svg>
+      <figcaption><b>Schema, keine echten Daten.</b> Der Wert des Systems liegt nicht im letzten Punkt — den hätte auch ein aufmerksamer Bereichsleiter gesehen. Er liegt in den vier Punkten davor, die einzeln unauffällig sind und zusammen bereits zwei Monate früher ein Warnsignal auslösen.</figcaption>
+    </figure>
+
+  <div class="body">
+    <h3>Das Falsch-Positiv-Budget</h3>
+    <p>Ein Frühwarnsystem, das dreißig Signale im Monat produziert, wird ignoriert — und zwar dauerhaft, auch das eine richtige Signal. Deshalb wird vorab festgelegt, wie viele Signale der Standort pro Monat sinnvoll verarbeiten kann (Erfahrungswert: 5–10 bei einem mittelgroßen Standort), und die Schwellen werden auf dieses Budget kalibriert, nicht umgekehrt. Die Kalibrierung wird quartalsweise gegen die tatsächliche Trefferquote nachgezogen.</p>
+  </div>
+</section>
+
+<!-- 7 -->
+<section id="signale">
+  <div class="rail"><span class="num">07</span>Signale<span class="note">Zwei der sechs sind die, die man ohne System nie sieht.</span></div>
+  <h2>Die sechs Signalklassen</h2>
+  <div class="body">
+    <p>Nicht jedes Signal bedeutet dasselbe und nicht jedes erfordert dieselbe Reaktion. Sechs Klassen decken den praktischen Bedarf ab — die Klassen 3, 5 und 6 sind dabei die, die ohne ein solches System strukturell unsichtbar bleiben.</p>
+  </div>
+  <div class="cards" style="grid-column:2">
+    <div class="card">
+      <h4><span class="n">01</span> Lokaler Anstieg</h4>
+      <p>Eine Kategorie steigt in einem Bereich signifikant über die eigene Basislinie.</p>
+      <span class="trig">Auslöser: u-Chart-Regel oder EWMA · Empfänger: Bereich + CI · Reaktion: 5 Arbeitstage</span>
+    </div>
+    <div class="card">
+      <h4><span class="n">02</span> Standortweiter Anstieg</h4>
+      <p>Dieselbe Kategorie steigt in mehreren, voneinander unabhängigen Bereichen gleichzeitig. Deutet fast immer auf eine gemeinsame Ursache hin: Lieferantenwechsel, neue SOP, Systemumstellung, Personalengpass.</p>
+      <span class="trig">Auslöser: ≥3 Bereiche über Warnschwelle im selben Fenster · Empfänger: Standortleitung · Reaktion: sofort</span>
+    </div>
+    <div class="card">
+      <h4><span class="n">03</span> Neues Muster</h4>
+      <p>Ein Phänomen, das es an diesem Ort noch nie gab — oder das binnen kurzer Zeit an mehreren Orten neu auftaucht. Wird über semantische Ähnlichkeit der Beschreibungen erkannt, nicht nur über Codes.</p>
+      <span class="trig">Auslöser: Cluster ohne Historie · Empfänger: CI-Triage · Reaktion: 5 Arbeitstage</span>
+    </div>
+    <div class="card">
+      <h4><span class="n">04</span> Wiederholung trotz Maßnahme</h4>
+      <p>Derselbe Befund am selben Ort nach abgeschlossener Maßnahme. Das stärkste Einzelsignal im System — es zeigt nicht ein Problem, sondern eine unwirksame Lösung.</p>
+      <span class="trig">Auslöser: Wiederauftreten &lt; 90 Tage nach Maßnahmenabschluss · Empfänger: Maßnahmenverantwortlicher + QA · Reaktion: sofort</span>
+    </div>
+    <div class="card">
+      <h4><span class="n">05</span> Maßnahmen-Rückstau</h4>
+      <p>Überfällige oder ohne Wirksamkeitsnachweis geschlossene Maßnahmen häufen sich in einem Bereich oder einer Kategorie. Vorlaufindikator für den nächsten lokalen Anstieg.</p>
+      <span class="trig">Auslöser: Überfälligenquote über Schwelle · Empfänger: Bereichsleitung · Reaktion: Monatsrunde</span>
+    </div>
+    <div class="card">
+      <h4><span class="n">06</span> Blinder Fleck</h4>
+      <p>Ein Bereich oder Prüfpunkt wurde über längere Zeit nicht geprüft. <strong>Die Abwesenheit von Daten ist selbst ein Befund</strong> — und der einzige, den ein reines Befund-Reporting prinzipbedingt nie erzeugt.</p>
+      <span class="trig">Auslöser: keine Prüfung &gt; definiertes Intervall · Empfänger: Bereich + CI · Reaktion: Monatsrunde</span>
+    </div>
+  </div>
+</section>
+
+<!-- 8 -->
+<section id="spiegelung">
+  <div class="rail"><span class="num">08</span>Spiegelung<span class="note">Hier entsteht der eigentliche Nutzen — oder gar keiner.</span></div>
+  <h2>Der Spiegelungs-Regelkreis</h2>
+  <div class="body">
+    <p>Ein Signal, das nur auf einem Dashboard erscheint, verändert nichts. Der Mechanismus, der Awareness tatsächlich erzeugt, ist ein geschlossener Kreis mit Antwortpflicht — und mit der Bedingung, dass das Antworten zwei Klicks kostet und nicht ein Meeting.</p>
+
+  </div>
+
+    <figure class="bleed">
+      <svg viewBox="0 0 760 292" role="img" aria-label="Der Regelkreis: Erfassen, Triagieren, Erkennen, Spiegeln, Bestätigen — die Rückmeldung der Bereiche fließt als neue Beobachtung in den Anfang zurück; ohne Signal geht die Beobachtung in den Trendspeicher.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g font-family="IBM Plex Sans, sans-serif">
+          <!-- boxes -->
+          <g stroke="currentColor" stroke-opacity=".35" fill="none">
+            <rect x="16" y="40" width="128" height="56" rx="2"/>
+            <rect x="168" y="40" width="128" height="56" rx="2"/>
+            <rect x="472" y="40" width="128" height="56" rx="2"/>
+            <rect x="624" y="40" width="128" height="56" rx="2"/>
+            <rect x="320" y="176" width="128" height="44" rx="2"/>
+          </g>
+          <rect x="320" y="40" width="128" height="56" rx="2" fill="none" stroke="var(--accent)" stroke-width="2"/>
+          <g font-size="13" font-weight="600" fill="currentColor" text-anchor="middle">
+            <text x="80" y="66">Erfassen</text>
+            <text x="232" y="66">Triagieren</text>
+            <text x="384" y="66" fill="var(--accent)">Erkennen</text>
+            <text x="536" y="66">Spiegeln</text>
+            <text x="688" y="66">Bestätigen</text>
+            <text x="384" y="196" font-size="12" font-weight="500">Trendspeicher</text>
+          </g>
+          <g font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" fill-opacity=".65" text-anchor="middle">
+            <text x="80" y="84">vor Ort, kodiert</text>
+            <text x="232" y="84">prüfen, ergänzen</text>
+            <text x="384" y="84" fill="var(--accent)" fill-opacity="1">Regel + Basislinie</text>
+            <text x="536" y="84">Awareness-Karte</text>
+            <text x="688" y="84">Bereiche antworten</text>
+            <text x="384" y="212">Basislinie wächst mit</text>
+          </g>
+          <!-- horizontal arrows -->
+          <g stroke="currentColor" stroke-opacity=".55" stroke-width="1.4" marker-end="url(#a2)">
+            <line x1="146" y1="68" x2="164" y2="68"/>
+            <line x1="298" y1="68" x2="316" y2="68"/>
+            <line x1="450" y1="68" x2="468" y2="68"/>
+            <line x1="602" y1="68" x2="618" y2="68"/>
+          </g>
+          <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" fill-opacity=".6" text-anchor="middle">
+            <text x="155" y="30">&lt; 60 s</text>
+            <text x="307" y="30">≤ 48 h</text>
+            <text x="459" y="30">täglich</text>
+            <text x="610" y="30">≤ 5 AT</text>
+          </g>
+          <!-- branch to trend store -->
+          <path d="M384,98 L384,172" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#a2)"/>
+          <text x="394" y="140" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" fill-opacity=".6">kein Signal</text>
+          <!-- return loop -->
+          <path d="M688,98 L688,252 L80,252 L80,100" fill="none" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#a2)"/>
+          <rect x="248" y="240" width="272" height="24" fill="var(--surface)"/>
+          <text x="384" y="257" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--accent)">Rückmeldung zählt als neue Beobachtung</text>
+        </g>
+      </svg>
+      <figcaption><b>Der Kreis schließt sich über die Rückmeldung.</b> Weil die Antwort eines Bereichs technisch wieder eine Beobachtung ist, landet sie automatisch in derselben Statistik — die Ausbreitung eines Phänomens über den Standort wird damit messbar, statt nur behauptet.</figcaption>
+    </figure>
+
+  <div class="body">
+    <h3>Die Awareness-Karte</h3>
+    <p>Was gespiegelt wird, ist nie das Rohsignal, sondern eine standardisierte Karte mit genau fünf Feldern. Sie passt auf eine halbe Seite und lässt sich im Schichtgespräch vorlesen:</p>
+    <ol>
+      <li><strong>Was wurde beobachtet</strong> — zwei Sätze, ohne Bereichsnennung, wenn der Bereich nichts zur Sache tut.</li>
+      <li><strong>Warum es euch betrifft</strong> — der konkrete Übertragungspfad: gleiche Anlage, gleicher Lieferant, gleiche SOP, gleiche Personalgruppe.</li>
+      <li><strong>Was ihr prüfen sollt</strong> — ein bis drei benannte Prüfschritte, nicht „bitte sensibilisieren".</li>
+      <li><strong>Bis wann</strong> — Frist, üblicherweise fünf Arbeitstage.</li>
+      <li><strong>Antwortoptionen</strong> — <span class="chip ok">bei uns nicht vorhanden</span> <span class="chip watch">vorhanden, Maßnahme läuft</span> <span class="chip alert">vorhanden, Unterstützung nötig</span></li>
+    </ol>
+
+    <div class="key">
+      <p><strong>Antwortpflicht mit Frist, aber minimalem Aufwand.</strong> Ohne Pflicht antworten nur die Bereiche, die ohnehin aufmerksam sind — also genau die, bei denen das Signal am wenigsten nötig war. Ohne Aufwandsminimierung wird die Pflicht umgangen. Beides zusammen ist die Bedingung, unter der Spiegelung funktioniert.</p>
+    </div>
+
+    <h3>Wirksamkeit</h3>
+    <p>Sechzig Tage nach einer Spiegelung prüft das System selbsttätig, ob die Rate der auslösenden Kategorie standortweit gefallen ist, und schreibt das Ergebnis an das Signal. Über die Zeit entsteht daraus eine belastbare Aussage darüber, welche Art von Spiegelung überhaupt wirkt — und welche nur Aufwand erzeugt hat.</p>
+  </div>
+</section>
+
+<!-- 9 -->
+<section id="rollen">
+  <div class="rail"><span class="num">09</span>Betrieb<span class="note">Drei Takte: Tag, Woche, Monat.</span></div>
+  <h2>Rollen und Taktung</h2>
+  <div class="body">
+    <p>Ein Frühwarnsystem ohne feste Termine ist ein Datenfriedhof. Die Taktung ist bewusst schlank — insgesamt unter zwei Stunden pro Woche auf Standortebene.</p>
+  </div>
+  <div class="tablewrap" style="grid-column:2">
+    <table>
+      <thead><tr><th>Takt</th><th>Runde</th><th>Wer</th><th>Ergebnis</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">täglich</td><td>Shopfloor-Board</td><td>Schicht- und Bereichsleitung</td><td>Neue Beobachtungen gesichtet, Sofortmaßnahmen gesetzt</td></tr>
+        <tr><td class="mono">2× Woche</td><td>Signal-Triage, 30 min</td><td>CI-Manager + QA + wechselnder Bereichsvertreter</td><td>Jedes offene Signal entschieden: verwerfen · beobachten · Hinweis · Alert</td></tr>
+        <tr><td class="mono">wöchentlich</td><td>Bereichsrunde</td><td>Bereichsleitung</td><td>Eigene Trends, offene Spiegelungsantworten, überfällige Maßnahmen</td></tr>
+        <tr><td class="mono">monatlich</td><td>Meta-Review Standort, 60 min</td><td>Standortleitung, QA, CI, alle Bereiche</td><td>Standortweite Trends, Wirksamkeit der Spiegelungen, Taxonomie-Anträge</td></tr>
+        <tr><td class="mono">quartalsweise</td><td>Systemkalibrierung</td><td>CI + Data</td><td>Schwellen nachjustiert, Trefferquote bewertet, blinde Flecken adressiert</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="body">
+    <p style="margin-top:20px">Vier Rollen tragen den Betrieb: <strong>Erfasser</strong> (jeder Mitarbeiter, keine Sonderrolle), <strong>Bereichs-Triage</strong> (benannt, mit Vertretung), <strong>Signal-Owner</strong> (führt ein Signal von der Erkennung bis zur Wirksamkeitsprüfung), <strong>Taxonomie-Pfleger</strong> (zentral, ein bis zwei Personen).</p>
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="doku">
+  <div class="rail"><span class="num">10</span>Dokumentation<span class="note">Unveränderlich, versioniert, exportierbar. ALCOA+ als Leitplanke ohne Validierung.</span></div>
+  <h2>Dokumentationskonzept</h2>
+  <div class="body">
+    <p class="lede">Die Anforderung lautet: robust und zuverlässig, nicht GMP-validiert. Der beste Weg dorthin ist, sich die <em>Prinzipien</em> der GMP-Dokumentation zu nehmen und den <em>Validierungsapparat</em> wegzulassen. Die Prinzipien kosten fast nichts, wenn man sie von Anfang an einbaut; sie nachträglich einzuziehen ist teuer bis unmöglich.</p>
+
+    <h3>Das tragende Muster: Ereignisprotokoll statt änderbarer Tabelle</h3>
+    <p>Datensätze werden nie überschrieben. Jede Änderung ist ein neues Ereignis mit Zeitstempel, Urheber und Begründung; der aktuelle Zustand ist das Ergebnis aller Ereignisse. Die Dashboards lesen aus abgeleiteten Sichten, die jederzeit neu berechnet werden können.</p>
+    <p>Das klingt nach Overhead und ist in Wahrheit die Voraussetzung für drei Dinge, die man später zwingend braucht:</p>
+    <ul>
+      <li><strong>Rückrechenbarkeit</strong> — „Wie sah die Lage am 3. März aus, bevor wir umkodiert haben?" ist beantwortbar. Ohne Ereignisprotokoll ist sie es nie.</li>
+      <li><strong>Reproduzierbarkeit von Signalen</strong> — ein ausgelöstes Signal lässt sich Jahre später exakt nachrechnen. Das ist der Unterschied zwischen einem Frühwarnsystem und einem Bauchgefühl mit Diagramm.</li>
+      <li><strong>Vertrauen</strong> — niemand kann die Historie stillschweigend glätten. Diese Eigenschaft entscheidet, ob Bereiche dem System Befunde anvertrauen.</li>
+    </ul>
+  </div>
+  <div class="tablewrap" style="grid-column:2">
+    <table>
+      <thead><tr><th>Prinzip</th><th>Konkrete Umsetzung</th><th>Was es verhindert</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Zurechenbar</strong></td><td>Jeder Datensatz trägt den Urheber. Auswertungen laufen ausschließlich aggregiert; Personenbezug ist über Rechte getrennt, nicht über Weglassen.</td><td>Anonyme, nicht nachfragbare Befunde — und zugleich die Zweckentfremdung als Leistungsbewertung</td></tr>
+        <tr><td><strong>Zeitnah</strong></td><td>Beobachtungszeit und Erfassungszeit werden <em>getrennt</em> gespeichert; Serverzeit in UTC, Anzeige lokal. Bei Offline-Erfassung zusätzlich der Sync-Zeitpunkt.</td><td>Nachträgliche Konstruktion von Zeitreihen; unerklärliche Lücken nach Netzausfällen</td></tr>
+        <tr><td><strong>Original</strong></td><td>Belege werden inhaltsadressiert gespeichert (SHA-256), unbearbeitet, mit Original-Metadaten. Unkenntlichmachung von Personen erzeugt ein <em>zusätzliches</em> Derivat, ersetzt nicht das Original.</td><td>Stille Bildbearbeitung; Beweiskraftverlust</td></tr>
+        <tr><td><strong>Vollständig</strong></td><td>Auch „geprüft, i.O." und „nicht anwendbar" werden gespeichert. Gelöscht wird nie — nur als ungültig markiert, mit Grund.</td><td>Der Nenner-Verlust, der jede Ratenrechnung wertlos macht</td></tr>
+        <tr><td><strong>Konsistent</strong></td><td>Kontrolliertes Vokabular mit Versionsstempel an jedem Datensatz; Mapping-Tabellen für Taxonomiebrüche.</td><td>Zeitreihen, die nach jeder Checklistenänderung von vorn beginnen</td></tr>
+        <tr><td><strong>Dauerhaft &amp; verfügbar</strong></td><td>Aufbewahrung 7 Jahre; jährlicher Vollexport nach CSV/Parquet plus JSON-Schema; der Export wird jährlich <em>testweise wieder eingelesen</em>.</td><td>Herstellerabhängigkeit; ein Archiv, das im Ernstfall niemand öffnen kann</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="body">
+    <h3>Vier Festlegungen, die man leicht vergisst</h3>
+    <ul>
+      <li><strong>Genau eine Wahrheit.</strong> Kein Papier-Parallelweg, keine Excel-Liste „für uns intern". Wenn zwei Quellen existieren, ist die Auswertung nachweislich falsch, und niemand weiß welche.</li>
+      <li><strong>Vorlagen und Taxonomie sind selbst versionierte Dokumente</strong> mit Freigabe. Eine Beobachtung referenziert die Version, gegen die sie erhoben wurde.</li>
+      <li><strong>Eine Schreibregel gehört zum System.</strong> Vier Fragen — Was wurde beobachtet, wo genau, wann, warum ist es relevant — und ein Verbot: keine Bewertung von Personen, keine Vermutung ohne Kennzeichnung als solche. Zwei Trainingsstunden sparen jahrelange Nachcodierung.</li>
+      <li><strong>KI-Vorschläge sind Teil des Protokolls.</strong> Wenn ein Modell eine Kategorie vorschlägt, werden Vorschlag, Modellversion und die menschliche Entscheidung mitgespeichert. Sonst lässt sich später nicht mehr rekonstruieren, warum die Statistik einen Knick hat.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 11 -->
+<section id="technik">
+  <div class="rail"><span class="num">11</span>Technik<span class="note">Erfassung kaufbar. Datenmodell, Analytik und Spiegelung nicht.</span></div>
+  <h2>Technische Umsetzung</h2>
+  <div class="body">
+    <p>Die Architektur ist bewusst unspektakulär. Nichts hier ist technisch anspruchsvoll; der Anspruch liegt vollständig in Taxonomie, Betriebsrhythmus und Kultur.</p>
+    <ul>
+      <li><strong>Erfassung</strong> — installierbare Web-App (PWA), offline-fähig, lokale Warteschlange mit sichtbarem Sync-Status, Kamera- und Diktatzugriff.</li>
+      <li><strong>Kern</strong> — eine relationale Datenbank mit Ereignistabelle als Wahrheit und materialisierten Lesesichten für die Dashboards. Belege im Objektspeicher, adressiert über ihren Hash.</li>
+      <li><strong>Analytik</strong> — nächtlicher Lauf, der Raten, Basislinien und Regelverletzungen berechnet und Signale erzeugt. Die Regeln liegen als versionierte Konfiguration vor, nicht im Code verstreut.</li>
+      <li><strong>Ausgabe</strong> — Dashboard nach Bereich und standortweit, Awareness-Karten als Ansicht, Benachrichtigung über den bereits genutzten Kanal (Mail/Teams). Kein zusätzliches Postfach.</li>
+      <li><strong>Schnittstellen</strong> — QMS/Abweichungssystem (bidirektionale Referenz), Instandhaltung, Lernmanagement, Verzeichnisdienst für Identitäten und Rechte.</li>
+    </ul>
+
+    <h3>Rechte</h3>
+    <p>Die Voreinstellung ist ungewöhnlich und zentral für den Zweck: <strong>Lesen ist standortweit offen.</strong> Jeder Bereich sieht die Trends jedes anderen Bereichs. Schreiben ist bereichsgebunden, personenbezogene Auswertung ist auf eine sehr kleine Gruppe beschränkt und wird protokolliert. Wenn Bereiche ihre Daten voreinander verstecken können, ist der Standortnutzen des Systems bereits aufgegeben.</p>
+
+    <h3>Kaufen oder bauen</h3>
+    <p>Marktlösungen für Audit- und Rundgangserfassung gibt es reichlich und sie sind bei der Erfassung meist besser als eine Eigenentwicklung. Bei der Meta-Analyse über Bereiche hinweg und beim Spiegelungs-Regelkreis sind sie durchweg schwach — das ist aber genau der Teil, der hier den Nutzen erzeugt.</p>
+    <div class="key">
+      <p><strong>Empfehlung:</strong> Erfassung zukaufen, sofern das Produkt vollständigen und dokumentierten Datenexport bietet. Datenmodell, Taxonomie, Analytik und Spiegelung im eigenen Haus behalten. Ein Erfassungsprodukt ohne freien Datenexport disqualifiziert sich unabhängig von allen anderen Eigenschaften.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 12 -->
+<section id="ki">
+  <div class="rail"><span class="num">12</span>KI<span class="note">Vorschlagen ja, entscheiden nein.</span></div>
+  <h2>Wo KI hilft — und wo nicht</h2>
+  <div class="body">
+    <p>Sprachmodelle lösen in diesem System genau ein Problem gut: die Lücke zwischen dem, was Menschen aufschreiben, und dem, was Statistik braucht. Das ist wertvoll, aber eng begrenzt.</p>
+
+    <h3>Sinnvoll</h3>
+    <ul>
+      <li><strong>Kategorievorschlag aus dem Freitext</strong> — senkt die Erfassungszeit spürbar und hebt die Kodierqualität, weil der Erfasser bestätigt statt sucht.</li>
+      <li><strong>Dubletten- und Ähnlichkeitserkennung</strong> — „dasselbe Problem in anderen Worten, drei Gebäude weiter". Das ist der Kern der Signalklasse <em>Neues Muster</em> und mit Codes allein nicht erreichbar.</li>
+      <li><strong>Entwurf der Awareness-Karte</strong> aus Signal und zugrundeliegenden Beobachtungen — der Mensch redigiert, was den Aufwand pro Spiegelung von einer Stunde auf zehn Minuten drückt.</li>
+      <li><strong>Sprachliche Glättung</strong> von Diktaten aus dem Feld, ohne inhaltliche Ergänzung.</li>
+    </ul>
+
+    <h3>Nicht sinnvoll</h3>
+    <ul>
+      <li><strong>Schweregrad festlegen.</strong> Der hängt an Kontextwissen, das nicht im Text steht.</li>
+      <li><strong>Schwellen und Signalfreigabe.</strong> Statistische Regeln sind erklärbar und prüfbar; ein Modellurteil ist beides nicht — und ein Frühwarnsystem, dessen Auslösung niemand nachrechnen kann, verliert bei der ersten Fehlwarnung sein Mandat.</li>
+      <li><strong>Ursachenzuschreibung.</strong> Vorschlagen ja, mit ausgewiesener Konfidenz; festlegen nein.</li>
+    </ul>
+
+    <p>Durchgehende Regel: <strong>das Modell schlägt vor, der Mensch bestätigt</strong>, und der Vorschlag wird mitprotokolliert (Abschnitt 10). Ein KI-Vorschlag, den niemand angesehen hat, darf nie in die Basislinie eingehen.</p>
+  </div>
+</section>
+
+<!-- 13 -->
+<section id="kpi">
+  <div class="rail"><span class="num">13</span>Kennzahlen<span class="note">Gemessen wird das System, nicht die Bereiche.</span></div>
+  <h2>Kennzahlen des Systems selbst</h2>
+  <div class="body">
+    <p>Die Kennzahlen messen ausdrücklich die Gesundheit des Systems, nicht die Qualität der Bereiche. Eine sinkende Befundzahl ist keine Zielgröße und taucht hier deshalb nicht auf.</p>
+  </div>
+  <div class="tablewrap" style="grid-column:2">
+    <table>
+      <thead><tr><th>Kennzahl</th><th>Aussage</th><th class="mono">Richtwert</th></tr></thead>
+      <tbody>
+        <tr><td>Erfassungsdichte</td><td>Beobachtungen je Bereich und Monat — misst Beteiligung, nicht Qualität</td><td class="mono">stabil, nicht fallend</td></tr>
+        <tr><td>Kodierquote</td><td>Anteil der Beobachtungen mit vollständigen Achsen nach Triage</td><td class="mono">&gt; 95 %</td></tr>
+        <tr><td>Sonstiges-Anteil</td><td>Frühindikator für eine veraltete Taxonomie</td><td class="mono">&lt; 8 %</td></tr>
+        <tr><td>Zeit bis Triage</td><td>Erfassung → getriaged</td><td class="mono">Median &lt; 48 h</td></tr>
+        <tr><td>Spiegelungs-Antwortquote</td><td>Anteil der Bereiche, die fristgerecht auf eine Awareness-Karte antworten</td><td class="mono">&gt; 90 %</td></tr>
+        <tr><td>Signal-Präzision</td><td>Anteil der Signale, die in der Triage als real bestätigt wurden</td><td class="mono">&gt; 60 %</td></tr>
+        <tr><td>Wiederholungsrate</td><td>Befunde, die trotz abgeschlossener Maßnahme erneut auftreten</td><td class="mono">fallend</td></tr>
+        <tr><td>Abdeckung</td><td>Anteil der Prüfpunkte, die im Intervall tatsächlich geprüft wurden</td><td class="mono">&gt; 85 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 14 -->
+<section id="risiken">
+  <div class="rail"><span class="num">14</span>Risiken<span class="note">Die ersten beiden töten das System sicher.</span></div>
+  <h2>Fallstricke</h2>
+  <div class="body">
+    <ul class="pitfalls">
+      <li><span class="mark">R1</span><span class="risk">Befundzahl wird zur Bereichs-Kennzahl</span><span class="fix"><b>Folge:</b> Untererfassung binnen eines Quartals, und zwar dauerhaft und unumkehrbar. <b>Gegenmittel:</b> schriftliche Zusage der Standortleitung vor dem Start, dass Befundzahlen nie in Zielvereinbarungen oder Bereichsvergleiche eingehen — und ein Dashboard, das gar nicht erst nach Bereich rankt.</span></li>
+      <li><span class="mark">R2</span><span class="risk">Auswertung ohne Nenner</span><span class="fix"><b>Folge:</b> Das System misst Begehungsintensität und bestraft die aufmerksamsten Bereiche. <b>Gegenmittel:</b> Prüfergebnisse (auch „i.O.") sind von Tag eins Pflicht; keine Auswertung zeigt jemals absolute Zahlen ohne Bezugsgröße.</span></li>
+      <li><span class="mark">R3</span><span class="risk">Taxonomie zu groß oder ungepflegt</span><span class="fix"><b>Folge:</b> Falschkodierung, „Sonstiges" wächst, Signale verschwinden im Rauschen. <b>Gegenmittel:</b> Start mit maximal 10 Oberkategorien; benannte Pflegerolle; monatliche Sonstiges-Triage.</span></li>
+      <li><span class="mark">R4</span><span class="risk">Alarmmüdigkeit</span><span class="fix"><b>Folge:</b> Auch das eine richtige Signal wird ignoriert. <b>Gegenmittel:</b> festes Signalbudget pro Monat, Schwellen darauf kalibriert, quartalsweise nachgezogen.</span></li>
+      <li><span class="mark">R5</span><span class="risk">Spiegelung ohne Rückmeldeschleife</span><span class="fix"><b>Folge:</b> Awareness-Karten werden zu einem weiteren ungelesenen Verteiler. <b>Gegenmittel:</b> Antwortpflicht mit Frist, Antwort in zwei Klicks, offene Antworten sichtbar in der Bereichsrunde.</span></li>
+      <li><span class="mark">R6</span><span class="risk">Schattendokumentation neben dem QMS</span><span class="fix"><b>Folge:</b> Im Audit werden Befunde sichtbar, die nie zu Abweichungen wurden. <b>Gegenmittel:</b> QA in der Triage; klare, dokumentierte Eskalationskriterien; verpflichtende QMS-Referenz bei GMP-Relevanz.</span></li>
+      <li><span class="mark">R7</span><span class="risk">Die Übergangslösung wird endgültig</span><span class="fix"><b>Folge:</b> Eine Excel- oder Listen-Zwischenlösung erfüllt kein einziges Dokumentationsprinzip aus Abschnitt 10 und ist nach zwei Jahren nicht mehr migrierbar. <b>Gegenmittel:</b> Der Pilot läuft von Anfang an auf dem Zieldatenmodell, notfalls mit minimaler Oberfläche.</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 15 -->
+<section id="roadmap">
+  <div class="rail"><span class="num">15</span>Einführung<span class="note">Zwei Bereiche zuerst. Standortweit erst nach dem ersten echten Signal.</span></div>
+  <h2>Einführung in vier Phasen</h2>
+  <div class="body">
+    <div class="phases">
+      <div class="phase">
+        <div class="when"><b>Phase 0</b>4–6 Wochen</div>
+        <div><h4>Taxonomie und Prüfpunkte</h4><p>Bestehende Checklisten aus allen Bereichen zusammentragen und auf einen gemeinsamen Prüfpunktkatalog abbilden. Taxonomie v1 in Workshops mit je zwei Vertretern pro Bereich entwerfen. Kein Code. Dies ist die Phase, deren Verkürzung sich später am teuersten rächt.</p></div>
+      </div>
+      <div class="phase">
+        <div class="when"><b>Phase 1</b>8–12 Wochen</div>
+        <div><h4>Pilot in zwei ungleichen Bereichen</h4><p>Bewusst zwei Bereiche mit unterschiedlicher Technologie wählen — nur so zeigt sich, ob die Taxonomie standortfähig ist. Erfassung, Triage und Basisauswertung stehen; noch keine automatischen Signale. Ziel: 500–1000 kodierte Beobachtungen als Basislinienmaterial.</p></div>
+      </div>
+      <div class="phase">
+        <div class="when"><b>Phase 2</b>ab Monat 5</div>
+        <div><h4>Signale und Spiegelung</h4><p>Regelkarten scharf schalten, zunächst mit bewusst konservativen Schwellen. Erste Awareness-Karten manuell erstellen und die Reaktion beobachten. Der Betriebsrhythmus aus Abschnitt 9 wird eingeführt. Erst wenn der erste vollständige Kreis nachweislich geschlossen wurde, geht es weiter.</p></div>
+      </div>
+      <div class="phase">
+        <div class="when"><b>Phase 3</b>ab Monat 9</div>
+        <div><h4>Standortweiter Rollout</h4><p>Bereich für Bereich, jeweils mit Schulung auf der Schreibregel. KI-Unterstützung bei Kodierung und Ähnlichkeitssuche zuschalten. Quartalsweise Kalibrierung wird Routine. Erst jetzt ist die Datenmenge groß genug, dass Ähnlichkeitssuche und Meta-Analyse tragen.</p></div>
+      </div>
+    </div>
+
+    <div class="key">
+      <p><strong>Die Reihenfolge ist nicht verhandelbar.</strong> Wer mit dem Dashboard beginnt, baut ein Werkzeug ohne Daten. Wer mit der Software beginnt, zementiert eine Taxonomie, die im Workshop noch änderbar gewesen wäre. Die ersten sechs Wochen entscheiden über den Wert der nächsten sechs Jahre.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Gemba-Frühwarnsystem · Konzeptentwurf v0.1 · Continuous Improvement &amp; AI<br>
+  Offene Punkte für die Entscheidungsrunde: Signalbudget pro Monat · Aufbewahrungsfrist · Kaufen-oder-Bauen für die Erfassung · Besetzung der Rolle Taxonomie-Pflege
+</footer>
+
+</div>
