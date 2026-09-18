@@ -1,0 +1,188 @@
+import type { CourseModule } from './types'
+
+export const physik: CourseModule = {
+  id: 'physik',
+  title: 'Tauchphysik',
+  subtitle: 'Druck, Gase & Auftrieb',
+  level: 'Beginner',
+  icon: 'Atom',
+  accent: 'from-cyan-400 to-blue-500',
+  description:
+    'Verstehe, warum sich Luft unter Wasser anders verhält, was Druck mit deinem Körper macht und wie du Auftrieb gezielt steuerst.',
+  lessons: [
+    {
+      id: 'physik-druck',
+      title: 'Druck unter Wasser',
+      summary: 'Warum jeder 10 Meter Tiefe ein zusätzliches Bar bedeuten.',
+      minutes: 8,
+      blocks: [
+        { type: 'p', text: 'An der Wasseroberfläche lastet der **atmosphärische Druck** von etwa 1 bar auf uns. Wasser ist rund 800‑mal dichter als Luft – deshalb steigt der Druck beim Abtauchen extrem schnell an: Pro 10 Meter Salzwasser kommt ein weiteres Bar hinzu.' },
+        { type: 'formula', label: 'Absoluter Druck', formula: 'P_abs = 1 bar + (Tiefe in m ÷ 10)', note: 'In 20 m Tiefe herrschen also 3 bar absolut (1 bar Luft + 2 bar Wasser).' },
+        { type: 'table', headers: ['Tiefe', 'Umgebungsdruck', 'Luftdichte (relativ)'], rows: [['0 m', '1 bar', '1×'], ['10 m', '2 bar', '2×'], ['20 m', '3 bar', '3×'], ['30 m', '4 bar', '4×'], ['40 m', '5 bar', '5×']] },
+        { type: 'h', text: 'Die größte Änderung passiert oben' },
+        { type: 'p', text: 'Zwischen 0 und 10 m **verdoppelt** sich der Druck. Zwischen 30 und 40 m steigt er nur noch um 25 %. Deshalb sind die letzten Meter zur Oberfläche die kritischsten – sowohl für den Druckausgleich als auch für die Aufstiegsgeschwindigkeit.' },
+        { type: 'fact', title: 'Merke', text: 'Süßwasser ist etwas weniger dicht: dort steigt der Druck pro 10,3 m um 1 bar. Für den Alltag rechnen wir trotzdem mit 10 m.' },
+        { type: 'warning', title: 'Praxisrelevanz', text: 'Alle luftgefüllten Räume (Ohren, Nebenhöhlen, Maske, Lunge, Jacket) reagieren auf diese Druckänderung. Ohne aktiven Ausgleich entsteht ein Barotrauma.' },
+      ],
+    },
+    {
+      id: 'physik-boyle',
+      title: 'Boyle‑Mariotte: Volumen & Druck',
+      summary: 'Das wichtigste Gasgesetz für Taucher – und warum du niemals die Luft anhältst.',
+      minutes: 10,
+      blocks: [
+        { type: 'p', text: 'Das Gesetz von **Boyle‑Mariotte** beschreibt, wie sich das Volumen eines Gases bei konstanter Temperatur mit dem Druck verändert: Verdoppelt sich der Druck, halbiert sich das Volumen.' },
+        { type: 'formula', label: 'Boyle‑Mariotte', formula: 'P₁ × V₁ = P₂ × V₂', note: 'Ein Ballon mit 6 Litern an der Oberfläche hat in 20 m (3 bar) nur noch 2 Liter.' },
+        { type: 'h', text: 'Was das für dich bedeutet' },
+        { type: 'list', items: [
+          '**Aufstieg mit angehaltenem Atem** → die Luft in der Lunge dehnt sich aus. Ab wenigen Metern Aufstieg kann das Lungengewebe reißen (Lungenüberdehnung, arterielle Gasembolie).',
+          '**Jacket‑Tarierung** → beim Aufstieg dehnt sich die Luft im Jacket aus, du wirst immer schneller. Beim Abstieg das Gegenteil.',
+          '**Luftverbrauch** → in 30 m atmest du pro Atemzug 4× so viele Luftmoleküle wie an der Oberfläche. Deine Flasche hält nur ein Viertel so lang.',
+          '**Maske** → beim Abstieg wird die Luft in der Maske komprimiert; ohne Ausatmen durch die Nase saugt sie sich an (Masken‑Squeeze).',
+        ] },
+        { type: 'warning', title: 'Regel Nr. 1 des Tauchens', text: 'Niemals die Luft anhalten. Immer atmen – gleichmäßig, ruhig, ohne Pausen.' },
+        { type: 'tip', text: 'Tarierungs‑Trick: Beim Aufstieg schon **vor** dem Gefühl des Aufsteigens kleine Mengen Luft aus dem Jacket ablassen, nicht erst wenn du beschleunigst.' },
+      ],
+    },
+    {
+      id: 'physik-dalton-henry',
+      title: 'Dalton & Henry: Partialdruck und Gaslösung',
+      summary: 'Warum Stickstoff zum Problem wird und Sauerstoff giftig sein kann.',
+      minutes: 12,
+      blocks: [
+        { type: 'p', text: 'Luft besteht zu ca. **79 % aus Stickstoff** und **21 % aus Sauerstoff**. Nach dem Gesetz von **Dalton** ist der Gesamtdruck eines Gasgemischs die Summe der Teildrücke (Partialdrücke) seiner Bestandteile.' },
+        { type: 'formula', label: 'Partialdruck', formula: 'pGas = Anteil × P_abs', note: 'Beispiel in 30 m (4 bar): pO₂ = 0,21 × 4 = 0,84 bar, pN₂ = 0,79 × 4 = 3,16 bar.' },
+        { type: 'h', text: 'Henry: Gase lösen sich unter Druck' },
+        { type: 'p', text: 'Das Gesetz von **Henry** besagt: Je höher der Partialdruck eines Gases über einer Flüssigkeit, desto mehr davon löst sich darin. Dein Blut und Gewebe sind diese Flüssigkeit – beim Abtauchen nimmt dein Körper ständig Stickstoff auf.' },
+        { type: 'p', text: 'Beim Aufstieg sinkt der Druck, der Stickstoff will wieder raus. Passiert das **zu schnell**, bilden sich Blasen im Gewebe – die **Dekompressionskrankheit (DCS)**. Genau wie beim Öffnen einer Sprudelflasche.' },
+        { type: 'table', headers: ['Gas', 'Grenzwert', 'Problem'], rows: [
+          ['Sauerstoff (pO₂)', '1,4 bar (max. 1,6)', 'ZNS‑Sauerstofftoxizität → Krampfanfall'],
+          ['Stickstoff (pN₂)', 'ab ca. 3,2 bar (~30 m)', 'Tiefenrausch (Stickstoffnarkose)'],
+          ['Kohlendioxid (pCO₂)', 'Anstieg bei flacher Atmung', 'Kopfschmerz, Panik, Bewusstlosigkeit'],
+        ] },
+        { type: 'fact', title: 'Warum das für Nitrox wichtig ist', text: 'Bei Nitrox 32 (32 % O₂) ist der pO₂ von 1,4 bar bereits in 33,75 m erreicht. Deshalb hat jedes Nitrox‑Gemisch eine maximale Einsatztiefe (MOD).' },
+      ],
+    },
+    {
+      id: 'physik-auftrieb',
+      title: 'Auftrieb & Archimedes',
+      summary: 'Perfekte Tarierung ist die Königsdisziplin – hier ist die Physik dahinter.',
+      minutes: 9,
+      blocks: [
+        { type: 'p', text: 'Nach **Archimedes** erfährt ein Körper im Wasser einen Auftrieb, der dem Gewicht des verdrängten Wassers entspricht. Ist der Auftrieb größer als das Gewicht, steigst du (positiv), ist er kleiner, sinkst du (negativ), sind sie gleich, schwebst du (neutral).' },
+        { type: 'list', items: [
+          '**Positiver Auftrieb** – an der Oberfläche, beim Warten aufs Boot, im Notfall.',
+          '**Neutraler Auftrieb** – das Ziel während des gesamten Tauchgangs. Du schwebst mühelos, berührst nichts und sparst Luft.',
+          '**Negativer Auftrieb** – nur beim kontrollierten Abstieg oder auf dem Grund bei Strömung.',
+        ] },
+        { type: 'h', text: 'Was deinen Auftrieb beeinflusst' },
+        { type: 'table', headers: ['Faktor', 'Wirkung'], rows: [
+          ['Salzwasser vs. Süßwasser', 'Salzwasser ist dichter → mehr Auftrieb → ca. 2 kg mehr Blei'],
+          ['Neoprenanzug', 'Neopren enthält Gasbläschen → viel Auftrieb, der mit der Tiefe abnimmt'],
+          ['Aluflasche vs. Stahlflasche', 'Alu wird gegen Ende des Tauchgangs positiv (leere Flasche ~ +1,5 kg)'],
+          ['Lungenvolumen', 'Tiefes Einatmen = +Auftrieb, Ausatmen = −Auftrieb (Feintarierung!)'],
+          ['Luft in der Flasche', '200 bar in einer 12‑l‑Flasche wiegen ca. 2,9 kg – die verbrauchst du'],
+        ] },
+        { type: 'tip', title: 'Blei‑Check', text: 'Mit fast leerer Flasche (50 bar) und leerem Jacket solltest du bei normaler Atmung auf Augenhöhe schweben. Ausatmen → langsames Absinken. Das ist die korrekte Bleimenge.' },
+      ],
+    },
+    {
+      id: 'physik-licht-schall-waerme',
+      title: 'Licht, Schall & Wärme',
+      summary: 'Warum alles größer aussieht, du Geräusche nicht orten kannst und schnell frierst.',
+      minutes: 7,
+      blocks: [
+        { type: 'h', text: 'Licht' },
+        { type: 'p', text: 'Durch die **Brechung** an der Maskenscheibe erscheinen Objekte um etwa **33 % größer** und **25 % näher**. Wasser absorbiert außerdem Farben: Rot verschwindet schon ab ca. 5 m, Orange ab 10 m, Gelb ab 20 m. In der Tiefe wirkt alles blau‑grün – bis du eine Lampe einschaltest.' },
+        { type: 'h', text: 'Schall' },
+        { type: 'p', text: 'Schall breitet sich unter Wasser **etwa viermal schneller** aus (ca. 1500 m/s). Dein Gehirn kann die Richtung nicht mehr über den Zeitunterschied zwischen beiden Ohren bestimmen. Deshalb: Bei Bootsmotoren‑Geräusch immer nach oben schauen und langsam aufsteigen.' },
+        { type: 'h', text: 'Wärme' },
+        { type: 'p', text: 'Wasser leitet Wärme **rund 20–25‑mal besser** als Luft. Selbst 28 °C warmes Wasser kühlt dich über einen längeren Tauchgang aus. Auskühlung erhöht den Luftverbrauch, senkt die Konzentration und das Risiko für DCS steigt.' },
+        { type: 'fact', title: 'Kalt = mehr Blei', text: 'Ein dickerer Anzug bedeutet mehr Auftrieb. Beim Wechsel von 3 mm auf 7 mm brauchst du typischerweise 2–4 kg mehr Blei.' },
+      ],
+    },
+  ],
+}
+
+export const physiologie: CourseModule = {
+  id: 'physiologie',
+  title: 'Physiologie',
+  subtitle: 'Dein Körper unter Druck',
+  level: 'Beginner',
+  icon: 'HeartPulse',
+  accent: 'from-rose-400 to-pink-500',
+  description:
+    'Druckausgleich, Barotraumen, Dekompressionskrankheit und Tiefenrausch – wie du Risiken erkennst und vermeidest.',
+  lessons: [
+    {
+      id: 'physio-druckausgleich',
+      title: 'Druckausgleich richtig machen',
+      summary: 'Valsalva, Frenzel & Co – und was du bei Problemen tust.',
+      minutes: 8,
+      blocks: [
+        { type: 'p', text: 'Das Mittelohr ist ein luftgefüllter Raum, der über die **Eustachische Röhre** mit dem Rachen verbunden ist. Beim Abtauchen wird das Trommelfell nach innen gedrückt. Ohne Ausgleich: Schmerz, dann Riss.' },
+        { type: 'steps', items: [
+          '**Valsalva** – Nase zuhalten, sanft gegen die geschlossene Nase ausatmen. Am einfachsten, aber nie mit Gewalt.',
+          '**Frenzel** – Nase zuhalten, Zunge gegen den Gaumen drücken („K“ oder „Kah“ sagen). Sanfter und effektiver.',
+          '**Toynbee** – Nase zuhalten und schlucken.',
+          '**Früh & oft** – schon an der Oberfläche einmal ausgleichen, dann alle 0,5–1 m.',
+        ] },
+        { type: 'warning', title: 'Bei Schmerz', text: 'Sofort 1–2 m aufsteigen, erneut ausgleichen. Funktioniert es gar nicht: Tauchgang abbrechen. Niemals mit Gewalt durchdrücken – das führt zu Innenohr‑Barotrauma mit Schwindel und Hörverlust.' },
+        { type: 'tip', text: 'Mit Erkältung nicht tauchen. Abschwellende Nasensprays lassen nach – und ein „Reverse Block“ beim Aufstieg ist nicht mehr vermeidbar.' },
+      ],
+    },
+    {
+      id: 'physio-barotrauma',
+      title: 'Barotraumen',
+      summary: 'Ohr, Nebenhöhlen, Maske, Zahn, Lunge – die Druckverletzungen im Überblick.',
+      minutes: 9,
+      blocks: [
+        { type: 'p', text: 'Ein **Barotrauma** ist eine Verletzung durch Druckunterschied zwischen einem luftgefüllten Körperraum und der Umgebung. Es gibt Squeeze (beim Abstieg) und Überdehnung (beim Aufstieg).' },
+        { type: 'table', headers: ['Ort', 'Ursache', 'Vermeidung'], rows: [
+          ['Mittelohr', 'Fehlender Druckausgleich', 'Früh und oft ausgleichen'],
+          ['Nebenhöhlen', 'Verstopfte Öffnungen (Erkältung)', 'Nicht krank tauchen'],
+          ['Maske', 'Nicht durch die Nase ausgeatmet', 'Beim Abstieg leicht in die Maske ausatmen'],
+          ['Zahn', 'Luft unter Füllung', 'Zahnarztcheck'],
+          ['Lunge', 'Luftanhalten beim Aufstieg', 'IMMER atmen, langsam aufsteigen'],
+        ] },
+        { type: 'h', text: 'Lungenüberdehnung – der Ernstfall' },
+        { type: 'p', text: 'Ein Aufstieg von nur **1–2 m mit angehaltenem Atem** kann die Lungenbläschen zerreißen. Mögliche Folgen: **Arterielle Gasembolie (AGE)** – Luftblasen im Gehirn, **Pneumothorax** – Lungenkollaps, **Mediastinalemphysem** – Luft im Brustraum.' },
+        { type: 'warning', title: 'Symptome AGE', text: 'Unmittelbar nach dem Auftauchen: Bewusstlosigkeit, Lähmung, Sehstörungen, Schwindel. → Notfall! 100 % Sauerstoff, Notruf, Druckkammer.' },
+      ],
+    },
+    {
+      id: 'physio-dcs',
+      title: 'Dekompressionskrankheit (DCS)',
+      summary: 'Wie Stickstoffblasen entstehen, Symptome, Erste Hilfe und Prävention.',
+      minutes: 12,
+      blocks: [
+        { type: 'p', text: 'Während des Tauchgangs sättigt sich dein Gewebe mit Stickstoff. Beim Aufstieg muss dieser langsam über die Lunge abgegeben werden. Zu schnell → Blasen bilden sich im Blut und Gewebe → **DCS**, umgangssprachlich „Bends“ oder „Taucherkrankheit“.' },
+        { type: 'h', text: 'Typische Symptome (oft 15 min bis 12 h danach)' },
+        { type: 'list', items: [
+          '**Typ I (mild):** Gelenkschmerzen (meist Schulter, Ellbogen), Hautjucken, marmorierte Haut, ungewöhnliche Müdigkeit.',
+          '**Typ II (schwer):** Taubheit, Kribbeln, Lähmungen, Schwindel, Seh‑/Sprachstörungen, Atemnot, Brustschmerz („Chokes“).',
+        ] },
+        { type: 'h', text: 'Risikofaktoren' },
+        { type: 'list', items: ['Schneller Aufstieg (> 9–10 m/min)', 'Auslassen des Sicherheitsstopps', 'Dehydration, Alkohol, Schlafmangel', 'Kälte und starke Anstrengung', 'Wiederholungstauchgänge mit kurzen Pausen', 'Fliegen zu früh nach dem Tauchen', 'Offenes Foramen ovale (PFO)', 'Höheres Alter, Übergewicht'] },
+        { type: 'h', text: 'Erste Hilfe' },
+        { type: 'steps', items: ['Betroffenen hinlegen, ruhig halten', '**100 % Sauerstoff** verabreichen – so früh wie möglich', 'Flüssigkeit geben (wenn bei Bewusstsein)', 'Notruf / Taucherhotline (z. B. DAN) und Druckkammer organisieren', 'Tauchcomputer für die Ärzte mitnehmen', 'Niemals den Betroffenen zurück ins Wasser schicken („Nasses Rekomprimieren“)'] },
+        { type: 'fact', title: 'Flugverbot nach dem Tauchen', text: 'Mind. **12 h** nach einem Tauchgang, **18 h** nach mehreren Tauchgängen/Tagen, **24 h** nach Deko‑Tauchgängen. Bergpässe zählen ebenfalls als Höhe!' },
+      ],
+    },
+    {
+      id: 'physio-narkose',
+      title: 'Tiefenrausch & Sauerstofftoxizität',
+      summary: 'Zwei Gefahren, die dich ohne Warnung treffen können.',
+      minutes: 8,
+      blocks: [
+        { type: 'h', text: 'Stickstoffnarkose (Tiefenrausch)' },
+        { type: 'p', text: 'Ab etwa **30 m** wirkt Stickstoff unter Druck narkotisch – ähnlich wie Alkohol. Symptome: Euphorie, Selbstüberschätzung, Tunnelblick, verlangsamtes Denken, Angst. Faustregel („Martini‑Gesetz“): Jede 10 m Tiefe wirken wie ein Martini auf nüchternen Magen.' },
+        { type: 'tip', title: 'Lösung', text: 'Einfach aufsteigen – der Effekt verschwindet innerhalb weniger Meter ohne Nachwirkungen. Buddy beobachten: Wer plötzlich unsinnig handelt oder nicht antwortet, muss höher.' },
+        { type: 'h', text: 'Sauerstofftoxizität' },
+        { type: 'p', text: 'Sauerstoff wird ab einem Partialdruck von **1,4 bar** (Arbeitsgrenze) bzw. **1,6 bar** (absolute Grenze, nur in Ruhe) gefährlich für das zentrale Nervensystem. Symptome merkt man sich mit **VENTID‑C**: Vision (Sehstörung), Ears (Ohrgeräusche), Nausea (Übelkeit), Twitching (Zucken), Irritability (Reizbarkeit), Dizziness (Schwindel), Convulsions (Krämpfe).' },
+        { type: 'warning', text: 'Ein Krampfanfall unter Wasser führt fast immer zum Ertrinken. Deshalb: Nitrox‑MOD strikt einhalten, Gemisch immer selbst analysieren.' },
+        { type: 'formula', label: 'Mit Luft (21 % O₂) wird 1,4 bar erreicht bei', formula: '(1,4 ÷ 0,21 − 1) × 10 = 56,7 m', note: 'Deshalb ist Sauerstofftoxizität mit Luft im Sporttauchbereich (max. 40 m) kein Thema – mit Nitrox aber sehr wohl.' },
+      ],
+    },
+  ],
+}
