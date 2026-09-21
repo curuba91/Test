@@ -23,6 +23,21 @@ Die drei Antworten haben den Plan an drei Stellen strukturell verändert. Was ge
 | `Vorlage-Session.md` | Leere Vorlage für eine einzelne Session |
 | `Prompt-Bibliothek.md` | Die Prompts aus allen Sessions zum Kopieren |
 | `Teilnehmer-Fragen.md` | Was noch offen ist |
+| `regiepult.html` | Quelldatei der Trainer-Oberfläche (als Artifact veröffentlicht) |
+
+## Die Trainer-Oberfläche
+
+Die Markdown-Dateien sind die Quelle, aber nicht das Arbeitswerkzeug. Dafür gibt es das **Regiepult**, eine Webseite mit drei Ansichten:
+
+| Ansicht | Wofür |
+|---|---|
+| Übersicht | Vorbereitungsstand aller 26 Sessions, abgeleitet aus Häkchen. Zeigt, was als Nächstes fehlt. |
+| Session | Ablauf mit Minutenangaben, Slide-Entwürfe zum Kopieren, Prompts mit Kopierknopf, Materialliste, Notizen, Parkplatz. |
+| Live | Stoppuhr über die 7 Phasen. Leertaste startet, Pfeil rechts schaltet weiter. Rechts steht, was du in dieser Phase tust. |
+
+Häkchen, Notizen und Parkplatz-Fragen werden gespeichert und überleben das Schließen der Seite.
+
+**Was die Oberfläche nicht tut:** Sie baut keine Slides. Sie liefert deren Text, damit du ihn in die Firmenvorlage kopierst. Die Übungsdokumente und die Backup-Videos musst du selbst erstellen.
 
 ## Feste Session-Struktur (50 Minuten, remote)
 

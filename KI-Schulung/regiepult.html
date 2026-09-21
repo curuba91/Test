@@ -1,0 +1,946 @@
+<title>Regiepult KI-Schulung</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --paper:#F5F6F9; --card:#FFFFFF; --sunk:#ECEEF3;
+  --ink:#14181F; --ink-2:#4A535F; --ink-3:#7A8492;
+  --line:#DCE0E8; --line-2:#C6CCD6;
+  --accent:#0B5D8A; --accent-soft:#E3EEF5; --accent-ink:#06405F;
+  --live:#B4232B; --live-soft:#FBE9E9;
+  --ready:#1B6E52; --ready-soft:#E4F0EA;
+  --warn:#8A5A00; --warn-soft:#F7EEDC;
+  --shadow:0 1px 2px rgba(20,24,31,.06),0 6px 18px rgba(20,24,31,.05);
+  --r:10px;
+  --f-disp:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,Segoe UI,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0F1319; --card:#171C24; --sunk:#12161D;
+  --ink:#E8EBF0; --ink-2:#A6B0BE; --ink-3:#727D8C;
+  --line:#272E39; --line-2:#36404E;
+  --accent:#5FB2DC; --accent-soft:#132C3B; --accent-ink:#9BD1EC;
+  --live:#F07178; --live-soft:#331A1C;
+  --ready:#5DC79B; --ready-soft:#12291F;
+  --warn:#DDA94A; --warn-soft:#2A2115;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --paper:#0F1319; --card:#171C24; --sunk:#12161D;
+  --ink:#E8EBF0; --ink-2:#A6B0BE; --ink-3:#727D8C;
+  --line:#272E39; --line-2:#36404E;
+  --accent:#5FB2DC; --accent-soft:#132C3B; --accent-ink:#9BD1EC;
+  --live:#F07178; --live-soft:#331A1C;
+  --ready:#5DC79B; --ready-soft:#12291F;
+  --warn:#DDA94A; --warn-soft:#2A2115;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-disp);margin:0;line-height:1.15;text-wrap:balance;font-weight:600}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.eyebrow{font-family:var(--f-disp);font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* ---------- shell ---------- */
+#top{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:var(--card);border-bottom:1px solid var(--line)}
+.topin{max-width:1420px;margin:0 auto;padding-block:10px;padding-left:16px;padding-right:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:1px;margin-right:auto}
+.brand b{font-family:var(--f-disp);font-size:16px;font-weight:700;letter-spacing:-.01em}
+.brand span{font-size:12px;color:var(--ink-3)}
+.tabs{display:flex;gap:2px;background:var(--sunk);padding:3px;border-radius:9px}
+.tabs button{background:none;border:0;padding:7px 13px;border-radius:7px;font-family:var(--f-disp);font-weight:600;font-size:13px;color:var(--ink-2)}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.iconbtn{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:12.5px;font-family:var(--f-disp);font-weight:600;color:var(--ink-2)}
+.iconbtn:hover{border-color:var(--line-2);color:var(--ink)}
+main{max-width:1420px;margin:0 auto;padding-left:16px;padding-right:16px;padding-block:22px 64px}
+
+/* ---------- overview ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px}
+.kpi .n{font-family:var(--f-disp);font-size:27px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.05}
+.kpi .l{font-size:12px;color:var(--ink-3);margin-top:3px}
+.kpi.next .n{font-size:16px;font-weight:600;padding-top:5px}
+.bar{height:5px;border-radius:99px;background:var(--sunk);overflow:hidden;margin-top:9px}
+.bar i{display:block;height:100%;background:var(--ready);border-radius:99px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:22px 0 12px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:12.5px;font-family:var(--f-disp);font-weight:600;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .chip[aria-pressed="true"],:root:not([data-theme="light"]) .chip[aria-pressed="true"]{color:#08141C}
+.modgroup{margin-top:26px}
+.modhead{display:flex;align-items:baseline;gap:10px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.modhead h2{font-size:15px}
+.modhead .sub{font-size:12.5px;color:var(--ink-3)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px;align-items:start}
+.scard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:left;display:flex;flex-direction:column;gap:9px;position:relative;border-left:3px solid var(--line-2)}
+.scard:hover{border-color:var(--line-2);box-shadow:var(--shadow)}
+.scard.st-done{border-left-color:var(--ready)}
+.scard.st-wip{border-left-color:var(--warn)}
+.scard.st-open{border-left-color:var(--line-2)}
+.scard .num{font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.scard h3{font-size:14.5px;font-weight:600;letter-spacing:-.005em}
+.scard .row{display:flex;align-items:center;gap:7px;margin-top:auto;flex-wrap:wrap}
+.tool{font-family:var(--f-mono);font-size:10px;font-weight:600;letter-spacing:.04em;padding:2px 5px;border-radius:4px;border:1px solid var(--line-2);color:var(--ink-2)}
+.tool.ki{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.tool.cp{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
+.dots{display:flex;gap:3px;margin-left:auto}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--sunk);border:1px solid var(--line-2)}
+.dots i.on{background:var(--ready);border-color:var(--ready)}
+.pill{font-family:var(--f-disp);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:5px}
+.pill.done{background:var(--ready-soft);color:var(--ready)}
+.pill.wip{background:var(--warn-soft);color:var(--warn)}
+.pill.open{background:var(--sunk);color:var(--ink-3)}
+.flagmark{font-size:12px;color:var(--warn);display:flex;gap:5px;align-items:flex-start;line-height:1.4}
+.cgoal{font-size:12.5px;color:var(--ink-3);line-height:1.45;margin:0}
+
+.missing{margin-top:34px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.missing h2{font-size:15px;margin-bottom:4px}
+.missing p{margin:0 0 12px;font-size:13px;color:var(--ink-2);max-width:62ch}
+.mlist{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.mlist li{display:flex;gap:10px;align-items:baseline;font-size:13.5px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+.mlist li:last-child{border-bottom:0;padding-bottom:0}
+.mlist b{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3);min-width:34px}
+.mlist span{color:var(--ink-2)}
+
+/* ---------- detail ---------- */
+.dwrap{display:grid;grid-template-columns:232px minmax(0,1fr);gap:26px;align-items:start}
+.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 74px);max-height:calc(100vh - 110px);overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px}
+.rail .rm{padding:9px 8px 4px}
+.rail button{display:flex;width:100%;gap:8px;align-items:center;background:none;border:0;padding:6px 8px;border-radius:7px;text-align:left;font-size:13px;color:var(--ink-2);line-height:1.3}
+.rail button:hover{background:var(--sunk)}
+.rail button[aria-current="true"]{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.rail button em{font-family:var(--f-mono);font-style:normal;font-size:11px;color:var(--ink-3);min-width:17px;flex:none}
+.rail button[aria-current="true"] em{color:var(--accent-ink)}
+.rail button i{width:6px;height:6px;border-radius:50%;flex:none;margin-left:auto;background:var(--line-2)}
+.rail button i.done{background:var(--ready)}.rail button i.wip{background:var(--warn)}
+
+.dhead{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
+.dhead .top{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.dhead h1{font-size:23px;font-weight:700;letter-spacing:-.02em;flex:1 1 320px}
+.dhead .goal{margin:12px 0 0;font-size:15.5px;color:var(--ink-2);max-width:68ch}
+.dhead .goal b{color:var(--ink);font-weight:600}
+.flag{margin-top:14px;background:var(--warn-soft);border-left:3px solid var(--warn);border-radius:0 7px 7px 0;padding:11px 14px;font-size:13.5px;color:var(--ink);max-width:78ch}
+.flag strong{font-family:var(--f-disp);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--warn);display:block;margin-bottom:3px}
+.dtabs{display:flex;gap:2px;background:var(--sunk);padding:3px;border-radius:9px;margin-bottom:16px;width:fit-content;max-width:100%;overflow-x:auto}
+.dtabs button{background:none;border:0;padding:7px 14px;border-radius:7px;font-family:var(--f-disp);font-weight:600;font-size:13px;color:var(--ink-2);white-space:nowrap}
+.dtabs button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.panel+.panel{margin-top:14px}
+.panel>h3{font-size:14px;margin-bottom:3px}
+.panel>.hint{font-size:12.5px;color:var(--ink-3);margin:0 0 14px}
+
+/* run of show */
+.ros{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.ros li{display:grid;grid-template-columns:62px minmax(0,1fr);gap:16px;padding:15px 0;border-top:1px solid var(--line)}
+.ros li:first-child{border-top:0;padding-top:2px}
+.ros .when{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;padding-top:2px}
+.ros .when b{display:block;font-size:14.5px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.ros h4{font-size:14px;margin-bottom:6px}
+.ros ul{margin:0;padding-left:17px;display:grid;gap:5px}
+.ros ul li{display:list-item;border:0;padding:0;font-size:14px;color:var(--ink-2);grid-template-columns:none}
+.ros ul li strong{color:var(--ink)}
+.ros p{margin:0;font-size:14px;color:var(--ink-2)}
+
+.prompt{background:var(--sunk);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:10px}
+.prompt .ph{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line);background:var(--card)}
+.prompt .ph span{font-family:var(--f-disp);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-right:auto}
+.prompt pre{margin:0;padding:11px 12px;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+.copy{background:var(--card);border:1px solid var(--line-2);border-radius:6px;padding:3px 9px;font-size:11.5px;font-family:var(--f-disp);font-weight:600;color:var(--ink-2)}
+.copy:hover{border-color:var(--accent);color:var(--accent)}
+.copy.ok{background:var(--ready-soft);border-color:var(--ready);color:var(--ready)}
+
+/* checklist */
+.checks{display:grid;gap:2px;margin:0;padding:0;list-style:none}
+.checks li{display:flex;align-items:flex-start;gap:10px;padding:8px 9px;border-radius:7px}
+.checks li:hover{background:var(--sunk)}
+.checks input{margin:3px 0 0;width:16px;height:16px;accent-color:var(--ready);flex:none}
+.checks label{font-size:14px;color:var(--ink-2);cursor:pointer}
+.checks li.on label{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-2)}
+textarea{width:100%;min-height:104px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:11px 12px;font:inherit;font-size:14px;color:var(--ink);resize:vertical}
+textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.saved{font-size:11.5px;color:var(--ink-3);font-family:var(--f-disp);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.parkadd{display:flex;gap:8px;margin-top:10px}
+.parkadd input{flex:1;min-width:0;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink)}
+.parklist{list-style:none;margin:0 0 0;padding:0;display:grid;gap:6px}
+.parklist li{display:flex;gap:10px;align-items:baseline;background:var(--sunk);border-radius:7px;padding:9px 11px;font-size:14px}
+.parklist button{background:none;border:0;color:var(--ink-3);font-size:16px;line-height:1;padding:0 2px;margin-left:auto}
+.parklist button:hover{color:var(--live)}
+.btn{background:var(--accent);border:1px solid var(--accent);color:#fff;border-radius:8px;padding:9px 15px;font-family:var(--f-disp);font-weight:600;font-size:13.5px}
+:root[data-theme="dark"] .btn,:root:not([data-theme="light"]) .btn{color:#08141C}
+.btn.ghost{background:var(--card);border-color:var(--line-2);color:var(--ink-2)}
+.btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+/* slides */
+.slide{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--card)}
+.slide+.slide{margin-top:12px}
+.slide .sh{display:flex;align-items:center;gap:10px;padding:9px 13px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.slide .sh em{font-family:var(--f-mono);font-style:normal;font-size:11px;color:var(--ink-3)}
+.slide .sh span{font-family:var(--f-disp);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-right:auto}
+.canvas{padding:26px 24px 30px;aspect-ratio:16/9;max-width:100%;display:flex;flex-direction:column;gap:14px;container-type:inline-size;overflow:auto}
+.canvas h4{font-family:var(--f-disp);font-size:clamp(17px,3.6cqi,30px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.canvas ul{margin:0;padding-left:1.1em;display:grid;gap:clamp(5px,1.1cqi,11px)}
+.canvas li{font-size:clamp(12.5px,2.05cqi,17px);color:var(--ink-2);line-height:1.4}
+.canvas .rule{height:3px;width:46px;background:var(--accent);border-radius:99px;flex:none}
+
+/* live */
+.live{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.clock{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;text-align:center}
+.clock.running{border-color:var(--accent)}
+.clock.over{border-color:var(--live);background:var(--live-soft)}
+.phasename{font-family:var(--f-disp);font-size:14px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+.clock.over .phasename{color:var(--live)}
+.bigtime{font-family:var(--f-mono);font-size:clamp(56px,15vw,104px);font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;margin:8px 0 2px}
+.clock.over .bigtime{color:var(--live)}
+.subtime{font-size:13px;color:var(--ink-3);font-family:var(--f-mono)}
+.ctl{display:flex;gap:9px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.ctl .btn{padding:11px 20px;font-size:14.5px}
+.keys{margin-top:13px;font-size:11.5px;color:var(--ink-3)}
+.keys kbd{font-family:var(--f-mono);font-size:11px;background:var(--sunk);border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;padding:1px 5px}
+.pbars{margin-top:18px}
+.pbars .cap{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:11px;color:var(--ink-3);margin-bottom:6px}
+.tl{display:flex;gap:2px;height:14px}
+.seg{background:var(--sunk);border-radius:3px;overflow:hidden;min-width:3px}
+.seg i{display:block;height:100%;background:var(--line-2)}
+.seg.cur{outline:2px solid var(--accent);outline-offset:1px}
+.seg.cur i{background:var(--accent)}
+.seg.past i{background:var(--ready)}
+.seg.over i{background:var(--live)}
+.tlnames{display:flex;gap:2px;margin-top:7px}
+.tlnames span{font-family:var(--f-disp);font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:3px}
+.tlnames span.cur{color:var(--accent)}
+@media (max-width:700px){.tlnames{display:none}}
+.livecue{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.livecue h3{font-size:13.5px;margin-bottom:9px}
+.livecue ul{margin:0;padding-left:16px;display:grid;gap:6px}
+.livecue li{font-size:13.5px;color:var(--ink-2)}
+.livecue .nextup{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+
+.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3);max-width:76ch}
+.foot b{color:var(--ink-2)}
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(calc(100% + 30px));bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:99px;font-size:13.5px;font-family:var(--f-disp);font-weight:600;z-index:90;transition:transform .22s ease;box-shadow:var(--shadow)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@media (max-width:980px){
+  .dwrap{grid-template-columns:1fr}
+  .rail{position:static;max-height:none;display:flex;gap:4px;overflow-x:auto;padding:6px}
+  .rail .rm{display:none}
+  .rail button{width:auto;white-space:nowrap;padding:7px 11px}
+  .rail button i{display:none}
+  .live{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .ros li{grid-template-columns:1fr;gap:6px}
+  .ros .when{display:flex;gap:8px;align-items:baseline}
+  .canvas{aspect-ratio:auto;padding:20px 18px 24px}
+  .pb{grid-template-columns:76px minmax(0,1fr) 38px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="top">
+  <div class="topin">
+    <div class="brand">
+      <b>Regiepult KI-Schulung</b>
+      <span>26 Sessions · Copilot M365 und interne KI · remote</span>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Ansicht">
+      <button role="tab" id="tab-ov" aria-selected="true" data-view="ov">Übersicht</button>
+      <button role="tab" id="tab-se" aria-selected="false" data-view="se">Session</button>
+      <button role="tab" id="tab-li" aria-selected="false" data-view="li">Live</button>
+    </div>
+    <button class="iconbtn" id="themebtn" title="Hell oder dunkel">Kontrast</button>
+  </div>
+</div>
+<main>
+  <div id="v-ov"></div>
+  <div id="v-se" hidden></div>
+  <div id="v-li" hidden></div>
+  <div class="foot" id="foot"></div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+const PHASES=[
+ {k:"umfrage",n:"Umfrage",m:3,d:"Teams-Abstimmung läuft, während die Leute reinkommen. Ergebnis zeigen, nicht kommentieren."},
+ {k:"zeigen",n:"Zeigen",m:10,d:"Bildschirm teilen, live vormachen. Chat ignorieren, Co-Trainer antwortet."},
+ {k:"uebergabe",n:"Übergabe",m:2,d:"Prompt in den Chat, Aufgabe auf die Slide, Breakout-Räume öffnen."},
+ {k:"mitmachen",n:"Mitmachen",m:20,d:"Durch die Breakout-Räume gehen. Je Raum 60 Sekunden, nur zuhören, nicht lösen."},
+ {k:"vergleichen",n:"Vergleichen",m:6,d:"Zwei vorher benannte Paare teilen den Bildschirm, je 3 Minuten."},
+ {k:"fragerunde",n:"Fragerunde",m:7,d:"Erst eine Parkplatz-Frage der letzten Session, dann namentlich aufrufen."},
+ {k:"abschluss",n:"Abschluss",m:2,d:"Material liegt im Kanal. Ein Satz, was nächste Woche kommt."}];
+const MODULES={A:{t:"Grundlagen",r:"1–5",d:"Wie funktioniert das, wie rede ich mit der KI"},B:{t:"Alltag",r:"6–12",d:"Die häufigsten Aufgaben im Büro"},C:{t:"Qualität und Sicherheit",r:"13–17",d:"Fehler, Datenwege, Manipulation"},D:{t:"Fortgeschrittene Techniken",r:"18–23",d:"Mehr aus dem Werkzeug holen"},E:{t:"Anwenden",r:"24–26",d:"Eigene Workflows, Abschluss"}};
+const MAT=[{k:"slides",n:"Slides gebaut (max. 5)"},{k:"video",n:"Backup-Video aufgenommen"},{k:"uebung",n:"Übungsdokument fertig, fiktiv"},{k:"ergdok",n:"Ergebnisdokument angelegt, Schreibrechte für alle"},{k:"breakout",n:"Breakout-Räume konfiguriert, Paare zugeordnet"},{k:"freiwillige",n:"Zwei Freiwillige für Vergleichen angesprochen"},{k:"getestet",n:"Demo am Vortag getestet"}];
+const S=[
+{n:1,mod:"A",title:"Wie ein denkendes Modell arbeitet",tools:["ki","cp"],
+goal:"Verstehen, dass die KI Wörter vorhersagt und nicht weiß, und dass das Denken sichtbar ist.",
+flag:"Der klassische Buchstaben-Zähltrick funktioniert bei GPT-5.6 Thinking oft nicht mehr, weil das Modell nachrechnet. Wenn er klappt, hast du der Gruppe das Gegenteil bewiesen. Deshalb läuft diese Session über die Denkspur.",
+poll:"Wie oft hast du in der letzten Woche eine KI benutzt? Nie / einmal / mehrmals / täglich",
+show:["Rechenaufgabe stellen und die <strong>Denkspur aufklappen</strong>, laut mitlesen. Das ist der stärkste Aha-Moment der ganzen Reihe.","Dann der Bruch: eine Wissensfrage, die das Modell nicht wissen kann. Langes Denken ersetzt kein Wissen.","Dieselbe Frage in zwei Chats stellen. Zwei verschiedene Antworten. Slide: sehr guter Autovervollständiger mit Notizzettel."],
+do:["Alle stellen dieselbe Wissensfrage aus dem eigenen Ort oder Fachgebiet.","Antwort ins gemeinsame Dokument, eine Zeile pro Paar.","Denkspur öffnen und in einem Satz notieren, was das Modell <strong>gemacht</strong> hat.","Nachfragen: „Bist du dir sicher?“ und beobachten, wie die Antwort zurückrudert."],
+compare:"Die Zeilen im Ergebnisdokument nebeneinander lesen. Dieselbe Frage, verschiedene Antworten. Das ist der Beweis, kein Zufall.",
+ask:["Wo hättet ihr der Antwort geglaubt?","Was hat die Denkspur verraten, was in der Antwort nicht stand?"],
+mat:["slides","ergdok","getestet"],
+prompts:[{l:"Denkspur erzeugen",t:"Ein Projekt hat 3 Phasen. Phase 1 dauert 2 Wochen, Phase 2 doppelt so lang, Phase 3 halb so lang wie Phase 1 und 2 zusammen. Start ist der 3. März. Wann ist das Projekt fertig?"},{l:"Wissensgrenze zeigen",t:"Wer war im Jahr 1987 Bürgermeister von [Stadt]?"},{l:"Zurückrudern lassen",t:"Bist du dir sicher?"}],
+slides:[{t:"Wie ein denkendes Modell arbeitet",b:["Session 1 von 26","Modul A: Grundlagen"]},{t:"Was du nachher kannst",b:["Du weißt, dass die KI Wörter vorhersagt und nichts abruft","Du kannst die Denkspur öffnen und lesen","Du weißt, warum dieselbe Frage zwei Antworten gibt"]},{t:"Autovervollständiger mit Notizzettel",b:["Kein Lexikon","Kein Kollege","Langes Denken ersetzt kein Wissen"]},{t:"Jetzt ihr",b:["Stellt eine Wissensfrage aus eurem Ort oder Fachgebiet","Antwort in das gemeinsame Dokument, eine Zeile pro Paar","Denkspur öffnen: Was hat das Modell gemacht?","Dann fragen: Bist du dir sicher?"]},{t:"Fragerunde",b:["Wo hättet ihr der Antwort geglaubt?","Was stand in der Denkspur, aber nicht in der Antwort?"]}]},
+
+{n:2,mod:"A",title:"Der erste gute Prompt",tools:["ki","cp"],
+goal:"Die vier Bausteine Rolle, Aufgabe, Kontext und Format anwenden.",
+poll:"Was war dein letzter Prompt? Ein Wort / ein Satz / mehrere Sätze / weiß nicht mehr",
+show:["Schlechter Prompt: „Schreib eine E-Mail.“ Generisches Ergebnis zeigen.","Denselben Fall mit allen vier Bausteinen. Beide Ergebnisse nebeneinander auf eine Slide.","Einen Baustein wieder wegnehmen und zeigen, was passiert."],
+do:["Arbeitsblatt mit vier leeren Feldern für eine eigene Aufgabe ausfüllen.","Prompt eintippen, Ergebnis ins gemeinsame Dokument.","Im Breakout: Partner liest den Prompt und sagt, welcher Baustein fehlt."],
+compare:"Zwei Paare zeigen Prompt und Ergebnis. Frage an die Runde: Welcher Baustein fehlt hier noch?",
+ask:["Welcher Baustein hat am meisten verändert?","Welchen vergisst man am häufigsten?"],
+mat:["slides","video","uebung","ergdok","breakout","freiwillige"],
+prompts:[{l:"Vier Bausteine, Vorlage",t:"Du bist [Rolle, z. B. Assistenz der Geschäftsführung].\nAufgabe: [Was genau soll entstehen?]\nKontext: [Für wen, warum, was ist wichtig, was ist tabu?]\nFormat: [Länge, Ton, Sprache, Struktur]"},{l:"Beispiel vollständig",t:"Du bist Assistenz der Geschäftsführung. Schreib eine Absage für einen Termin am Freitag. Der Empfänger ist ein wichtiger Kunde, wir wollen einen Ersatztermin nächste Woche. Maximal 5 Sätze, freundlich, per Sie."}],
+slides:[{t:"Der erste gute Prompt",b:["Session 2 von 26","Vier Bausteine, die immer gelten"]},{t:"Rolle, Aufgabe, Kontext, Format",b:["Rolle: Wer soll antworten?","Aufgabe: Was genau soll entstehen?","Kontext: Für wen, warum, was ist tabu?","Format: Länge, Ton, Sprache, Struktur"]},{t:"Vorher und nachher",b:["„Schreib eine E-Mail.“ Ergebnis: beliebig","Mit vier Bausteinen: brauchbar beim ersten Versuch","Der Unterschied sind 30 Sekunden Tippen"]},{t:"Jetzt ihr",b:["Arbeitsblatt ausfüllen für eine eigene Aufgabe","Prompt eintippen, Ergebnis ins gemeinsame Dokument","Partner sagt, welcher Baustein fehlt"]}]},
+
+{n:3,mod:"A",title:"Nachbessern statt perfekt fragen",tools:["ki","cp"],
+goal:"Verstehen, dass der zweite und dritte Prompt wichtiger sind als der erste.",
+flag:"Bei einem denkenden Modell kostet jede Runde Wartezeit. Darum mehrere Korrekturen in einen Prompt bündeln statt drei einzelne Runden. Beides vormachen und die Zeit mitstoppen.",
+poll:"Wenn die erste Antwort nicht passt: Neuen Prompt schreiben / nachbessern / aufgeben?",
+show:["Mit einem bewusst mittelmäßigen Prompt starten, dann live nachschärfen.","Zeigen: Innerhalb des Chats erinnert sich die KI. Neuer Chat heißt Gedächtnis weg.","Drei Einzelrunden gegen ein Bündel aus drei Korrekturen. Zeit mitstoppen."],
+do:["Produktbeschreibung für einen fiktiven Bürostuhl. Erster Prompt maximal 10 Wörter.","Danach nur noch nachbessern, <strong>3 Runden</strong>. Eine Runde muss ein Bündel aus mindestens drei Korrekturen sein.","Endergebnis plus Rundenzahl ins gemeinsame Dokument."],
+compare:"Zwei Paare zeigen erste und letzte Version. Wer hat mit dem Bündel mehr erreicht?",
+ask:["Wann ist es sinnvoller, einen neuen Chat zu starten?","Hat das Bündel schlechter funktioniert als die Einzelrunden?"],
+mat:["slides","video","ergdok","breakout","freiwillige"],
+prompts:[{l:"Einzelne Korrekturen",t:"Kürzer.\nFörmlicher.\nStreich den zweiten Absatz.\nGib mir 3 Varianten der Betreffzeile."},{l:"Gebündelt, spart Wartezeit",t:"Kürzer, förmlicher, und streich den letzten Absatz."}],
+slides:[{t:"Nachbessern statt perfekt fragen",b:["Session 3 von 26","Der zweite Prompt entscheidet"]},{t:"Das Gespräch führen",b:["Erster Prompt darf grob sein","Nachschärfen ist die eigentliche Arbeit","Im selben Chat erinnert sich die KI, im neuen nicht"]},{t:"Bündeln, nicht stückeln",b:["Denkende Modelle brauchen Zeit pro Runde","Drei Korrekturen in einem Prompt statt drei Runden","Regel: sammeln, dann abschicken"]},{t:"Jetzt ihr",b:["Bürostuhl beschreiben, erster Prompt maximal 10 Wörter","3 Runden nachbessern, eine davon gebündelt","Ergebnis und Rundenzahl ins gemeinsame Dokument"]}]},
+
+{n:4,mod:"A",title:"Copilot in Word",tools:["cp"],
+goal:"Copilot direkt im Dokument nutzen statt im separaten Chat.",
+poll:"Hast du das Copilot-Symbol in Word schon einmal angeklickt? Ja / nein / nicht gefunden",
+show:["Leeres Dokument, Entwurf mit Copilot: eine Einladung erzeugen.","Absatz markieren, Umschreiben, Ton wählen. Dann Eckdaten als Tabelle formatieren.","Zeigen, wie man den Vorschlag <strong>ablehnt</strong> statt annimmt. Das übersehen fast alle."],
+do:["Jeder schreibt eine Einladung für ein anderes fiktives Ereignis.","Einen Absatz auf drei Arten umschreiben lassen: lockerer, förmlicher, kürzer.","Beste Variante ins gemeinsame Dokument."],
+compare:"Vorher/Nachher: Ein Paar zeigt Original und beste Variante im geteilten Bildschirm.",
+ask:["Was hätte man ohne Copilot gemacht, und wie lang hätte es gedauert?","Wo klang die Umschreibung falsch?"],
+mat:["slides","video","ergdok","breakout","freiwillige","getestet"],
+prompts:[{l:"Entwurf in Word",t:"Schreib eine Einladung zum Sommerfest am 14. Juli, Beginn 16 Uhr, Anmeldung bis 1. Juli. Freundlich, maximal 150 Wörter."},{l:"Umschreiben, drei Tonlagen",t:"Schreib diesen Absatz lockerer.\nSchreib diesen Absatz förmlicher.\nHalbiere die Länge, ohne Informationen zu verlieren."}],
+slides:[{t:"Copilot in Word",b:["Session 4 von 26","Im Dokument, nicht im Chat"]},{t:"Drei Griffe, die du brauchst",b:["Entwurf mit Copilot: aus nichts wird ein Rohtext","Umschreiben: Absatz markieren, Ton wählen","Ablehnen: der Vorschlag ist ein Vorschlag"]},{t:"Jetzt ihr",b:["Einladung für ein eigenes fiktives Ereignis","Einen Absatz dreimal umschreiben lassen","Beste Variante ins gemeinsame Dokument"]},{t:"Fragerunde",b:["Wie lange hätte das von Hand gedauert?","Wo klang die Umschreibung falsch?"]}]},
+
+{n:5,mod:"A",title:"Copilot in Outlook",tools:["cp"],
+goal:"Lange Threads zusammenfassen, Antwortentwürfe erzeugen, Ton prüfen lassen.",
+poll:"Wie viele unbeantwortete Mails hast du gerade? Unter 10 / unter 50 / unter 200 / frag nicht",
+show:["Übungs-Thread mit 8 Mails zusammenfassen. Vier Bullets mit Entscheidungen und offenen Punkten.","Entwurf mit Copilot: zustimmen und nach dem Budget fragen.","Coaching-Funktion: Copilot bewertet Ton und Klarheit des eigenen Entwurfs."],
+do:["Jeder fasst denselben Thread zusammen und schreibt eine Antwort.","Zusammenfassung ins gemeinsame Dokument, eine Zeile pro Paar.","Antwort mit Coaching prüfen lassen und einen Vorschlag umsetzen."],
+compare:"Hat Copilot bei allen dieselben offenen Punkte gefunden? Die Zeilen im Dokument vergleichen.",
+ask:["Würdet ihr die Zusammenfassung ungelesen weiterleiten?","Was hat Copilot als offenen Punkt übersehen?"],
+mat:["slides","video","uebung","ergdok","breakout","freiwillige"],
+prompts:[{l:"Antwortentwurf",t:"Antworte zustimmend und frage nach dem Budget. Maximal 5 Sätze, per Sie."},{l:"Offene Punkte herausziehen",t:"Fasse diesen Verlauf zusammen. Nur getroffene Entscheidungen und offene Punkte, maximal 4 Bullets. Nenne zu jedem offenen Punkt, wer zuständig ist."}],
+slides:[{t:"Copilot in Outlook",b:["Session 5 von 26","Aus 8 Mails werden 4 Zeilen"]},{t:"Drei Funktionen",b:["Zusammenfassen: Entscheidungen und offene Punkte","Entwurf: Antwort in einem Satz beauftragen","Coaching: Copilot prüft deinen eigenen Ton"]},{t:"Jetzt ihr",b:["Denselben Thread zusammenfassen","Zusammenfassung ins gemeinsame Dokument","Antwort schreiben und per Coaching prüfen lassen"]},{t:"Fragerunde",b:["Würdet ihr die Zusammenfassung ungelesen weiterleiten?","Was wurde als offener Punkt übersehen?"]}]},
+
+{n:6,mod:"B",title:"Zusammenfassen",tools:["ki","cp"],
+goal:"Lange Texte auf das Wesentliche reduzieren und die Zusammenfassung steuern.",
+poll:"Wie viele Seiten hast du diese Woche gelesen, die dich nichts angingen?",
+show:["Fünfseitigen Bericht zusammenfassen, erst neutral, dann für die Geschäftsführung.","Dritter Schritt, den kaum jemand kennt: <strong>Was steht NICHT drin, was ich erwarten würde?</strong>","Slide: drei Arten von Zusammenfassung. Überblick, Entscheidungsvorlage, Lückenanalyse."],
+do:["Alle bekommen denselben Bericht. Zusammenfassung für drei Zielgruppen: Chef, neuer Kollege, Kunde.","Maximal 3 Sätze pro Zielgruppe, alles ins gemeinsame Dokument.","Ein Slot Bring Your Own Problem: ein echter langer Text, anonymisiert."],
+compare:"Die drei Zielgruppen-Versionen eines Paares vorlesen lassen. Hört man den Unterschied?",
+ask:["Was hat die KI weggelassen, das ihr wichtig fandet?","Hat die Lückenanalyse etwas Echtes gefunden?"],
+mat:["slides","video","uebung","ergdok","breakout","freiwillige"],
+prompts:[{l:"Nach Zielgruppe",t:"Fasse den folgenden Text für [Zielgruppe] zusammen. Nur [Entscheidungen und Risiken]. Maximal 5 Bullets. Wenn etwas fehlt, das du erwarten würdest, sag es am Ende.\n\n[Text]"},{l:"Lückenanalyse",t:"Was steht in diesem Dokument NICHT drin, was man bei diesem Thema erwarten würde? Nenne maximal 5 Punkte."}],
+slides:[{t:"Aus 5 Seiten werden 5 Punkte",b:["Session 6 von 26","Modul B: Alltag"]},{t:"Drei Arten von Zusammenfassung",b:["Überblick: Was steht drin?","Entscheidungsvorlage: Was muss ich entscheiden?","Lückenanalyse: Was fehlt?"]},{t:"Jetzt ihr",b:["Derselbe Bericht, drei Zielgruppen","Chef, neuer Kollege, Kunde","Maximal 3 Sätze pro Zielgruppe"]},{t:"Fragerunde",b:["Was hat die KI weggelassen, das ihr wichtig fandet?","Hat die Lückenanalyse etwas Echtes gefunden?"]}]},
+
+{n:7,mod:"B",title:"Ton und Zielgruppe",tools:["ki","cp"],
+goal:"Denselben Inhalt für unterschiedliche Empfänger umformulieren.",
+poll:"Wie oft schreibst du eine Nachricht dreimal um, bevor du sie abschickst?",
+show:["Eine banale interne Info für drei Zielgruppen umformulieren: Betriebsrat, Praktikanten-Chat, Vorstand.","Zeigen, wie ein einziges Wort im Prompt das Ergebnis dreht: locker gegen sachlich.","Ein Ergebnis bewusst zu weit treiben, damit die Grenze sichtbar wird."],
+do:["Prompt-Battle: zwei Breakout-Gruppen, gleiche Aufgabe. Antwort an einen Kunden, der sich beschwert hat.","8 Minuten, dann beide Ergebnisse ins gemeinsame Dokument.","Abstimmung per Teams-Poll: Welche Antwort würdet ihr lieber bekommen?"],
+compare:"Beide Gruppenergebnisse nebeneinander, Abstimmung, Gewinnergruppe erklärt ihren Prompt.",
+ask:["Klingt das noch nach euch?","Wo ist die Grenze zwischen Hilfe und Fremdtext?"],
+mat:["slides","video","ergdok","breakout"],
+prompts:[{l:"Drei Empfänger",t:"Formuliere die folgende Nachricht für drei Empfänger um:\n1. [Betriebsrat]\n2. [neue Kollegen]\n3. [Vorstand]\nInhalt bleibt identisch. Jede Version maximal 4 Sätze.\n\n[Nachricht]"},{l:"Beschwerde beantworten",t:"Antworte auf diese Kundenbeschwerde. Nimm die Kritik ernst, versprich nichts, was ich nicht halten kann, und schlage einen konkreten nächsten Schritt vor. Maximal 6 Sätze, per Sie."}],
+slides:[{t:"Ein Text, drei Leser",b:["Session 7 von 26","Ton ist eine Einstellung, keine Begabung"]},{t:"Ein Wort dreht das Ergebnis",b:["locker / sachlich / förmlich","Der Inhalt bleibt gleich","Die Zielgruppe gehört in den Prompt"]},{t:"Prompt-Battle",b:["Zwei Gruppen, eine Kundenbeschwerde","8 Minuten, dann beide Ergebnisse ins Dokument","Abstimmung: Welche Antwort bekommst du lieber?"]},{t:"Fragerunde",b:["Klingt das noch nach euch?","Wo ist die Grenze zwischen Hilfe und Fremdtext?"]}]},
+
+{n:8,mod:"B",title:"Übersetzen und Korrekturlesen",tools:["ki","cp"],
+goal:"Die KI als Lektor nutzen, ohne die Kontrolle abzugeben.",
+flag:"Baue einen Fehler bewusst so, dass die KI ihn übersieht, zum Beispiel eine im Kontext falsche Jahreszahl. Genau dieser Fehler ist der Lerninhalt der Session.",
+poll:"Wer liest deine wichtigen Texte heute Korrektur? Niemand / ein Kollege / Word / die KI",
+show:["Text mit 6 eingebauten Fehlern korrigieren lassen und <strong>jede Änderung auflisten</strong>. Die Liste ist wichtiger als der Text.","Ins Englische übersetzen und zurück. Was hat sich verschoben?","Copilot gegen die eingebaute Rechtschreibprüfung in Word."],
+do:["Alle bekommen denselben Fehlertext. Aufgabe: alle 6 Fehler finden lassen.","Welchen Fehler hat die KI übersehen? Antwort ins gemeinsame Dokument.","Dann einen eigenen kurzen Text übersetzen und den Partner prüfen lassen."],
+compare:"Auflösen: Welcher der 6 Fehler wurde reihum übersehen und warum?",
+ask:["Wann würdet ihr eine Übersetzung trotzdem einem Menschen geben?","Hättet ihr die Änderungsliste gelesen oder nur den neuen Text kopiert?"],
+mat:["slides","video","uebung","ergdok","breakout","getestet"],
+prompts:[{l:"Korrigieren mit Änderungsliste",t:"Korrigiere Rechtschreibung, Grammatik und Zeichensetzung. Ändere nicht den Inhalt und nicht den Stil. Liste am Ende jede Änderung auf: Original → Korrektur.\n\n[Text]"},{l:"Rückübersetzung als Test",t:"Übersetze diesen Text ins Englische. Übersetze deine eigene Übersetzung danach zurück ins Deutsche und nenne jede Stelle, an der sich die Bedeutung verschoben hat."}],
+slides:[{t:"Übersetzen und Korrekturlesen",b:["Session 8 von 26","Die Änderungsliste ist das Produkt"]},{t:"Nie nur den neuen Text nehmen",b:["Immer die Liste der Änderungen anfordern","Inhaltliche Fehler erkennt die KI schlechter als Kommafehler","Zahlen und Namen prüfst du selbst"]},{t:"Jetzt ihr",b:["Sechs Fehler im Übungstext","Welchen hat die KI übersehen?","Antwort ins gemeinsame Dokument"]},{t:"Fragerunde",b:["Wann gibst du eine Übersetzung trotzdem einem Menschen?","Hättest du die Liste gelesen?"]}]},
+
+{n:9,mod:"B",title:"Copilot in Teams",tools:["cp"],
+goal:"Meeting-Recap, Aktionspunkte und Chat-Zusammenfassung nutzen.",
+flag:"Formuliere im aufgezeichneten Übungs-Meeting eine Aussage bewusst zweideutig. Ob Copilot sie richtig einordnet, ist der eigentliche Lerninhalt.",
+poll:"In wie vielen Meetings warst du letzte Woche, in denen du nichts gesagt hast?",
+show:["Aufgezeichnetes Übungs-Meeting öffnen, Recap zeigen: Zusammenfassung, Aktionspunkte, Wer hat was gesagt.","Teams-Chat mit 40 Nachrichten: die letzten zwei Tage zusammenfassen.","Slide: Was Copilot sieht, nämlich das Transkript. Und was nicht: Bildschirmfreigabe und Tonfall."],
+do:["Alle öffnen dasselbe Meeting und finden drei Dinge: welche Entscheidung fiel, wer liefert bis wann, hat jemand widersprochen.","Antworten ins gemeinsame Dokument, eine Zeile pro Paar.","Gegenprüfen: Stimmt das Recap mit dem überein, was tatsächlich gesagt wurde?"],
+compare:"Die zweideutige Stelle auflösen. Wer hat sie gefunden, wer hat dem Recap geglaubt?",
+ask:["Würdet ihr wollen, dass Meetings mit euch transkribiert werden? Was müsste gelten?","Wo war das Recap zu glatt?"],
+mat:["slides","video","uebung","ergdok","breakout","freiwillige","getestet"],
+prompts:[{l:"Aktionspunkte herausziehen",t:"Wer hat in diesem Meeting welche Aufgabe übernommen und bis wann? Nenne nur Punkte, zu denen eine Person und ein Termin genannt wurden."},{l:"Widerspruch finden",t:"Hat in diesem Meeting jemand einer Entscheidung widersprochen oder Bedenken geäußert? Zitiere die Stelle."},{l:"Chat aufräumen",t:"Fasse die letzten zwei Tage in diesem Chat zusammen. Was ist entschieden, was ist offen, was wartet auf mich?"}],
+slides:[{t:"Copilot in Teams",b:["Session 9 von 26","Meeting verpasst, trotzdem informiert"]},{t:"Was Copilot sieht",b:["Das Transkript: gesprochene Worte","Nicht: Bildschirmfreigabe, Folien, Tonfall","Wer nichts sagt, existiert im Recap nicht"]},{t:"Jetzt ihr",b:["Welche Entscheidung ist gefallen?","Wer liefert was bis wann?","Hat jemand widersprochen?"]},{t:"Fragerunde",b:["Würdest du wollen, dass Meetings mit dir transkribiert werden?","Wo war das Recap zu glatt?"]}]},
+
+{n:10,mod:"B",title:"Copilot in Excel",tools:["cp"],
+goal:"Tabellen analysieren, Formeln erzeugen und sich Formeln erklären lassen, ohne Formeln zu können.",
+flag:"Die Tabelle muss als Tabelle formatiert sein, sonst arbeitet Copilot nicht. Das ist der häufigste Stolperstein und gehört auf die erste Slide.",
+poll:"Excel-Formeln: schreibe ich selbst / frage einen Kollegen / vermeide ich",
+show:["Umsatztabelle mit 200 Zeilen. Frage an die Daten stellen, Spalte hinzufügen lassen, Formel erklären lassen.","Zeilen mit negativer Marge markieren lassen.","Der entscheidende Unterschied: Copilot schreibt eine <strong>Formel</strong>, die du anklicken und nachvollziehen kannst."],
+do:["Alle bekommen dieselbe Tabelle. Drei Fragen an die Daten stellen, eine Spalte hinzufügen lassen.","Sich die erzeugte Formel erklären lassen und in einem Satz ins Dokument schreiben, was sie tut.","Prüfaufgabe: Ist die Summe in der Antwort richtig? Mit der Summenfunktion gegenprüfen."],
+compare:"Ein Paar zeigt die erzeugte Formel im geteilten Bildschirm und erklärt sie in eigenen Worten.",
+ask:["Wem vertraut ihr mehr: der Formel oder der Antwort im Chat?","Hat bei jemandem die Gegenprüfung nicht gestimmt?"],
+mat:["slides","video","uebung","ergdok","breakout","freiwillige","getestet"],
+prompts:[{l:"Fragen an die Daten",t:"Welche Region hat den höchsten Umsatz im zweiten Quartal?"},{l:"Spalte erzeugen",t:"Füge eine Spalte „Marge“ hinzu: Umsatz minus Kosten, in Prozent vom Umsatz."},{l:"Formel erklären lassen",t:"Erkläre mir die Formel in Zelle [E2] in einfachen Worten, Schritt für Schritt."},{l:"Auffälligkeiten markieren",t:"Markiere alle Zeilen, in denen die Marge negativ ist."}],
+slides:[{t:"Copilot in Excel",b:["Session 10 von 26","Daten erklären ohne Formelwissen"]},{t:"Erst als Tabelle formatieren",b:["Ohne Tabellenformat arbeitet Copilot nicht","Markieren, dann Als Tabelle formatieren","Das ist der häufigste Stolperstein"]},{t:"Formel schlägt Chat-Antwort",b:["Eine Formel kannst du anklicken und prüfen","Eine Zahl im Chat kannst du nur glauben","Lass dir die Formel erklären, nicht nur das Ergebnis"]},{t:"Jetzt ihr",b:["Drei Fragen an die Tabelle stellen","Eine Spalte hinzufügen lassen","Formel erklären lassen und Summe gegenprüfen"]}]},
+
+{n:11,mod:"B",title:"PowerPoint mit Copilot",tools:["cp"],
+goal:"Präsentationen aus vorhandenem Text erzeugen und dann steuern.",
+flag:"Sei hier ehrlich. Die erzeugten Bilder sind generisch und die Struktur ist Rohmaterial. Wer das verschweigt, verliert die Gruppe beim ersten eigenen Versuch.",
+poll:"Wie lange brauchst du für 5 Folien? Unter 30 Minuten / bis 2 Stunden / einen halben Tag",
+show:["Word-Dokument aus Session 4 in eine Präsentation verwandeln. Ergebnis zeigen, meist 8 bis 10 Folien, teils redundant.","Dann steuern: auf 5 Folien kürzen, Agenda-Folie einfügen, Design auf die Firmenvorlage ändern.","Offen sagen, was daran noch nicht vorzeigbar ist."],
+do:["Jeder erzeugt eine Präsentation aus einem eigenen kurzen Text.","Auf 4 Folien reduzieren und <strong>eine Folie komplett von Hand</strong> nachbessern.","Die nachgebesserte Folie als Screenshot ins gemeinsame Dokument."],
+compare:"Wer hat die Folie am stärksten verändert? Zwei Screenshots nebeneinander.",
+ask:["Würdet ihr das so einem Kunden zeigen?","Was fehlt eigentlich immer?"],
+mat:["slides","video","uebung","ergdok","breakout","freiwillige"],
+prompts:[{l:"Aus Datei erzeugen",t:"Erstelle eine Präsentation aus dieser Datei. Maximal 6 Folien, eine Kernaussage pro Folie, keine Fließtexte."},{l:"Nachsteuern",t:"Kürze auf 5 Folien.\nFüge nach der Titelfolie eine Agenda ein.\nStreich alle Folien, die nur wiederholen, was vorher schon stand."}],
+slides:[{t:"PowerPoint mit Copilot",b:["Session 11 von 26","Aus Dokument wird Rohmaterial"]},{t:"Was du bekommst",b:["Struktur und Reihenfolge: brauchbar","Texte: zu lang, aber kürzbar","Bilder: generisch, meistens austauschen"]},{t:"Jetzt ihr",b:["Präsentation aus eigenem Text erzeugen","Auf 4 Folien reduzieren","Eine Folie komplett von Hand nachbessern"]},{t:"Fragerunde",b:["Würdest du das so einem Kunden zeigen?","Was fehlt eigentlich immer?"]}]},
+
+{n:12,mod:"B",title:"Brainstorming und Strukturieren",tools:["ki","cp"],
+goal:"Ideen erzeugen, clustern, bewerten lassen und die eigene Denkarbeit behalten.",
+poll:"Wann hattest du zuletzt eine gute Idee im Meeting? Heute / diese Woche / lange her",
+show:["20 Ideen erzeugen, dann gruppieren, dann nach Aufwand bewerten, dann streichen lassen. Vier Schritte, nicht einer.","Slide: Die Stärke ist Menge und Struktur, nicht Originalität.","Zeigen, wie die beste Idee aus der Kombination zweier mittelmäßiger entsteht."],
+do:["Prompt-Battle: zwei Gruppen, dieselbe Aufgabe. Wie kriegen wir Kollegen dazu, die Kaffeeküche sauber zu halten?","20 Ideen, clustern, Top 3. Regel: mindestens eine Idee muss von der Gruppe selbst stammen.","Beide Top-3-Listen ins gemeinsame Dokument."],
+compare:"Abstimmung über die bessere Top-3-Liste. Danach auflösen, welche Idee von der Gruppe kam.",
+ask:["Hat die KI etwas vorgeschlagen, worauf ihr nie gekommen wärt?","War die eigene Idee besser oder nur eure?"],
+mat:["slides","video","ergdok","breakout"],
+prompts:[{l:"Schritt 1: Menge",t:"Gib mir 20 Ideen für [Thema]. Bedingung: [z. B. unter 30 € pro Person]. Nur Stichpunkte."},{l:"Schritt 2: Struktur",t:"Gruppiere diese Ideen in maximal 4 Kategorien und benenne jede Kategorie."},{l:"Schritt 3: Bewertung",t:"Bewerte jede Idee nach Aufwand (1–5) und Wirkung (1–5). Als Tabelle."},{l:"Schritt 4: Streichen",t:"Welche 3 Ideen würdest du streichen und warum?"}],
+slides:[{t:"Die KI als Sparringspartner",b:["Session 12 von 26","Menge und Struktur, nicht Originalität"]},{t:"Vier Schritte, nicht einer",b:["Menge erzeugen: 20 Ideen","Struktur geben: gruppieren","Bewerten: Aufwand und Wirkung","Streichen lassen: was fällt weg?"]},{t:"Prompt-Battle",b:["Zwei Gruppen, dieselbe Frage","20 Ideen, clustern, Top 3","Mindestens eine Idee muss von euch sein"]},{t:"Fragerunde",b:["Was hätte ihr nie selbst vorgeschlagen?","War die eigene Idee besser oder nur eure?"]}]},
+
+{n:13,mod:"C",title:"Halluzinationen",tools:["ki","cp"],
+goal:"Erfundene Fakten erkennen und Prüfroutinen entwickeln, auch bei einem denkenden Modell.",
+flag:"Ein Reasoning-Modell halluziniert seltener und deshalb gefährlicher: die Trefferquote ist hoch genug, dass Teilnehmer aufhören zu prüfen. Teste jede Demo am Vortag. Wenn sie funktioniert, hast du das falsche Beispiel.",
+poll:"Hast du schon einmal gemerkt, dass eine KI dir etwas Falsches erzählt hat? Ja / nein / vielleicht",
+show:["Fünf Studien mit Autor, Jahr und DOI anfordern, dann zwei DOIs prüfen. Mindestens eine stimmt nicht.","Eine Regeländerung oder einen Preis aus den letzten Monaten abfragen, ohne Websuche.","Zusammengesetzte lokale Frage: Öffnungszeiten plus benötigte Unterlagen. Meist stimmt eins von beidem.","Slide: die vier Warnsignale. Konkrete Zahlen ohne Quelle, Personennamen, Gesetze mit Paragraph, alles nach dem Wissensstichtag."],
+do:["Fünf vorbereitete KI-Antworten liegen im gemeinsamen Dokument, zwei enthalten erfundene Fakten.","Breakout-Paare haben 10 Minuten und tragen ihr Urteil pro Antwort ein. Punkte für richtig, Abzug für falsch.","Dann: jeder fragt die KI nach einem Fakt aus dem eigenen Fachgebiet, den er sicher weiß."],
+compare:"Auflösen. Die Erfahrung: Beim eigenen Fachgebiet fällt es allen auf, vorher niemandem.",
+ask:["Wo im Alltag wäre eine Halluzination am gefährlichsten?","Was macht ihr, wenn die KI in 9 von 10 Fällen richtig liegt?"],
+mat:["slides","video","uebung","ergdok","breakout","getestet"],
+prompts:[{l:"Halluzination provozieren",t:"Nenne mir 5 wissenschaftliche Studien zu Homeoffice und Produktivität. Mit Autor, Jahr und DOI."},{l:"Selbstprüfung erzwingen",t:"Welche Aussagen in deiner Antwort sind Fakten, die ich prüfen sollte? Markiere alles, wo du dir nicht sicher bist."},{l:"Quelle oder Schweigen",t:"Beantworte die Frage und gib zu jeder Aussage die Quelle an. Wenn du keine Quelle hast, schreib „keine Quelle“ statt eine zu erfinden."}],
+slides:[{t:"Wenn die KI selbstbewusst lügt",b:["Session 13 von 26","Modul C: Qualität und Sicherheit"]},{t:"Vier Warnsignale",b:["Konkrete Zahlen ohne Quelle","Namen von Personen","Gesetze mit Paragraph","Alles nach dem Wissensstichtag"]},{t:"Seltener heißt gefährlicher",b:["Denkende Modelle liegen häufiger richtig","Genau deshalb hört man auf zu prüfen","Die Prüfroutine muss unabhängig vom Gefühl laufen"]},{t:"Jetzt ihr",b:["Fünf Antworten im Dokument, zwei sind erfunden","10 Minuten, Urteil pro Antwort eintragen","Dann: ein Fakt aus deinem eigenen Fachgebiet"]}]},
+
+{n:14,mod:"C",title:"Welches Modell, welcher Datenweg?",tools:["ki","cp"],
+goal:"Die eigene Werkzeuglandschaft verstehen: wann Copilot, wann die interne KI, welches Modell, und welche Daten wohin laufen.",
+flag:"Die Datenschutzregeln kennt die Gruppe bereits. Diese Session ist die Anwendung auf Grenzfälle, nicht die Schulung. Wer die Grundlagen wiederholt, verbrennt eine Session und sein Standing.",
+poll:"Weißt du, welches Modell gerade in deinem Copilot antwortet? Ja / nein / man kann das wählen?",
+show:["Slide mit drei Wegen nebeneinander: Copilot im Tenant, interne KI-Software, und alles Übrige als rote Spalte.","Live den Modellwechsel in Copilot zeigen. Dieselbe Aufgabe mit einem OpenAI- und einem Claude-Modell.","Offen sagen, was du nicht weißt: welches Modell im Hintergrund antwortet, ist nicht immer sichtbar, und die Auswahl ändert sich mit Updates.","Copilot macht falsch gesetzte SharePoint-Freigaben plötzlich sichtbar. Ein Beispiel zeigen, wenn du eines hast."],
+do:["Kartensortierung im gemeinsamen Dokument: 15 realistische Aufgaben auf die drei Spalten verteilen.","Zweite Aufgabe: dieselbe echte Arbeitsaufgabe einmal mit einem OpenAI- und einmal mit einem Claude-Modell laufen lassen.","In einem Satz notieren, welches Ergebnis besser passte und warum."],
+compare:"Die vier bis fünf Karten auflösen, bei denen Uneinigkeit herrscht. Genau die sind die Session. Offene Fälle auf den Parkplatz und an die Stelle, die die Richtlinie verantwortet.",
+ask:["Welche Karte war am schwersten?","Habt ihr einen Unterschied zwischen den Modellen gemerkt oder nur vermutet?"],
+mat:["slides","uebung","ergdok","breakout","getestet"],
+prompts:[{l:"Modelle vergleichen, identischer Text",t:"[Deine echte Arbeitsaufgabe, wörtlich identisch in beiden Durchläufen.]"},{l:"Was darf die KI hier sehen?",t:"Ich will dir gleich ein Dokument geben. Sag mir zuerst, welche Arten von Informationen darin problematisch wären, wenn sie das Haus verlassen."}],
+slides:[{t:"Welches Modell, welcher Datenweg?",b:["Session 14 von 26","Die Regeln kennt ihr. Hier geht es um die Grenzfälle."]},{t:"Drei Wege",b:["Copilot M365: im Tenant, sieht nur was du sehen darfst","Interne KI-Software: gekapselt, GPT-5.6 Thinking","Alles Übrige: privates Konto, Plugins, Browser"]},{t:"Du wählst, ohne es zu wissen",b:["Copilot bietet OpenAI- und Claude-Modelle","Die Auswahl ändert sich mit Updates","Regel: prüfe das Ergebnis, nicht das Etikett"]},{t:"Jetzt ihr",b:["15 Aufgaben auf die drei Spalten sortieren","Dieselbe Aufgabe mit zwei Modellen laufen lassen","Ein Satz: Welches passte besser und warum?"]}]},
+
+{n:15,mod:"C",title:"Bias",tools:["ki","cp"],
+goal:"Verzerrungen in Antworten erkennen und gegensteuern.",
+poll:"Wenn du „Führungskraft“ tippst, welches Bild hast du im Kopf?",
+show:["Stellenanzeige für eine Führungskraft und für eine Assistenz erzeugen. Wortwahl vergleichen: durchsetzungsstark gegen einfühlsam.","Geschichte über einen Arzt und eine Krankenschwester. Welche Geschlechter wählt die KI?","Bild erzeugen: ein CEO und eine Reinigungskraft. Was zeigt das Bild?"],
+do:["Jeder lässt eine Stellenanzeige für den eigenen Job schreiben.","Dann die KI als Korrektiv ihrer selbst: die Anzeige auf geschlechtsspezifische Sprache prüfen lassen.","Stärkste gefundene Verzerrung ins gemeinsame Dokument."],
+compare:"Zwei Paare zeigen Original und Korrektur. Wer hat die stärkste Verzerrung gefunden?",
+ask:["Ist die KI schlimmer als ein Mensch oder nur sichtbarer?","Würdet ihr die korrigierte Version tatsächlich ausschreiben?"],
+mat:["slides","video","ergdok","breakout","freiwillige","getestet"],
+prompts:[{l:"Verzerrung erzeugen",t:"Schreib eine Stellenanzeige für eine Führungskraft im Vertrieb.\n\nSchreib eine Stellenanzeige für eine Assistenz im Vertrieb."},{l:"Bias-Check",t:"Prüfe den folgenden Text auf geschlechtsspezifische, altersbezogene oder kulturelle Verzerrungen. Nenne jede Stelle und schlage eine neutrale Alternative vor.\n\n[Text]"}],
+slides:[{t:"Die KI hat Vorurteile",b:["Session 15 von 26","Weil wir welche haben"]},{t:"Wo es auffällt",b:["Stellenanzeigen: durchsetzungsstark gegen einfühlsam","Geschichten: wer ist Arzt, wer ist Pflegekraft","Bilder: wer ist CEO, wer putzt"]},{t:"Jetzt ihr",b:["Stellenanzeige für den eigenen Job erzeugen","Dieselbe KI auf Verzerrungen prüfen lassen","Stärkste Fundstelle ins gemeinsame Dokument"]},{t:"Fragerunde",b:["Ist die KI schlimmer als ein Mensch oder nur sichtbarer?","Würdest du die korrigierte Version ausschreiben?"]}]},
+
+{n:16,mod:"C",title:"Quellen prüfen",tools:["ki","cp"],
+goal:"Antworten mit Quellen einfordern und die Quellen tatsächlich öffnen.",
+poll:"Wann hast du zuletzt eine Quelle angeklickt, die eine KI dir genannt hat?",
+show:["Eine Fachfrage mit Websuche stellen und <strong>jede Quelle anklicken</strong>. Ist es das Ministerium oder ein Blog?","Copilot-Chat: eine Frage zu einem internen Dokument. Das Zitat anklicken und die Stelle prüfen.","Slide: Ohne Quelle ist es eine Meinung. Mit Quelle ist es ein Prüfauftrag."],
+do:["Eine Fachfrage aus dem eigenen Bereich mit Websuche stellen, drei Quellen bewerten: offiziell, seriös, fragwürdig.","Copilot: eine Frage zu einem echten internen Dokument, das alle lesen dürfen. Prüfen, ob das Zitat stimmt.","Bewertung ins gemeinsame Dokument."],
+compare:"Hat jemand eine Quelle bekommen, die es nicht gab oder die etwas anderes sagte? Das ist die wertvollste Zeile im Dokument.",
+ask:["Wie viele Quellen habt ihr wirklich geöffnet?","Was war die schlechteste Quelle, die seriös aussah?"],
+mat:["slides","video","uebung","ergdok","breakout","getestet"],
+prompts:[{l:"Quellen einfordern",t:"Beantworte die Frage und gib zu jeder Aussage die Quelle als Link an. Wenn du keine Quelle hast, schreib „keine Quelle“ statt eine zu erfinden.\n\n[Frage]"},{l:"Internes Dokument befragen",t:"Was steht in unserer [Reisekostenrichtlinie] zu [Übernachtungen]? Zitiere die Stelle und nenne das Dokument."}],
+slides:[{t:"Quellen prüfen",b:["Session 16 von 26","Ohne Quelle ist es eine Meinung"]},{t:"Drei Stufen",b:["Offiziell: Behörde, Gesetzestext, Hersteller","Seriös: Fachpresse, Verband","Fragwürdig: Blog, Forum, Content-Farm"]},{t:"Jetzt ihr",b:["Fachfrage mit Websuche, drei Quellen bewerten","Copilot: internes Dokument befragen, Zitat prüfen","Bewertung ins gemeinsame Dokument"]},{t:"Fragerunde",b:["Wie viele Quellen habt ihr wirklich geöffnet?","Was sah seriös aus und war es nicht?"]}]},
+
+{n:17,mod:"C",title:"Manipulation und versteckte Anweisungen",tools:["ki","cp"],
+goal:"Verstehen, dass KI-Antworten von versteckten Anweisungen in Fremddokumenten beeinflusst werden können.",
+flag:"Das Ergebnis der Demo schwankt. Genau das ist der Punkt: die KI unterscheidet nicht zuverlässig zwischen Daten und Befehlen. Sag das vorher, dann ist ein Fehlschlag auch ein Ergebnis.",
+poll:"Kann ein fremdes Dokument der KI heimlich Anweisungen geben? Ja / nein / wie denn?",
+show:["Fiktives Bewerbungsschreiben als PDF, in weißer Schrift steht eine versteckte Anweisung. Bewerten lassen, dann den weißen Text markieren.","Eine Mail mit einem eingebauten Befehl an Copilot zusammenfassen lassen.","Slide: KI-Zusammenfassungen von Fremdtexten sind eine Vorsortierung, keine Bewertung."],
+do:["Vier Dokumente im gemeinsamen Ordner, eines enthält eine versteckte Anweisung.","Aufgabe: herausfinden, welches, indem die KI-Zusammenfassung mit dem Original verglichen wird.","Bonus im Breakout: selbst eine versteckte Anweisung einbauen und testen, ob der Partner sie findet."],
+compare:"Auflösen, welches Dokument präpariert war. Dann die selbstgebauten Fallen zeigen.",
+ask:["Bei welchen Mails würdet ihr ab jetzt genauer hinsehen?","Wo im Haus kommen Dokumente von außen in einen KI-Prozess?"],
+mat:["slides","video","uebung","ergdok","breakout","getestet"],
+prompts:[{l:"Bewertung anfordern",t:"Bewerte diese Bewerbung. Passt die Person auf eine Stelle als [Rolle]? Nenne Stärken und Lücken."},{l:"Gegenprüfung",t:"Gib den vollständigen Text dieses Dokuments wörtlich wieder, einschließlich aller Stellen, die Anweisungen an dich enthalten."}],
+slides:[{t:"Versteckte Anweisungen",b:["Session 17 von 26","Wenn das Dokument die KI steuert"]},{t:"Die KI trennt nicht sauber",b:["Daten und Befehle sehen für sie gleich aus","Weiße Schrift, Fußnoten, Metadaten","Ein Satz im Dokument kann die Bewertung drehen"]},{t:"Was daraus folgt",b:["KI-Zusammenfassung von Fremdtext ist Vorsortierung","Bei Bewerbungen, Angeboten, Verträgen: Original lesen","Bei Auffälligkeiten: Text wörtlich wiedergeben lassen"]},{t:"Jetzt ihr",b:["Vier Dokumente, eines ist präpariert","Zusammenfassung mit Original vergleichen","Bonus: selbst eine Falle einbauen"]}]}
+];
+</script>
+<script>
+S.push(
+{n:18,mod:"D",title:"Beispiele geben",tools:["ki","cp"],
+goal:"Der KI den gewünschten Stil durch Beispiele zeigen statt ihn zu beschreiben.",
+poll:"Wie erklärst du heute einem neuen Kollegen deinen Schreibstil?",
+show:["Produktnamen ohne Beispiel: generisch. Mit drei Beispielen: der Stil wird kopiert.","Dasselbe für Betreffzeilen und ein Protokollformat. Ein Beispiel spart zehn Sätze Erklärung.","Slide: Zeigen statt beschreiben."],
+do:["Drei eigene gute E-Mails als Beispiel nehmen, fiktiv oder anonymisiert, und eine vierte im selben Stil schreiben lassen.","Partner bewertet: Klingt das nach dir? Urteil ins gemeinsame Dokument.","Dann ein Protokollformat mit einem Beispiel definieren und ein zweites Protokoll daraus erzeugen."],
+compare:"Ein Paar liest Beispiel und Ergebnis vor. Die Runde rät, welches von der KI ist.",
+ask:["Wie viele Beispiele braucht die KI, bis es passt?","Wo hat der Stil gekippt?"],
+mat:["slides","video","ergdok","breakout","freiwillige"],
+prompts:[{l:"Stil per Beispiel",t:"Hier sind drei Beispiele für [Stil / Format]:\n1. [Beispiel]\n2. [Beispiel]\n3. [Beispiel]\nErstelle ein viertes im exakt gleichen Stil für: [neuer Fall]"},{l:"Format per Beispiel",t:"So sieht mein Protokoll aus:\n\n[Beispielprotokoll]\n\nErstelle aus den folgenden Notizen ein Protokoll im exakt gleichen Aufbau.\n\n[Notizen]"}],
+slides:[{t:"Mach es so wie hier",b:["Session 18 von 26","Modul D: Fortgeschrittene Techniken"]},{t:"Zeigen statt beschreiben",b:["Drei Beispiele ersetzen zehn Sätze Erklärung","Funktioniert für Stil, Format und Tonlage","Die Beispiele dürfen kurz sein"]},{t:"Jetzt ihr",b:["Drei eigene gute Mails als Beispiel","Vierte im selben Stil erzeugen lassen","Partner urteilt: Klingt das nach dir?"]},{t:"Fragerunde",b:["Wie viele Beispiele braucht die KI?","Wo ist der Stil gekippt?"]}]},
+
+{n:19,mod:"D",title:"Denkende Modelle richtig einsetzen",tools:["ki","cp"],
+goal:"Die Denkspur als Prüfwerkzeug nutzen und erkennen, wann Denken nur Zeit kostet.",
+flag:"Diese Session heißt bewusst nicht „Denke Schritt für Schritt“. GPT-5.6 Thinking macht die Schritte von selbst, und der klassische Trick kann die interne Struktur sogar überschreiben.",
+poll:"Wie lange wartest du auf eine KI-Antwort, bevor du unruhig wirst?",
+show:["Mehrstufige Aufgabe stellen, Denkspur aufklappen, laut mitlesen. Dann eine falsche Annahme darin finden und <strong>genau diesen Schritt</strong> korrigieren.","Dreimal dieselbe triviale Umformulierung: mit dem denkenden und mit einem schnellen Modell. Zeit mitstoppen.","Zerlegen bleibt richtig, aber aus einem anderen Grund: damit du an jeder Naht prüfen kannst.","„Stell mir zuerst 3 Rückfragen“ vormachen. Funktioniert mit denkenden Modellen besonders gut."],
+do:["Ein fehlerhafter mehrstufiger Plan liegt im gemeinsamen Dokument. Denkspur öffnen, den Schritt mit der falschen Annahme finden.","Eine Korrektur formulieren, die genau diesen Schritt adressiert, und beides eintragen.","Zeitmessung: eine einfache Umformulierung mit dem denkenden und, falls verfügbar, mit einem schnellen Modell. Sekunden ins Dokument.","Jeder nutzt einmal Rückfragen für eine eigene Aufgabe."],
+compare:"Die Zeittabelle im Dokument ist das Ergebnis der Session. Vorlesen und kommentieren.",
+ask:["Welche Rückfrage hat euch überrascht?","Bei welcher eurer täglichen Aufgaben ist Denken Verschwendung?"],
+mat:["slides","video","uebung","ergdok","breakout","getestet"],
+prompts:[{l:"Einen Schritt gezielt korrigieren",t:"In Schritt [2] hast du [19 % Umsatzsteuer] angenommen. Richtig ist [7 %]. Rechne von dort neu, alles Übrige bleibt."},{l:"Rückfragen erzwingen",t:"Bevor du antwortest, stell mir 3 Rückfragen, die deine Antwort verbessern würden."},{l:"Zerlegen mit Prüfnaht",t:"Zerlege diese Aufgabe in Teilaufgaben. Bearbeite dann nur die erste und warte auf mein OK."}],
+slides:[{t:"Denkende Modelle",b:["Session 19 von 26","Wann Thinking hilft und wann es bremst"]},{t:"„Schritt für Schritt“ ist bei uns überflüssig",b:["Das Modell macht die Schritte selbst","Der alte Trick kann die Struktur überschreiben","Neue Fähigkeit: die Denkspur lesen"]},{t:"Wann Denken lohnt",b:["Lohnt: Rechnen, Planen, Widersprüche, mehrstufige Anweisungen","Lohnt nicht: Umformulieren, Übersetzen, Zusammenfassen","Dort kostet es nur Wartezeit"]},{t:"Korrigiere den Schritt, nicht das Ergebnis",b:["Denkspur öffnen und die falsche Annahme suchen","„In Schritt 2 hast du X angenommen, richtig ist Y“","Das ist präziser als „das ist falsch“"]},{t:"Jetzt ihr",b:["Fehlerhaften Plan im Dokument öffnen","Falschen Schritt finden und gezielt korrigieren","Zeitmessung: denkend gegen schnell"]}]},
+
+{n:20,mod:"D",title:"Einmal einstellen, immer nutzen",tools:["ki","cp"],
+goal:"Wiederkehrende Kontexte speichern statt sie jedes Mal zu tippen.",
+flag:"Vorab prüfen: Gespeicherte Anweisungen und Projekte sind Funktionen der Oberfläche, nicht des Modells. Wenn die interne Software sie nicht durchreicht, ist der Ersatz ein Textbaustein in OneNote oder Outlook, der vor jeden Prompt kopiert wird. Das ist unbequem und ehrlicher, als eine Funktion zu zeigen, die es nicht gibt.",
+poll:"Tippst du deinen Kontext jedes Mal neu? Ja / nein / ich gebe keinen Kontext",
+show:["Persönliche Anweisungen setzen und dieselbe Frage vorher und nachher stellen.","Ein Projekt oder eine Sammlung für ein laufendes Thema anlegen, mit Dateien und Anweisungen.","Slide: Was ins Profil gehört (Rolle, Stil, Sprache) und was nicht (Aufgaben, Daten)."],
+do:["Jeder schreibt seine persönlichen Anweisungen, 3 bis 5 Sätze, und testet dieselbe Frage vorher und nachher.","Beide Antworten ins gemeinsame Dokument.","Ein Projekt oder eine Copilot-Seite für ein laufendes Thema anlegen."],
+compare:"Zwei Paare zeigen vorher und nachher. Was hat sich geändert, was nicht?",
+ask:["Was hat sich durch die Anweisung verändert, was nicht?","Was gehört ausdrücklich nicht ins Profil?"],
+mat:["slides","video","ergdok","breakout","freiwillige","getestet"],
+prompts:[{l:"Persönliche Anweisungen, Vorlage",t:"Ich arbeite als [Rolle] in [Bereich, Firmengröße].\nAntworte auf Deutsch, per Sie, knapp.\nWenn du dir nicht sicher bist, sag es.\nKeine Einleitungssätze, keine Zusammenfassung am Ende."},{l:"Ersatz ohne Speicherfunktion",t:"[Diesen Block als Textbaustein in OneNote ablegen und vor jeden Prompt kopieren.]\nKontext: Ich arbeite als [Rolle] in [Bereich]. Antworte knapp, auf Deutsch, per Sie.\nAufgabe:"}],
+slides:[{t:"Einmal einstellen, immer nutzen",b:["Session 20 von 26","Kontext gehört ins Profil, nicht in jeden Prompt"]},{t:"Was ins Profil gehört",b:["Rolle, Bereich, Firmengröße","Sprache, Anrede, gewünschte Kürze","Nicht: einzelne Aufgaben, nie: Daten"]},{t:"Jetzt ihr",b:["3 bis 5 Sätze persönliche Anweisungen schreiben","Dieselbe Frage vorher und nachher stellen","Beide Antworten ins gemeinsame Dokument"]},{t:"Fragerunde",b:["Was hat sich verändert, was nicht?","Was gehört ausdrücklich nicht ins Profil?"]}]},
+
+{n:21,mod:"D",title:"Dateien hochladen und befragen",tools:["ki","cp"],
+goal:"Dokumente als Kontext nutzen statt sie zu beschreiben.",
+flag:"Vorab prüfen: Datei-Upload ist eine Funktion der Oberfläche. Falls die interne Software ihn nicht durchreicht, läuft der PDF-Teil über Copilot und der Excel-Teil in Excel selbst.",
+poll:"Wie findest du heute eine Stelle in einem 30-seitigen Handbuch?",
+show:["30-seitiges Handbuch hochladen und nach einer Stelle fragen, <strong>mit Seitenangabe</strong>. Dann die Seite aufschlagen und prüfen.","Aus einem Kapitel eine Checkliste erzeugen.","Foto eines Whiteboards abtippen und strukturieren lassen."],
+do:["Alle laden das Übungs-PDF und stellen drei Fragen mit Seitenangabe. Stimmt die Seite?","Ergebnis ins gemeinsame Dokument, inklusive der Fälle, in denen die Seite falsch war.","Jeder fotografiert einen handgeschriebenen Zettel und lässt ihn abtippen."],
+compare:"Wo lag die Seitenangabe daneben? Das ist die wichtigste Zeile im Dokument.",
+ask:["Was hat die KI im PDF nicht gefunden, obwohl es drinstand?","Würdet ihr der Seitenangabe ungeprüft vertrauen?"],
+mat:["slides","video","uebung","ergdok","breakout","getestet"],
+prompts:[{l:"Stelle mit Seitenangabe finden",t:"Wo im Dokument steht [Thema]? Zitiere die Stelle wörtlich und nenne die Seite."},{l:"Checkliste aus Kapitel",t:"Erstelle aus Kapitel [3] eine Checkliste mit Ankreuzfeldern. Eine Zeile pro Handlung, in der Reihenfolge, in der man sie ausführt."},{l:"Daten prüfen lassen",t:"Welche Auffälligkeiten siehst du in diesen Daten? Nenne konkrete Zeilen und sag, warum sie auffallen."}],
+slides:[{t:"Dateien hochladen",b:["Session 21 von 26","Hochladen statt beschreiben"]},{t:"Immer die Seitenangabe anfordern",b:["„Zitiere die Stelle und nenne die Seite“","Dann die Seite aufschlagen","Ohne Prüfung ist die Angabe nur plausibel"]},{t:"Jetzt ihr",b:["Übungs-PDF laden, drei Fragen mit Seitenangabe","Stimmt die Seite? Ergebnis ins Dokument","Handgeschriebenen Zettel abfotografieren und abtippen lassen"]},{t:"Fragerunde",b:["Was wurde nicht gefunden, obwohl es drinstand?","Würdest du der Seitenangabe ungeprüft vertrauen?"]}]},
+
+{n:22,mod:"D",title:"Bilder verstehen und erzeugen",tools:["ki","cp"],
+goal:"Bildgenerierung für den Alltag nutzen, Grenzen und Rechte kennen.",
+flag:"Vorab prüfen: Bildgenerierung und Bildanalyse sind Funktionen der Oberfläche. Falls die interne Software sie nicht durchreicht, läuft diese Session über Copilot und Designer, oder sie fällt weg. Ersatzvorschlag dann: offene Sprechstunde.",
+poll:"Woher kommen heute die Bilder in deinen Präsentationen?",
+show:["Ein Icon erzeugen, drei Varianten, eine nachbessern.","Screenshot einer Fehlermeldung hochladen und erklären lassen. Das ist der praktischere Teil.","Slide: Text in Bildern geht oft schief, Personen sind heikel, Nutzungsrechte klären. Firmenlogo nie erzeugen lassen."],
+do:["Jeder erzeugt ein Titelbild für eine fiktive Präsentation, drei Runden Nachbesserung.","Bilder als Galerie ins gemeinsame Dokument.","Jeder lädt einen Screenshot hoch, Einstellungsmenü oder Fehlermeldung, und lässt ihn erklären."],
+compare:"Galerie durchgehen. Welches Bild würdet ihr tatsächlich verwenden?",
+ask:["Wofür würdet ihr generierte Bilder nie nutzen?","Hat die Erklärung des Screenshots gestimmt?"],
+mat:["slides","video","ergdok","breakout","getestet"],
+prompts:[{l:"Icon erzeugen",t:"Erstelle ein Icon für einen internen Newsletter. Flacher Stil, blau und weiß, ohne Text, ohne Personen."},{l:"Screenshot erklären lassen",t:"Was bedeutet diese Meldung und was soll ich als Nächstes tun? Antworte in maximal 3 Schritten."}],
+slides:[{t:"Bilder verstehen und erzeugen",b:["Session 22 von 26","Der nützlichere Teil ist das Verstehen"]},{t:"Drei Grenzen",b:["Text in Bildern geht oft schief","Personen sind heikel","Nutzungsrechte klären, Firmenlogo nie erzeugen"]},{t:"Jetzt ihr",b:["Titelbild erzeugen, drei Runden nachbessern","In die Galerie im gemeinsamen Dokument","Screenshot hochladen und erklären lassen"]},{t:"Fragerunde",b:["Wofür würdest du generierte Bilder nie nutzen?","Hat die Erklärung des Screenshots gestimmt?"]}]},
+
+{n:23,mod:"D",title:"Sprechen statt tippen",tools:["ki","cp"],
+goal:"Sprachmodus und Diktieren nutzen, besonders unterwegs.",
+flag:"Vorab prüfen: Der Sprachmodus ist eine Funktion der App. Falls die interne Software keine Handy-App hat, bleibt das Word-Diktat, und die Session wird kürzer. Dann lieber zusammenlegen als strecken.",
+poll:"Diktierst du heute irgendetwas? Nie / manchmal / im Auto / ständig",
+show:["Sprachgespräch auf dem Handy über die Vorbereitung eines schwierigen Mitarbeitergesprächs. Unterbrechen, nachfragen.","In Word diktieren und dann aus dem Diktat einen strukturierten Text machen lassen.","Slide: Sprachmodus zum Denken und Vorbereiten, Tippen für Präzision."],
+do:["Jeder diktiert zwei Minuten frei zu einem Thema und lässt daraus drei saubere Bullets machen.","Die drei Bullets ins gemeinsame Dokument.","Im Breakout: einer führt ein Sprachgespräch zu einer Rollenspielsituation, der andere notiert, wo die KI gut und wo sie hölzern war."],
+compare:"Zwei Paare lesen ihre Beobachtungen aus dem Rollenspiel vor.",
+ask:["Wo im Alltag würde Sprache das Tippen ersetzen?","Wo war die KI im Gespräch hölzern?"],
+mat:["slides","video","ergdok","breakout","freiwillige","getestet"],
+prompts:[{l:"Diktat aufräumen",t:"Das folgende ist ein freies Diktat. Mach daraus 3 klare Bullets. Streich Füllwörter und Wiederholungen.\n\n[Diktat]"},{l:"Rollenspiel",t:"Spiel einen Kunden, der sich über eine verspätete Lieferung beschwert. Bleib in der Rolle, bis ich „Stop“ sage. Sei zunächst sachlich, dann ungeduldig."}],
+slides:[{t:"Sprechen statt tippen",b:["Session 23 von 26","Zum Denken, nicht zum Formulieren"]},{t:"Zwei Werkzeuge, zwei Zwecke",b:["Sprache: denken, vorbereiten, unterwegs","Tippen: präzise formulieren","Das Diktat ist Rohmaterial, kein Text"]},{t:"Jetzt ihr",b:["Zwei Minuten frei diktieren","Daraus drei saubere Bullets machen lassen","Rollenspiel zu zweit, einer beobachtet"]},{t:"Fragerunde",b:["Wo würde Sprache das Tippen ersetzen?","Wo war die KI hölzern?"]}]},
+
+{n:24,mod:"E",title:"Die eigene Prompt-Bibliothek",tools:["ki","cp"],
+goal:"Die fünf bis zehn wichtigsten Prompts des eigenen Jobs sammeln, testen und teilen.",
+poll:"Wie viele Prompts hast du dir bisher irgendwo gespeichert?",
+show:["Die eigene Bibliothek zeigen: Name, wann nutzen, Prompt, Beispielergebnis, letzte Prüfung.","Einen Prompt aus einer früheren Session anpassen und speichern.","Slide: Ein Prompt ist gut, wenn ein Kollege ihn ohne Erklärung nutzen kann."],
+do:["Jeder erstellt drei Prompts für die eigene Arbeit im vorgegebenen Format.","Im Breakout testet der Partner sie <strong>blind</strong>, ohne Erklärung. Urteil ins Dokument.","Gemeinsame Team-Bibliothek anlegen. Jeder legt einen Prompt ab."],
+compare:"Welcher Prompt hat den Blindtest bestanden, welcher nicht? Woran lag es?",
+ask:["Welchen Prompt aus der Reihe habt ihr bisher am meisten genutzt?","Was fehlte im Prompt, damit der Partner ihn versteht?"],
+mat:["slides","ergdok","breakout","freiwillige"],
+prompts:[{l:"Prompt-Karte, Vorlage",t:"Name:             [Kurzer Name, z. B. Kundenabsage freundlich]\nWann nutzen:      [Situation]\nWerkzeug:         [interne KI / Copilot Word / Copilot Outlook]\nPrompt:           [Der Text]\nBeispielergebnis: [Ein gutes Ergebnis, gekürzt]\nPrüfen:           [Was muss ich immer kontrollieren?]\nZuletzt getestet: [Datum]"}],
+slides:[{t:"Die eigene Prompt-Bibliothek",b:["Session 24 von 26","Modul E: Anwenden"]},{t:"Was auf eine Prompt-Karte gehört",b:["Name und Situation","Werkzeug und Prompt","Beispielergebnis und Prüfschritt","Datum des letzten Tests"]},{t:"Der Blindtest",b:["Ein Prompt ist gut, wenn ein Kollege ihn ohne Erklärung nutzen kann","Partner testet, ohne dass du etwas sagst","Was er nachfragen muss, fehlt im Prompt"]},{t:"Jetzt ihr",b:["Drei Prompts für die eigene Arbeit schreiben","Partner testet blind","Einen Prompt in die Team-Bibliothek legen"]}]},
+
+{n:25,mod:"E",title:"Ein ganzer Workflow",tools:["ki","cp"],
+goal:"Mehrere Werkzeuge in einer realen Aufgabe kombinieren und die Prüfstellen bewusst setzen.",
+poll:"Welcher deiner Prozesse kostet dich am meisten Zeit?",
+show:["Szenario Angebotsanfrage: Outlook fasst zusammen, Copilot-Chat sucht die Preisliste, Excel rechnet, Word schreibt das Anschreiben, Outlook formuliert die Antwort.","Slide: der Workflow als Kette mit rot markierten Prüfstellen. Die KI macht 70 Prozent, der Mensch entscheidet an drei Stellen.","Ehrlich zeigen, an welcher Stelle die Kette bei dir gerissen ist."],
+do:["Dreiergruppen im Breakout wählen einen echten Prozess aus ihrem Alltag, anonymisiert.","Als Kette nachbauen: pro Schritt Werkzeug, Prompt und wer prüft.","Eine Folie pro Gruppe im gemeinsamen Dokument."],
+compare:"Zwei Minuten pro Gruppe, eine Folie. Danach: Wo war die KI überflüssig?",
+ask:["Wo im Workflow war die KI überflüssig? Wo unverzichtbar?","Welche Prüfstelle würdet ihr nie weglassen?"],
+mat:["slides","video","uebung","ergdok","breakout","freiwillige","getestet"],
+prompts:[{l:"Workflow-Vorlage",t:"Schritt 1: [Werkzeug] – [Prompt] – prüft: [wer]\nSchritt 2: [Werkzeug] – [Prompt] – prüft: [wer]\nSchritt 3: [Werkzeug] – [Prompt] – prüft: [wer]\nErgebnis geht an: [wen]"},{l:"Prozess von der KI zerlegen lassen",t:"Ich beschreibe dir einen Arbeitsprozess. Zerlege ihn in Schritte und sag mir bei jedem Schritt, ob eine KI ihn übernehmen könnte und welche Prüfung ein Mensch behalten muss.\n\n[Prozess]"}],
+slides:[{t:"Ein ganzer Workflow",b:["Session 25 von 26","Von der Anfrage bis zum Ergebnis"]},{t:"Die Kette am Beispiel Angebot",b:["Outlook: Anfrage zusammenfassen","Copilot-Chat: letzte Preisliste finden","Excel: Angebot rechnen","Word: Anschreiben","Mensch: Zahlen und Ton prüfen"]},{t:"Drei Prüfstellen bleiben beim Menschen",b:["Zahlen, die nach außen gehen","Zusagen und Fristen","Der Ton gegenüber dem Kunden"]},{t:"Jetzt ihr",b:["Dreiergruppen, ein echter Prozess","Pro Schritt: Werkzeug, Prompt, wer prüft","Eine Folie pro Gruppe, zwei Minuten Vorstellung"]}]},
+
+{n:26,mod:"E",title:"Abschluss und Show & Tell",tools:["ki","cp"],
+goal:"Gelerntes sichtbar machen, Erfolge feiern, Weiterlernen organisieren.",
+poll:"Ich nutze KI heute für echte Aufgaben: täglich / wöchentlich / selten / noch nicht",
+show:["Drei Beispiele aus dem Kanal KI-Erfolge der letzten Wochen zeigen.","Rückblick auf die fünf Regeln der Reihe.","Ausblick, ehrlich: was sich in sechs Monaten ändern wird, sind die Menüs, nicht die Prinzipien."],
+do:["Show & Tell: jeder zeigt in 90 Sekunden eine Sache, die er jetzt mit KI macht und vorher nicht.","Prompt-Battle-Finale: zwei Gruppen, Aufgabe erst in der Session bekanntgegeben, 10 Minuten, Publikumsabstimmung.","Abschlussumfrage mit drei Fragen."],
+compare:"Das Show & Tell ist die Vergleichsphase. Alle zeigen, keiner erklärt.",
+ask:["Was wollt ihr in 3 Monaten können, was heute noch nicht geht?","Welche Session hat am meisten gebracht?"],
+mat:["slides","ergdok","breakout","freiwillige"],
+prompts:[{l:"Die fünf Regeln der Reihe",t:"1. Kontext geben: Rolle, Aufgabe, Kontext, Format\n2. Nachbessern und bündeln, nicht perfekt fragen\n3. Fakten prüfen, besonders wenn die Antwort gut klingt\n4. Datenweg bewusst wählen\n5. Beispiele geben statt Stil beschreiben"},{l:"Abschlussumfrage",t:"1. Ich habe diese Woche KI für eine echte Aufgabe genutzt. (Ja/Nein)\n2. Ich weiß, welches Werkzeug ich für welche Aufgabe nehme. (1–5)\n3. Was hat dir am meisten gebracht? (Freitext)"}],
+slides:[{t:"Abschluss",b:["Session 26 von 26","Show & Tell und Finale"]},{t:"Die fünf Regeln der Reihe",b:["Kontext geben","Nachbessern und bündeln","Fakten prüfen, besonders bei guten Antworten","Datenweg bewusst wählen","Beispiele geben statt Stil beschreiben"]},{t:"Show & Tell",b:["90 Sekunden pro Person","Eine Sache, die du jetzt mit KI machst","Und vorher nicht gemacht hast"]},{t:"Was sich ändern wird",b:["Die Menüs: laufend","Die Modelle: schneller und besser","Die Prinzipien: nicht"]}]}
+);
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s), el=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n};
+const PLAN=PHASES.reduce((a,p)=>a+p.m,0);
+const starts=(()=>{let a=[],c=0;for(const p of PHASES){a.push(c);c+=p.m}return a})();
+const mm=t=>{const s=Math.max(0,Math.round(t/1000));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
+
+/* ---------- state ---------- */
+let prep={}, DB=null, cur=1, dtab="ablauf", view="ov", filt={mod:"all",st:"all"};
+const blank=()=>({mat:{},notes:"",park:[]});
+const P=n=>prep[n]||(prep[n]=blank());
+function status(s){const need=s.mat, got=need.filter(k=>P(s.n).mat[k]).length;
+  return got===0?"open":got>=need.length?"done":"wip"}
+const stLabel={open:"Offen",wip:"In Arbeit",done:"Fertig"};
+const cut=(s,n)=>s.length<=n?s:s.slice(0,n).replace(/\s\S*$/,"")+"…";
+
+/* ---------- persistence ---------- */
+async function boot(){
+  try{DB=await claude.use("db")}catch(e){DB=null}
+  if(!DB){local("load");render();return}
+  try{
+    DB.collection("prep").onSnapshot(snap=>{
+      for(const d of snap.docs){const b=d.data()||{};prep[+d.id.replace("s","")]={mat:b.mat||{},notes:b.notes||"",park:Array.isArray(b.park)?b.park:[]}}
+      render();
+    },()=>{});
+  }catch(e){local("load")}
+  render();
+}
+function local(mode){try{
+  if(mode==="load"){const r=localStorage.getItem("regiepult");if(r)prep=JSON.parse(r)}
+  else localStorage.setItem("regiepult",JSON.stringify(prep));
+}catch(e){}}
+let wq={};
+async function save(n){
+  local("save");
+  if(!DB)return;
+  if(wq[n]){wq[n].pending=true;return}
+  wq[n]={pending:false};
+  try{await DB.doc("prep/s"+n).set(JSON.parse(JSON.stringify(P(n))))}catch(e){}
+  const again=wq[n].pending;delete wq[n];
+  if(again)save(n);
+}
+let nt=null;
+function saveNotes(n){clearTimeout(nt);nt=setTimeout(()=>{save(n);flash("Notiz gespeichert")},700)}
+
+function flash(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1600)}
+function copy(txt,btn){
+  const done=()=>{if(btn){const o=btn.textContent;btn.textContent="Kopiert";btn.classList.add("ok");setTimeout(()=>{btn.textContent=o;btn.classList.remove("ok")},1300)}flash("In die Zwischenablage kopiert")};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done,()=>fb())}else fb();
+  function fb(){try{const a=el("textarea");a.value=txt;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();document.execCommand("copy");a.remove();done()}catch(e){flash("Kopieren nicht möglich, bitte markieren")}}
+}
+
+/* ---------- overview ---------- */
+function renderOv(){
+  const r=$("#v-ov");r.textContent="";
+  const done=S.filter(s=>status(s)==="done").length, wip=S.filter(s=>status(s)==="wip").length;
+  const vids=S.filter(s=>s.mat.includes("video")&&P(s.n).mat.video).length, vidsAll=S.filter(s=>s.mat.includes("video")).length;
+  const next=S.find(s=>status(s)!=="done");
+  const parks=S.reduce((a,s)=>a+P(s.n).park.length,0);
+  const k=el("div","kpis");
+  const kpi=(n,l,extra)=>{const d=el("div","kpi");d.append(el("div","n",n),el("div","l",l));if(extra)d.append(extra);return d};
+  const bar=el("div","bar");bar.append(Object.assign(el("i"),{style:"width:"+Math.round(done/26*100)+"%"}));
+  k.append(kpi(done+" / 26","Sessions vorbereitet",bar),kpi(wip,"angefangen"),kpi(vids+" / "+vidsAll,"Backup-Videos aufgenommen"),kpi(parks,"Parkplatz-Fragen offen"));
+  const nx=el("div","kpi next");nx.append(el("div","n",next?"Session "+next.n+": "+next.title:"Alles fertig"),el("div","l",next?"nächste offene Session":"nichts offen"));
+  k.append(nx);
+  r.append(k);
+
+  const tb=el("div","toolbar");
+  tb.append(el("span","eyebrow","Modul"));
+  for(const m of ["all","A","B","C","D","E"]){const b=el("button","chip",m==="all"?"alle":m);b.setAttribute("aria-pressed",filt.mod===m);b.onclick=()=>{filt.mod=m;renderOv()};tb.append(b)}
+  tb.append(Object.assign(el("span","eyebrow","Status"),{style:"margin-left:10px"}));
+  for(const [v,l] of [["all","alle"],["open","offen"],["wip","in Arbeit"],["done","fertig"]]){const b=el("button","chip",l);b.setAttribute("aria-pressed",filt.st===v);b.onclick=()=>{filt.st=v;renderOv()};tb.append(b)}
+  r.append(tb);
+
+  let shown=0;
+  for(const [mk,mv] of Object.entries(MODULES)){
+    if(filt.mod!=="all"&&filt.mod!==mk)continue;
+    const list=S.filter(s=>s.mod===mk&&(filt.st==="all"||status(s)===filt.st));
+    if(!list.length)continue;
+    shown+=list.length;
+    const g=el("div","modgroup"), h=el("div","modhead");
+    h.append(el("span","eyebrow","Modul "+mk),el("h2",null,mv.t),el("span","sub","Sessions "+mv.r+" · "+mv.d));
+    g.append(h);
+    const grid=el("div","grid");
+    for(const s of list){
+      const st=status(s), c=el("button","scard st-"+st);
+      c.append(el("div","num","Session "+String(s.n).padStart(2,"0")),el("h3",null,s.title));
+      if(s.flag){const f=el("div","flagmark");f.append(el("span",null,"▲"),el("span",null,cut(s.flag,104)));c.append(f)}
+      else c.append(el("p","cgoal",cut(s.goal,118)));
+      const row=el("div","row");
+      for(const t of s.tools)row.append(el("span","tool "+t,t==="ki"?"KI":"CP"));
+      row.append(el("span","pill "+st,stLabel[st]));
+      const d=el("div","dots");
+      for(const mkk of s.mat){const i=el("i");if(P(s.n).mat[mkk])i.className="on";i.title=MAT.find(x=>x.k===mkk).n;d.append(i)}
+      row.append(d);c.append(row);
+      c.onclick=()=>{cur=s.n;go("se")};
+      grid.append(c);
+    }
+    g.append(grid);r.append(g);
+  }
+  if(!shown){const e=el("div","panel");e.append(el("h3",null,"Keine Session in diesem Filter"),el("p","hint","Setz den Filter zurück auf alle."));r.append(e)}
+
+  const miss=el("div","missing");
+  miss.append(el("h2",null,"Was als Nächstes fehlt"));
+  miss.append(el("p",null,"Abgeleitet aus den Häkchen. Die Liste zeigt die nächsten fünf offenen Sessions mit dem, was dort noch zu tun ist. Bau die ersten fünf fertig, hol Feedback, dann den Rest."));
+  const ul=el("ul","mlist");let cnt=0;
+  for(const s of S){if(status(s)==="done")continue;if(cnt>=5)break;cnt++;
+    const open=s.mat.filter(k=>!P(s.n).mat[k]).map(k=>MAT.find(x=>x.k===k).n.replace(/ \(.*\)/,""));
+    const li=el("li");li.append(el("b",null,"S"+s.n),el("span",null,open.join(" · ")||"nichts offen"));ul.append(li)}
+  if(!cnt){const li=el("li");li.append(el("b",null,"—"),el("span",null,"Alle 26 Sessions sind abgehakt."));ul.append(li)}
+  miss.append(ul);r.append(miss);
+}
+
+/* ---------- detail ---------- */
+function rail(){
+  const n=el("nav","rail");
+  for(const [mk,mv] of Object.entries(MODULES)){
+    n.append(el("div","rm eyebrow","Modul "+mk+" · "+mv.t));
+    for(const s of S.filter(x=>x.mod===mk)){
+      const b=el("button");b.append(el("em",null,String(s.n)),el("span",null,s.title));
+      const i=el("i");const st=status(s);if(st!=="open")i.className=st;b.append(i);
+      if(s.n===cur)b.setAttribute("aria-current","true");
+      b.onclick=()=>{cur=s.n;renderSe();window.scrollTo({top:0,behavior:"smooth"})};
+      n.append(b);
+    }
+  }
+  return n;
+}
+function promptBlock(p){
+  const w=el("div","prompt"),h=el("div","ph");
+  const cb=el("button","copy","Kopieren");cb.onclick=()=>copy(p.t,cb);
+  h.append(el("span",null,p.l),cb);
+  const pre=el("pre");pre.textContent=p.t;
+  w.append(h,pre);return w;
+}
+function bullets(arr){const u=el("ul");for(const x of arr){const li=el("li");li.innerHTML=x;u.append(li)}return u}
+
+function renderSe(){
+  const r=$("#v-se");r.textContent="";
+  const s=S.find(x=>x.n===cur), pr=P(cur);
+  const wrap=el("div","dwrap");wrap.append(rail());
+  const body=el("div");
+
+  const dh=el("div","dhead"),top=el("div","top");
+  top.append(el("h1",null,"Session "+s.n+": "+s.title));
+  const tw=el("div","row");tw.style.cssText="display:flex;gap:6px;align-items:center";
+  for(const t of s.tools)tw.append(el("span","tool "+t,t==="ki"?"interne KI":"Copilot"));
+  tw.append(el("span","pill "+status(s),stLabel[status(s)]));
+  top.append(tw);dh.append(top);
+  const g=el("p","goal");g.append(el("b",null,"Lernziel. "),document.createTextNode(s.goal));dh.append(g);
+  if(s.flag){const f=el("div","flag");f.append(el("strong",null,"Achtung bei diesem Setup"),document.createTextNode(s.flag));dh.append(f)}
+  body.append(dh);
+
+  const tabs=el("div","dtabs");
+  for(const [k,l] of [["ablauf","Ablauf"],["slides","Slides"],["prep","Vorbereitung"]]){
+    const b=el("button",null,l);b.setAttribute("aria-selected",dtab===k);b.onclick=()=>{dtab=k;renderSe()};tabs.append(b)}
+  body.append(tabs);
+
+  if(dtab==="ablauf"){
+    const p=el("div","panel");
+    p.append(el("h3",null,"Ablauf, 50 Minuten"),el("p","hint","Die Minutenangaben sind kumuliert. Im Live-Modus läuft derselbe Ablauf mit Stoppuhr."));
+    const ul=el("ul","ros");
+    const content={umfrage:()=>{const d=el("p");d.textContent=s.poll;return d},
+      zeigen:()=>bullets(s.show),uebergabe:null,mitmachen:()=>bullets(s.do),
+      vergleichen:()=>{const d=el("p");d.textContent=s.compare;return d},
+      fragerunde:()=>bullets(s.ask),abschluss:null};
+    PHASES.forEach((ph,i)=>{
+      const li=el("li"),w=el("div","when");
+      w.append(el("b",null,ph.m+" min"),el("span",null,starts[i]+"–"+(starts[i]+ph.m)));
+      const c=el("div");
+      c.append(el("h4",null,ph.n));
+      const inner=content[ph.k]&&content[ph.k]();
+      if(inner)c.append(inner);
+      const hint=el("p");hint.textContent=ph.d;hint.style.cssText="margin-top:7px;font-size:13px;color:var(--ink-3)";c.append(hint);
+      if(ph.k==="uebergabe")for(const q of s.prompts)c.append(promptBlock(q));
+      li.append(w,c);ul.append(li);
+    });
+    p.append(ul);body.append(p);
+
+    const pp=el("div","panel");
+    pp.append(el("h3",null,"Alle Prompts dieser Session"),el("p","hint","Poste sie als Chat-Nachricht, nicht nur auf die Slide. Bei geteiltem Bildschirm kann niemand von einer Slide abtippen."));
+    for(const q of s.prompts)pp.append(promptBlock(q));
+    const all=el("button","btn ghost","Alle Prompts zusammen kopieren");all.style.marginTop="12px";
+    all.onclick=()=>copy(s.prompts.map(q=>"— "+q.l+" —\n"+q.t).join("\n\n"),all);
+    pp.append(all);body.append(pp);
+  }
+
+  if(dtab==="slides"){
+    const p=el("div","panel");
+    p.append(el("h3",null,"Slide-Entwürfe, "+s.slides.length+" Folien"),el("p","hint","Kein fertiges Design, sondern der Text. Kopiere Titel und Bullets in deine Firmenvorlage. Mehr als fünf Folien braucht keine Session dieser Reihe."));
+    const cp=el("button","btn","Alle Folien als Text kopieren");
+    cp.onclick=()=>copy(s.slides.map((sl,i)=>"Folie "+(i+1)+": "+sl.t+"\n"+sl.b.map(b=>"  • "+b).join("\n")).join("\n\n"),cp);
+    p.append(cp);body.append(p);
+    s.slides.forEach((sl,i)=>{
+      const w=el("div","slide"),h=el("div","sh");
+      const c=el("button","copy","Kopieren");c.onclick=()=>copy(sl.t+"\n"+sl.b.map(b=>"• "+b).join("\n"),c);
+      h.append(el("em",null,String(i+1).padStart(2,"0")),el("span",null,"Folie"),c);
+      const cv=el("div","canvas");cv.append(el("div","rule"),el("h4",null,sl.t));
+      const u=el("ul");for(const b of sl.b)u.append(el("li",null,b));cv.append(u);
+      w.append(h,cv);body.append(w);
+    });
+  }
+
+  if(dtab==="prep"){
+    const p=el("div","panel");
+    p.append(el("h3",null,"Material"),el("p","hint","Nur was diese Session wirklich braucht. Die Häkchen speichern sich und treiben die Übersicht."));
+    const ul=el("ul","checks");
+    for(const k of s.mat){
+      const li=el("li"),id="m-"+s.n+"-"+k,cb=el("input");cb.type="checkbox";cb.id=id;cb.checked=!!pr.mat[k];
+      if(cb.checked)li.classList.add("on");
+      cb.onchange=()=>{pr.mat[k]=cb.checked;if(!cb.checked)delete pr.mat[k];save(s.n);renderSe()};
+      const lb=el("label",null,MAT.find(x=>x.k===k).n);lb.htmlFor=id;
+      li.append(cb,lb);ul.append(li);
+    }
+    p.append(ul);body.append(p);
+
+    const np=el("div","panel");
+    const nh=el("div");nh.style.cssText="display:flex;align-items:baseline;gap:10px";
+    nh.append(el("h3",null,"Trainer-Notizen"));
+    np.append(nh,el("p","hint","Was nicht funktioniert hat, welche Demo du austauschen musst, welcher Teilnehmer noch nicht dran war."));
+    const ta=el("textarea");ta.id="notes-"+s.n;ta.value=pr.notes;ta.placeholder="Nach der Session ausfüllen. Speichert automatisch.";
+    ta.oninput=()=>{pr.notes=ta.value;saveNotes(s.n)};
+    np.append(ta);body.append(np);
+
+    const kp=el("div","panel");
+    kp.append(el("h3",null,"Parkplatz"),el("p","hint","Fragen, die in der Fragerunde offen geblieben sind. Die nächste Session beginnt mit einer davon."));
+    const pl=el("ul","parklist");
+    pr.park.forEach((q,i)=>{const li=el("li");li.append(el("span",null,q));
+      const x=el("button");x.textContent="×";x.title="Erledigt";x.onclick=()=>{pr.park.splice(i,1);save(s.n);renderSe()};
+      li.append(x);pl.append(li)});
+    if(!pr.park.length)pl.append(Object.assign(el("li"),{textContent:"Noch keine offene Frage notiert."}));
+    kp.append(pl);
+    const add=el("div","parkadd"),inp=el("input");inp.placeholder="Offene Frage notieren";inp.id="park-"+s.n;
+    const ab=el("button","btn","Hinzufügen");
+    const doAdd=()=>{const v=inp.value.trim();if(!v)return;pr.park.push(v);inp.value="";save(s.n);renderSe()};
+    ab.onclick=doAdd;inp.onkeydown=e=>{if(e.key==="Enter")doAdd()};
+    add.append(inp,ab);kp.append(add);body.append(kp);
+
+    const ex=el("div","panel");
+    ex.append(el("h3",null,"Ganze Session als Text"),el("p","hint","Für die Notizenspalte deiner Folien oder als Handout nach der Session."));
+    const b=el("button","btn ghost","Session kopieren");
+    b.onclick=()=>copy(sessionText(s),b);
+    ex.append(b);body.append(ex);
+  }
+  wrap.append(body);r.append(wrap);
+}
+function sessionText(s){
+  const L=[];
+  L.push("SESSION "+s.n+": "+s.title,"Modul "+s.mod+" · "+MODULES[s.mod].t,"","LERNZIEL","  "+s.goal,"");
+  if(s.flag)L.push("ACHTUNG","  "+s.flag,"");
+  L.push("ABLAUF (50 min)");
+  PHASES.forEach((p,i)=>L.push("  "+String(starts[i]).padStart(2)+"–"+(starts[i]+p.m)+" min  "+p.n+" — "+p.d));
+  const strip=x=>x.replace(/<[^>]+>/g,"");
+  L.push("","UMFRAGE","  "+s.poll,"","ZEIGEN",...s.show.map(x=>"  • "+strip(x)),"","MITMACHEN",...s.do.map(x=>"  • "+strip(x)),"","VERGLEICHEN","  "+s.compare,"","FRAGERUNDE",...s.ask.map(x=>"  • "+x),"","PROMPTS");
+  for(const q of s.prompts)L.push("  — "+q.l,...q.t.split("\n").map(x=>"    "+x));
+  L.push("","SLIDES");
+  s.slides.forEach((sl,i)=>{L.push("  Folie "+(i+1)+": "+sl.t,...sl.b.map(b=>"    • "+b))});
+  L.push("","MATERIAL",...s.mat.map(k=>"  [ ] "+MAT.find(x=>x.k===k).n));
+  const pr=P(s.n);
+  if(pr.notes)L.push("","NOTIZEN",...pr.notes.split("\n").map(x=>"  "+x));
+  if(pr.park.length)L.push("","PARKPLATZ",...pr.park.map(x=>"  • "+x));
+  return L.join("\n");
+}
+
+/* ---------- live ---------- */
+const T={i:0,spent:PHASES.map(()=>0),run:false,last:0};
+function tick(){
+  if(T.run){const now=performance.now();T.spent[T.i]+=now-T.last;T.last=now;if(view==="li")paintLive()}
+}
+setInterval(tick,250);
+function toggleRun(){T.run=!T.run;T.last=performance.now();paintLive()}
+function nextPhase(){if(T.i<PHASES.length-1){T.i++;T.last=performance.now();paintLive()}else{T.run=false;paintLive()}}
+function resetT(){T.i=0;T.spent=PHASES.map(()=>0);T.run=false;paintLive()}
+
+function renderLi(){
+  const r=$("#v-li");r.textContent="";
+  const s=S.find(x=>x.n===cur);
+  const sel=el("div","toolbar");
+  sel.append(el("span","eyebrow","Session"));
+  const dd=el("select");dd.style.cssText="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 11px;font:inherit;font-size:14px;color:var(--ink);max-width:100%";
+  for(const x of S){const o=el("option",null,x.n+" · "+x.title);o.value=x.n;if(x.n===cur)o.selected=true;dd.append(o)}
+  dd.onchange=()=>{cur=+dd.value;resetT();renderLi()};
+  sel.append(dd);
+  const rb=el("button","chip","Stoppuhr zurücksetzen");rb.onclick=resetT;sel.append(rb);
+  r.append(sel);
+  const w=el("div","live");
+  const left=el("div");
+  const clock=el("div","clock");clock.id="clock";
+  clock.append(el("div","phasename"),el("div","bigtime","00:00"),el("div","subtime"));
+  const ctl=el("div","ctl");
+  const b1=el("button","btn","Start");b1.id="btn-run";b1.onclick=toggleRun;
+  const b2=el("button","btn ghost","Nächste Phase");b2.onclick=nextPhase;
+  ctl.append(b1,b2);clock.append(ctl);
+  const keys=el("div","keys");keys.innerHTML='<kbd>Leertaste</kbd> Start und Pause · <kbd>→</kbd> nächste Phase';
+  clock.append(keys);
+  left.append(clock);
+  const pb=el("div","pbars");pb.id="pbars";left.append(pb);
+  const cue=el("div","livecue");cue.id="cue";
+  w.append(left,cue);r.append(w);
+  paintLive();
+}
+function paintLive(){
+  if(view!=="li")return;
+  const s=S.find(x=>x.n===cur), ph=PHASES[T.i], planned=ph.m*60000, sp=T.spent[T.i], over=sp>planned;
+  const c=$("#clock");if(!c)return;
+  c.className="clock"+(T.run?" running":"")+(over?" over":"");
+  $(".phasename",c).textContent=ph.n+"  ·  Phase "+(T.i+1)+" von "+PHASES.length;
+  $(".bigtime",c).textContent=(over?"+":"")+mm(over?sp-planned:planned-sp);
+  const tot=T.spent.reduce((a,b)=>a+b,0);
+  $(".subtime",c).textContent="geplant "+ph.m+" min · Session "+mm(tot)+" von "+PLAN+":00";
+  $("#btn-run").textContent=T.run?"Pause":"Start";
+
+  const pb=$("#pbars");pb.textContent="";
+  const cap=el("div","cap");cap.append(el("span",null,"0 min"),el("span",null,"Balkenbreite = geplante Dauer"),el("span",null,PLAN+" min"));
+  const tl=el("div","tl"), nm=el("div","tlnames");
+  PHASES.forEach((p,i)=>{
+    const pl=p.m*60000, s2=T.spent[i], frac=Math.min(1,s2/pl);
+    const seg=el("div","seg"+(i===T.i?" cur":"")+(i<T.i?" past":"")+(s2>pl?" over":""));
+    seg.style.flex=String(p.m);seg.title=p.n+", "+p.m+" min";
+    const fi=el("i");fi.style.width=Math.round(frac*100)+"%";seg.append(fi);tl.append(seg);
+    const sp=el("span",i===T.i?"cur":null,p.n);sp.style.flex=String(p.m);nm.append(sp);
+  });
+  pb.append(cap,tl,nm);
+
+  const cue=$("#cue");cue.textContent="";
+  cue.append(el("h3",null,ph.n+": was du jetzt tust"));
+  const d=el("p");d.textContent=ph.d;d.style.cssText="margin:0 0 12px;font-size:13.5px;color:var(--ink-2)";cue.append(d);
+  const map={umfrage:["Frage an die Runde",[s.poll]],zeigen:["Demo-Schritte",s.show],mitmachen:["Aufgabe",s.do],
+    vergleichen:["Vergleich",[s.compare]],fragerunde:["Impulse",s.ask],
+    uebergabe:["Jetzt in den Chat posten",s.prompts.map(q=>q.l)],abschluss:["Abschluss",["Material liegt im Kanal.","Ein Satz zur nächsten Session."]]};
+  const [lbl,items]=map[ph.k];
+  cue.append(el("div","eyebrow",lbl));
+  const u=el("ul");for(const x of items){const li=el("li");li.innerHTML=x;u.append(li)}cue.append(u);
+  if(ph.k==="uebergabe"){const b=el("button","btn ghost","Alle Prompts kopieren");b.style.marginTop="12px";b.onclick=()=>copy(s.prompts.map(q=>q.t).join("\n\n"),b);cue.append(b)}
+  const nu=el("div","nextup");
+  nu.textContent=T.i<PHASES.length-1?"Danach: "+PHASES[T.i+1].n+", "+PHASES[T.i+1].m+" min":"Letzte Phase.";
+  cue.append(nu);
+}
+
+/* ---------- shell ---------- */
+function go(v){
+  view=v;
+  for(const k of ["ov","se","li"]){$("#v-"+k).hidden=k!==v;$("#tab-"+k).setAttribute("aria-selected",k===v)}
+  render();
+}
+function render(){
+  if(view==="ov")renderOv();
+  if(view==="se")renderSe();
+  if(view==="li")renderLi();
+  const f=$("#foot");f.textContent="";
+  f.append(document.createTextNode("Die Inhalte kommen aus dem Ordner KI-Schulung im Repository. "));
+  const b=el("b",null,"Diese Oberfläche ersetzt die Slides nicht, sie liefert deren Text. ");
+  f.append(b,document.createTextNode("Häkchen, Notizen und Parkplatz-Fragen speichern sich "+(DB?"für alle, die diese Seite öffnen dürfen.":"nur in diesem Browser, weil die gemeinsame Ablage hier nicht verfügbar ist.")));
+}
+$(".tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-view]");if(b)go(b.dataset.view)});
+$("#themebtn").onclick=()=>{
+  const cu=document.documentElement.getAttribute("data-theme");
+  const dark=cu?cu==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme",dark?"light":"dark");
+};
+document.addEventListener("keydown",e=>{
+  if(view!=="li")return;
+  const t=e.target.tagName;if(t==="INPUT"||t==="TEXTAREA"||t==="SELECT")return;
+  if(e.code==="Space"){e.preventDefault();toggleRun()}
+  if(e.key==="ArrowRight"){e.preventDefault();nextPhase()}
+});
+local("load");render();boot();
+</script>
