@@ -1,6 +1,6 @@
 # 26 Lernkonzepte: Interne KI-Software und Microsoft 365 Copilot für Einsteiger
 
-Jede Session folgt demselben Muster: **Zeigen (10 min) → Mitmachen (20 min) → Vergleichen (5 min) → Fragerunde (7 min)**, remote mit 50 min und 5 min Technikpuffer. Die Mechanik dazu steht in `Remote-Durchfuehrung.md` und gilt für jede Session: Breakout-Räume zu zwei, Prompt im Chat, ein gemeinsames Ergebnisdokument, namentlicher Aufruf in der Fragerunde.
+Jede Session folgt demselben Muster: **Umfrage (3) → Zeigen (10) → Übergabe (2) → Mitmachen (20) → Vergleichen (6) → Fragerunde (7) → Abschluss (2) = 50 Minuten.** Die Mechanik dazu steht in `Remote-Durchfuehrung.md` und gilt für jede Session: Breakout-Räume zu zwei, Prompt im Chat, ein gemeinsames Ergebnisdokument, namentlicher Aufruf in der Fragerunde.
 
 Legende Werkzeug: 🟠 interne KI-Software (GPT-5.6 Thinking) · 🔵 Microsoft 365 Copilot (OpenAI- und Claude-Modelle) · 🟠🔵 beide
 
