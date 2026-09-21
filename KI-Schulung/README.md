@@ -1,9 +1,16 @@
-# KI-Schulungsreihe: 26 Konzepte für Einsteiger (ChatGPT + Microsoft Copilot)
+# KI-Schulungsreihe: 26 Konzepte für Einsteiger
 
-Zielgruppe: Büro- und Fachanwender ohne Technik-Vorwissen. Kein Coding.
-Werkzeuge: ChatGPT (Web/App) und Microsoft 365 Copilot (Word, Outlook, Teams, Excel, PowerPoint, Copilot-Chat).
+**Setup dieser Reihe (bestätigt):**
 
-Annahme: "Copilot" meint hier Microsoft 365 Copilot, nicht GitHub Copilot. Wenn die Zielgruppe Entwickler sind, ändert das die Hälfte der Inhalte.
+| Punkt | Stand |
+|---|---|
+| Werkzeug 1 | Microsoft 365 Copilot, mit OpenAI- **und** Claude-Modellen zur Auswahl |
+| Werkzeug 2 | Interne KI-Software, in der GPT-5.6 Thinking läuft (Reasoning-Modell) |
+| Datenschutzregeln | Vorhanden, alle sind geschult |
+| Format | **Nur remote** |
+| Zielgruppe | Einsteiger, kein Coding |
+
+Die drei Antworten haben den Plan an drei Stellen strukturell verändert. Was genau, steht in `Aenderungen.md`.
 
 ## Dokumente in diesem Ordner
 
@@ -11,25 +18,29 @@ Annahme: "Copilot" meint hier Microsoft 365 Copilot, nicht GitHub Copilot. Wenn 
 |---|---|
 | `README.md` | Diese Übersicht: Didaktik, Ablauf, Einbindungsmethoden |
 | `26-Lernkonzepte.md` | Alle 26 Sessions im Detail (Zeigen / Mitmachen / Fragerunde / Material) |
+| `Remote-Durchfuehrung.md` | Das Remote-Playbook. Pflichtlektüre, nicht Anhang. |
+| `Aenderungen.md` | Was sich durch dein Setup geändert hat und warum |
 | `Vorlage-Session.md` | Leere Vorlage für eine einzelne Session |
 | `Prompt-Bibliothek.md` | Die Prompts aus allen Sessions zum Kopieren |
-| `Teilnehmer-Fragen.md` | Was du vor dem Start klären solltest |
+| `Teilnehmer-Fragen.md` | Was noch offen ist |
 
-## Feste Session-Struktur (45 Minuten)
+## Feste Session-Struktur (50 Minuten, remote)
 
 | Phase | Dauer | Was passiert |
 |---|---|---|
-| Einstieg | 3 min | Eine Frage per Umfrage (Mentimeter / Forms / Teams-Poll). Ergebnis bleibt sichtbar. |
+| Einstieg | 3 min | Eine Umfrage (Teams-Abstimmung oder Forms). Ergebnis bleibt sichtbar. |
 | Zeigen | 10 min | Trainer macht es live vor. Ein einziges, realistisches Beispiel. Kein Slide-Vortrag. |
-| Mitmachen | 20 min | Alle machen dieselbe Aufgabe am eigenen Gerät. Zu zweit ("Pair-Prompting"). |
-| Vergleichen | 5 min | 2–3 Teilnehmer zeigen ihr Ergebnis. Was war anders, warum? |
-| Fragerunde | 7 min | Offene Fragen. Parkplatz-Liste für alles, was nicht beantwortet wird. |
+| Übergabe | 2 min | Prompt in den Chat, Breakout-Räume öffnen. |
+| Mitmachen | 20 min | Alle machen dieselbe Aufgabe. In Breakout-Räumen zu zwei ("Pair-Prompting"). |
+| Vergleichen | 6 min | Zwei vorher benannte Paare teilen den Bildschirm. |
+| Fragerunde | 7 min | Namentlicher Aufruf, keine offene Frage in die Runde. Parkplatz für den Rest. |
+| Abschluss | 2 min | Material im Kanal, Ausblick in einem Satz. |
 
-Warum 45 und nicht 60 Minuten: Bei Einsteigern sinkt die Aufmerksamkeit nach 40 Minuten spürbar. Lieber kurz und regelmäßig.
+45 Minuten wären richtig in Präsenz. Remote brauchst du 5 Minuten Puffer für Technik, Breakout-Wechsel und Copilot-Ladezeiten. Plan sie ein, sonst frisst es die Fragerunde.
 
 ## Rhythmus
 
-26 Sessions passen auf ein halbes Jahr wöchentlich oder ein Jahr zweiwöchentlich. Empfehlung: **wöchentlich, fester Slot** (z. B. Dienstag 11:00). Zweiwöchentlich vergessen Einsteiger zu viel zwischen den Terminen.
+Empfehlung: **wöchentlich, fester Slot** (z. B. Dienstag 11:00). 26 Sessions sind damit ein halbes Jahr. Zweiwöchentlich vergessen Einsteiger zu viel zwischen den Terminen, und remote ist die Bindung ohnehin schwächer.
 
 Die Reihe ist in 5 Module gegliedert. Jedes Modul ist in sich abgeschlossen, damit Quereinsteiger andocken können.
 
@@ -37,45 +48,48 @@ Die Reihe ist in 5 Module gegliedert. Jedes Modul ist in sich abgeschlossen, dam
 |---|---|---|
 | A | 1–5 | Grundlagen: Wie funktioniert das, wie rede ich mit der KI |
 | B | 6–12 | Alltag: Die 7 häufigsten Aufgaben im Büro |
-| C | 13–17 | Qualität & Sicherheit: Fehler, Datenschutz, Manipulation |
+| C | 13–17 | Qualität und Sicherheit: Fehler, Datenwege, Manipulation |
 | D | 18–23 | Fortgeschrittene Techniken: Mehr aus dem Werkzeug holen |
 | E | 24–26 | Anwenden: Eigene Workflows, Abschluss |
 
 ## Material pro Session
 
-Pro Session brauchst du genau vier Dinge. Mehr nicht.
+Pro Session brauchst du genau fünf Dinge. Mehr nicht.
 
-1. **3–5 Slides** (Titel, Lernziel, der Prompt zum Abtippen, die Übungsaufgabe, Fragerunde). Slides sind Gerüst, nicht Inhalt.
-2. **Ein Backup-Video (2–4 min)** der Live-Demo, aufgenommen mit Clipchamp, Loom oder Teams-Aufnahme. Wenn die Live-Demo hängt, läuft das Video. Das Video geht danach an alle, die gefehlt haben.
-3. **Ein Übungsdokument** (z. B. eine lange E-Mail, eine Excel-Tabelle, ein Protokoll). Immer fiktiv, nie echte Firmendaten.
-4. **Der Prompt zum Kopieren** im Chat oder auf einer Slide. Einsteiger tippen langsam. Kopieren senkt die Hürde.
+1. **3–5 Slides** (Titel, Lernziel, der Prompt, die Übungsaufgabe, Fragerunde). Slides sind Gerüst, nicht Inhalt.
+2. **Ein Backup-Video (2–4 min)** der Live-Demo, aufgenommen mit Clipchamp oder Teams-Aufnahme. Remote ist das **nicht optional**: Copilot hängt, VPN bricht, Lizenzen zicken. Das Video geht danach an alle, die gefehlt haben.
+3. **Ein Übungsdokument** (lange E-Mail, Excel-Tabelle, Protokoll). Immer fiktiv.
+4. **Ein gemeinsames Ergebnisdokument** (Word in Teams, alle dürfen schreiben). Eine Zeile pro Paar. Das ist remote der einzige verlässliche Mitmach-Zwang.
+5. **Der Prompt als Chat-Nachricht.** Nicht nur auf der Slide. Bei geteiltem Bildschirm kann niemand von einer Slide abtippen.
 
-## Einbindungsmethoden (damit alle mitmachen)
+## Einbindungsmethoden (remote angepasst)
 
-| Methode | Wie | Wann |
+| Methode | Wie remote | Wann |
 |---|---|---|
-| Pair-Prompting | Zwei Personen, ein Gerät. Eine tippt, eine denkt laut. Nach 10 min tauschen. | Jede Mitmach-Phase |
-| Prompt-Battle | Zwei Teams bekommen dieselbe Aufgabe. Wer hat das bessere Ergebnis? Abstimmung per Handzeichen. | Session 7, 12, 26 |
-| Fehler finden | Trainer zeigt bewusst eine falsche KI-Antwort. Wer findet den Fehler zuerst? | Session 13, 16, 17 |
-| Bring Your Own Problem | Teilnehmer bringen eine echte Aufgabe mit (anonymisiert). Wird live gelöst. | Ab Session 6 immer 1 Slot |
-| Vorher/Nachher | Teilnehmer zeigen den Text vor der KI und danach. | Session 4, 7, 8 |
-| Umfrage am Anfang | Eine Frage, Ergebnis sichtbar. Beispiel: "Wie oft nutzt du ChatGPT?" | Jede Session |
-| Parkplatz | Fragen, die nicht beantwortet werden, kommen auf eine Liste. Nächste Session beginnt mit einer davon. | Jede Session |
-| Erfolgs-Sammlung | Teams-Kanal "KI-Erfolge": Wer etwas mit KI gelöst hat, postet einen Satz. | Laufend |
+| Pair-Prompting | Breakout-Raum zu zwei, einer teilt Bildschirm, nach 10 min tauschen | Jede Mitmach-Phase |
+| Gemeinsames Ergebnisdokument | Eine Zeile pro Paar, live sichtbar | Jede Mitmach-Phase |
+| Prompt-Battle | Zwei Breakout-Gruppen, dieselbe Aufgabe, Abstimmung per Teams-Poll | Session 7, 12, 26 |
+| Fehler finden | Vorbereitete falsche Antworten im Ergebnisdokument, Urteil pro Zeile | Session 13, 17 |
+| Bring Your Own Problem | Teilnehmer meldet die Aufgabe vorab im Kanal, wird live gelöst | Ab Session 6 ein Slot |
+| Vorher/Nachher | Bildschirmfreigabe, Original und Ergebnis nebeneinander | Session 4, 7, 8 |
+| Umfrage am Anfang | Teams-Abstimmung, läuft während die Leute reinkommen | Jede Session |
+| Namentlicher Aufruf | Rotierende Liste, wer schon dran war. Nie "hat jemand eine Frage?" | Jede Fragerunde |
+| Parkplatz | Kanal-Beitrag, den du live mitschreibst | Jede Session |
+| Erfolgs-Sammlung | Teams-Kanal "KI-Erfolge": ein Satz pro gelöster Aufgabe | Laufend |
 
 ## Was du vermeiden solltest
 
-- **Slide-Vortrag über 10 Minuten.** Einsteiger lernen durch Tun, nicht durch Zuhören.
-- **Zu viele Werkzeuge pro Session.** Eine Session, ein Werkzeug, eine Aufgabe.
-- **Perfekte Demos.** Zeig auch, wenn die KI Unsinn produziert. Das ist der wichtigste Lernmoment.
-- **Echte Firmendaten in ChatGPT.** Das ist Session 14 und gilt ab Session 1.
+- **Mitmach-Phase im Hauptraum.** Dann tippt niemand. Immer Breakouts, auch bei 6 Personen.
+- **Slide-Vortrag über 10 Minuten.** Einsteiger lernen durch Tun.
+- **Perfekte Demos.** Zeig auch, wenn die KI Unsinn produziert. Das ist der wichtigste Lernmoment, und bei einem denkenden Modell musst du dafür gezielt suchen.
 - **Alle 26 Sessions vorab produzieren.** Bau die ersten 5, hol Feedback, dann den Rest.
+- **Eine Funktion zeigen, die es bei euch nicht gibt.** Die interne KI-Software reicht vielleicht kein Datei-Upload, keine Bilder und keinen Sprachmodus durch. Prüfe das, bevor du Modul D planst.
 
 ## Erfolgsmessung
 
 Am Ende von Modul A, C und E eine kurze Umfrage (3 Fragen):
 1. "Ich habe diese Woche KI für eine echte Aufgabe genutzt." (Ja/Nein)
-2. "Ich weiß, welche Daten ich nicht in ChatGPT eingeben darf." (1–5)
+2. "Ich weiß, welches Werkzeug ich für welche Aufgabe nehme." (1–5)
 3. "Was hat dir am meisten gebracht?" (Freitext)
 
 Wenn Frage 1 nach Modul B unter 50 % liegt, ist der Inhalt zu weit vom Alltag der Gruppe weg. Dann Modul B wiederholen, nicht Modul C starten.

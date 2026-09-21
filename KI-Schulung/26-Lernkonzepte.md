@@ -1,32 +1,39 @@
-# 26 Lernkonzepte: ChatGPT und Microsoft Copilot für Einsteiger
+# 26 Lernkonzepte: Interne KI-Software und Microsoft 365 Copilot für Einsteiger
 
-Jede Session folgt demselben Muster: **Zeigen (10 min) → Mitmachen (20 min) → Vergleichen (5 min) → Fragerunde (7 min)**.
-Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
+Jede Session folgt demselben Muster: **Zeigen (10 min) → Mitmachen (20 min) → Vergleichen (5 min) → Fragerunde (7 min)**, remote mit 50 min und 5 min Technikpuffer. Die Mechanik dazu steht in `Remote-Durchfuehrung.md` und gilt für jede Session: Breakout-Räume zu zwei, Prompt im Chat, ein gemeinsames Ergebnisdokument, namentlicher Aufruf in der Fragerunde.
+
+Legende Werkzeug: 🟠 interne KI-Software (GPT-5.6 Thinking) · 🔵 Microsoft 365 Copilot (OpenAI- und Claude-Modelle) · 🟠🔵 beide
+
+**Zwei Eigenheiten dieses Setups prägen die ganze Reihe:**
+
+1. **Das Standardmodell denkt.** Ein Reasoning-Modell wie GPT-5.6 Thinking arbeitet intern Schritte ab, bevor es antwortet. Das macht die klassischen Einsteigertricks ("Denke Schritt für Schritt") überflüssig und erzeugt zwei neue Themen: Wartezeit und das Lesen der Denkspur. Session 19 ist deshalb komplett auf denkende Modelle umgebaut.
+2. **Es gibt einen Modellwechsel.** Copilot M365 mit OpenAI- und Claude-Modellen heißt: Die Teilnehmer treffen eine Wahl, von der sie nicht wissen, dass sie sie treffen. Das gehört in Session 14, zusammen mit der Frage, welche Daten auf welchem Weg laufen.
 
 ---
 
 ## Modul A: Grundlagen (Sessions 1–5)
 
-### 1. Was ist das eigentlich? Wie ChatGPT "denkt" 🟢🔵
+### 1. Was ist das eigentlich? Wie ein denkendes Modell arbeitet 🟠🔵
 
-**Lernziel:** Verstehen, dass die KI Wörter vorhersagt und nicht "weiß". Daraus folgt alles Weitere.
+**Lernziel:** Verstehen, dass die KI Wörter vorhersagt und nicht "weiß", und dass das Denken sichtbar ist.
 
 **Zeigen:**
-- Live: "Vervollständige: Der Hund bellt, die Katze ..." → KI antwortet. Dann: "Wie viele Buchstaben hat das Wort Erdbeere?" → oft falsch. Erklärung: Die KI sieht Wortteile (Tokens), keine Buchstaben.
-- Eine Slide: "Die KI ist ein sehr guter Autovervollständiger. Kein Lexikon, kein Kollege."
-- Zeigen, wie dieselbe Frage zweimal gestellt zwei verschiedene Antworten gibt.
+- Live eine Frage stellen, bei der die Denkspur erscheint: "Ein Projekt hat 3 Phasen, Phase 1 dauert 2 Wochen, Phase 2 doppelt so lang, Phase 3 halb so lang wie 1 und 2 zusammen. Start 3. März, wann ist Ende?" Die Denkspur aufklappen und mitlesen. Das ist der stärkste Aha-Moment der ganzen Reihe.
+- Dann der Bruch: "Wer war Bürgermeister von [eure Stadt] im Jahr 1987?" Bei einem Modell ohne Suchzugriff kommt oft Erfundenes, selbst nach langem Denken. Langes Denken ist kein Ersatz für Wissen.
+- Dieselbe Frage zweimal in zwei Chats stellen. Zwei verschiedene Antworten. Slide: "Sehr guter Autovervollständiger mit Notizzettel. Kein Lexikon, kein Kollege."
 
 **Mitmachen:**
-- Jeder stellt ChatGPT dieselbe Frage: "Wer war Bürgermeister von [eure Stadt] im Jahr 1987?" Ergebnisse vergleichen. Meist unterschiedlich, oft falsch.
-- Dann: "Bist du dir sicher?" nachfragen. Beobachten, wie die KI zurückrudert.
+- Alle stellen dieselbe Wissensfrage aus dem eigenen Ort oder Fachgebiet und tragen die Antwort in das gemeinsame Dokument ein, eine Zeile pro Paar. Unterschiede werden dadurch sofort sichtbar.
+- Dann: Denkspur aufklappen und in einem Satz notieren, was das Modell **gemacht** hat, bevor es antwortete.
+- Nachfragen: "Bist du dir sicher?" Beobachten, wie die Antwort zurückrudert.
 
-**Fragerunde-Impulse:** "Wo hättet ihr der Antwort geglaubt?" · "Woher soll die KI das wissen?"
+**Fragerunde-Impulse:** "Wo hättet ihr der Antwort geglaubt?" · "Was hat die Denkspur verraten, was in der Antwort nicht stand?"
 
-**Material:** 3 Slides, Übungsfrage auf Slide, kein Video nötig.
+**Material:** 3 Slides, Rechenaufgabe und Wissensfrage im Chat, gemeinsames Ergebnisdokument. Kein Video nötig.
 
 ---
 
-### 2. Der erste gute Prompt: Rolle, Aufgabe, Kontext, Format 🟢🔵
+### 2. Der erste gute Prompt: Rolle, Aufgabe, Kontext, Format 🟠🔵
 
 **Lernziel:** Die vier Bausteine eines Prompts anwenden.
 
@@ -45,19 +52,21 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 3. Nachbessern statt perfekt fragen: Das Gespräch führen 🟢🔵
+### 3. Nachbessern statt perfekt fragen: Das Gespräch führen 🟠🔵
 
 **Lernziel:** Verstehen, dass der zweite und dritte Prompt wichtiger sind als der erste.
 
 **Zeigen:**
 - Ein mittelmäßiger erster Prompt. Dann live nachschärfen: "Kürzer." · "Förmlicher." · "Streich den zweiten Absatz." · "Gib mir 3 Varianten der Betreffzeile."
 - Zeigen: Die KI erinnert sich innerhalb des Chats an den Verlauf. Neuer Chat = Gedächtnis weg.
+- Wichtig bei einem denkenden Modell: Jede Runde kostet Wartezeit. Darum **mehrere Korrekturen in einen Prompt bündeln** ("Kürzer, förmlicher, und streich den letzten Absatz") statt drei einzelne Runden. Beides vormachen und die Zeit mitstoppen.
 
 **Mitmachen:**
-- Aufgabe: Eine Produktbeschreibung für einen fiktiven Bürostuhl. Regel: Der erste Prompt darf maximal 10 Wörter haben. Danach nur noch nachbessern, mindestens 5 Runden.
-- Am Ende zeigt jeder das Ergebnis und die Anzahl der Runden.
+- Aufgabe: Eine Produktbeschreibung für einen fiktiven Bürostuhl. Regel: Der erste Prompt darf maximal 10 Wörter haben. Danach nur noch nachbessern, **3 Runden** (nicht 5, die Wartezeit frisst die Zeit).
+- Eine Runde muss ein Bündel aus mindestens drei Korrekturen sein.
+- Jedes Paar trägt das Endergebnis plus Rundenzahl ins gemeinsame Dokument ein.
 
-**Fragerunde-Impulse:** "Wann ist es sinnvoller, einen neuen Chat zu starten?"
+**Fragerunde-Impulse:** "Wann ist es sinnvoller, einen neuen Chat zu starten?" · "Hat das Bündel schlechter funktioniert als die Einzelrunden?"
 
 **Material:** 3 Slides, Backup-Video 3 min.
 
@@ -102,12 +111,12 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ## Modul B: Alltag (Sessions 6–12)
 
-### 6. Zusammenfassen: Aus 5 Seiten werden 5 Punkte 🟢🔵
+### 6. Zusammenfassen: Aus 5 Seiten werden 5 Punkte 🟠🔵
 
 **Lernziel:** Lange Texte auf das Wesentliche reduzieren und die Zusammenfassung steuern.
 
 **Zeigen:**
-- Ein 5-seitiger fiktiver Bericht (PDF). In ChatGPT hochladen oder Text einfügen. "Fasse in 5 Bullets zusammen." Dann: "Fasse für die Geschäftsführung zusammen: nur Entscheidungen und Risiken." Dann: "Was steht NICHT drin, was ich erwarten würde?"
+- Ein 5-seitiger fiktiver Bericht (PDF). In die interne KI hochladen oder Text einfügen, falls Upload nicht durchgereicht ist. "Fasse in 5 Bullets zusammen." Dann: "Fasse für die Geschäftsführung zusammen: nur Entscheidungen und Risiken." Dann: "Was steht NICHT drin, was ich erwarten würde?"
 - Slide: Drei Arten von Zusammenfassung (Überblick, Entscheidungsvorlage, Lückenanalyse).
 
 **Mitmachen:**
@@ -120,7 +129,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 7. Ton und Zielgruppe: Ein Text, drei Leser 🟢🔵
+### 7. Ton und Zielgruppe: Ein Text, drei Leser 🟠🔵
 
 **Lernziel:** Denselben Inhalt für unterschiedliche Empfänger umformulieren.
 
@@ -138,7 +147,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 8. Übersetzen und Korrekturlesen 🟢🔵
+### 8. Übersetzen und Korrekturlesen 🟠🔵
 
 **Lernziel:** KI als Lektor nutzen, ohne die Kontrolle abzugeben.
 
@@ -214,7 +223,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 12. Brainstorming und Strukturieren: Die KI als Sparringspartner 🟢🔵
+### 12. Brainstorming und Strukturieren: Die KI als Sparringspartner 🟠🔵
 
 **Lernziel:** Ideen erzeugen, clustern, bewerten lassen und die eigene Denkarbeit behalten.
 
@@ -234,45 +243,50 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ## Modul C: Qualität und Sicherheit (Sessions 13–17)
 
-### 13. Halluzinationen: Wenn die KI selbstbewusst lügt 🟢🔵
+### 13. Halluzinationen: Wenn die KI selbstbewusst lügt 🟠🔵
 
-**Lernziel:** Erfundene Fakten erkennen und Prüfroutinen entwickeln.
+**Lernziel:** Erfundene Fakten erkennen und Prüfroutinen entwickeln, auch bei einem denkenden Modell.
 
-**Zeigen:**
-- "Nenne mir 5 wissenschaftliche Studien zu Homeoffice und Produktivität mit Autor und Jahr." Dann zwei davon googeln. Mindestens eine existiert nicht oder ist falsch zugeordnet.
-- "Welche Öffnungszeiten hat [lokales Amt]?" Antwort mit echter Website vergleichen.
-- Slide: Die 4 Warnsignale (konkrete Zahlen ohne Quelle, Namen von Personen, Gesetze mit Paragraph, alles nach dem Wissensstichtag).
+**Wichtig für dieses Setup:** Ein Reasoning-Modell halluziniert seltener und deshalb **gefährlicher**. Die Trefferquote ist hoch genug, dass Teilnehmer aufhören zu prüfen. Die Demo muss also Fälle treffen, an denen das Modell tatsächlich scheitert, sonst lernt die Gruppe das Gegenteil. Teste jede Demo am Tag vorher. Wenn sie funktioniert, hast du das falsche Beispiel.
+
+**Zeigen (drei Kategorien, die auch bei denkenden Modellen kippen):**
+- **Sehr spezifisch und schlecht dokumentiert:** "Nenne mir 5 Studien zu Homeoffice-Produktivität mit Autor, Jahr und DOI." Zwei DOIs prüfen. Mindestens eine ist falsch zugeordnet oder existiert nicht.
+- **Zeitlich nach dem Wissensstichtag:** eine Regeländerung oder ein Preis aus den letzten Monaten, ohne Websuche gefragt.
+- **Zusammengesetzte lokale Fakten:** "Welche Öffnungszeiten hat [lokales Amt] und welche Unterlagen brauche ich für [Vorgang]?" Mit der echten Website vergleichen. Meist stimmt eins von beidem.
+- Slide: Die 4 Warnsignale (konkrete Zahlen ohne Quelle, Personennamen, Gesetze mit Paragraph, alles nach dem Wissensstichtag).
 
 **Mitmachen (Fehler finden):**
-- Trainer verteilt 5 KI-Antworten, 2 davon enthalten erfundene Fakten. Teams haben 10 Minuten, um mit Websuche herauszufinden, welche. Punkte für richtig, Abzug für falsch.
-- Dann: Jeder fragt ChatGPT nach einem Fakt aus seinem eigenen Fachgebiet, den er sicher weiß.
+- Du verteilst 5 KI-Antworten im gemeinsamen Dokument, 2 davon enthalten erfundene Fakten. Breakout-Paare haben 10 Minuten und tragen ihr Urteil pro Antwort ein. Punkte für richtig, Abzug für falsch.
+- Dann: Jeder fragt die KI nach einem Fakt aus seinem eigenen Fachgebiet, den er sicher weiß. Erfahrung: Genau hier fällt es auf.
 
-**Fragerunde-Impulse:** "Wo im Alltag wäre eine Halluzination am gefährlichsten?"
+**Fragerunde-Impulse:** "Wo im Alltag wäre eine Halluzination am gefährlichsten?" · "Was macht ihr, wenn die KI in 9 von 10 Fällen richtig liegt?"
 
-**Material:** 3 Slides, 5 vorbereitete Antworten, Backup-Video 3 min.
+**Material:** 3 Slides, 5 vorbereitete Antworten (am Vortag neu erzeugt und geprüft), Backup-Video 3 min.
 
 ---
 
-### 14. Datenschutz: Was darf rein, was nicht 🟢🔵
+### 14. Welches Modell, welcher Datenweg? 🟠🔵
 
-**Lernziel:** Die Regel "Was würde ich nicht auf eine Postkarte schreiben" verinnerlichen. Unterschied ChatGPT (extern) und Copilot (im Tenant) verstehen.
+**Lernziel:** Die eigene Werkzeuglandschaft verstehen: Wann nutze ich Copilot, wann die interne KI, welches Modell wähle ich, und welche Daten laufen wohin. Die Datenschutzregeln kennt die Gruppe. Diese Session ist die Anwendung auf Grenzfälle, nicht die Schulung.
 
 **Zeigen:**
-- Slide mit Ampel: Grün (öffentliche Infos, fiktive Beispiele), Gelb (interne Infos ohne Personenbezug, nur in Copilot), Rot (Personendaten, Kundendaten, Passwörter, Gesundheitsdaten, nirgends).
-- Live: ChatGPT-Einstellungen → "Modell mit meinen Daten verbessern" ausschalten. Zeigen, wo das steht.
-- Zeigen: Copilot nutzt nur Dokumente, auf die man selbst Zugriff hat. Was ein Vorteil ist und ein Risiko (falsch gesetzte Freigaben werden sichtbar).
+- Slide 1, das Bild der Landschaft: Drei Wege nebeneinander. Copilot M365 (arbeitet im Tenant, sieht nur was ich sehen darf, OpenAI- oder Claude-Modell), interne KI-Software (GPT-5.6 Thinking, gekapselt), und alles Übrige (privates Konto, Browser-Plugins) als rote Spalte.
+- Live den Modellwechsel in Copilot zeigen. Dieselbe Aufgabe mit einem OpenAI- und einem Claude-Modell laufen lassen: eine längere Textumformulierung und eine Excel-Analyse. Ergebnisse nebeneinander.
+- Ehrlich sagen, was du **nicht** weißt: Welches Modell im Hintergrund antwortet, ist nicht immer sichtbar, und die Auswahl ändert sich mit Microsoft-Updates. Die Regel darf also nicht "nimm Modell X" sein, sondern "prüfe das Ergebnis, nicht das Etikett".
+- Copilot-Eigenheit, die oft überrascht: Falsch gesetzte SharePoint-Freigaben werden durch Copilot plötzlich sichtbar. Ein Beispiel zeigen, wenn du eines hast.
 
 **Mitmachen:**
-- Kartensortierung (digital per Whiteboard oder physisch): 15 Beispiel-Prompts auf Grün/Gelb/Rot sortieren. Beispiele: "Fasse diesen Kundenvertrag zusammen" · "Formuliere mein Kündigungsschreiben" · "Erkläre mir Paragraph 4 unseres Tarifvertrags".
-- Dann gemeinsam auflösen. Erwartung: Uneinigkeit bei Gelb.
+- Kartensortierung im gemeinsamen Dokument: 15 realistische Aufgaben auf die drei Spalten verteilen. Beispiele: "Kundenvertrag zusammenfassen" · "Mein eigenes Kündigungsschreiben formulieren" · "Paragraph 4 unseres Tarifvertrags erklären" · "Bewerbungsunterlagen vorsortieren" · "Krankmeldung eines Kollegen weiterleiten".
+- Erwartung: Uneinigkeit bei vier bis fünf Karten. Genau die sind die Session. Auflösung gemeinsam, offene Fälle auf den Parkplatz und an die Stelle, die die Richtlinie verantwortet.
+- Zweite Aufgabe: Jedes Paar lässt dieselbe echte Arbeitsaufgabe einmal mit einem OpenAI- und einmal mit einem Claude-Modell laufen und notiert in einem Satz, welches Ergebnis besser passte und warum.
 
-**Fragerunde-Impulse:** "Was ist die Regel bei uns im Haus?" (Trainer muss die Antwort vorher kennen. Wenn es keine gibt, ist das das Ergebnis der Session.)
+**Fragerunde-Impulse:** "Welche Karte war am schwersten?" · "Habt ihr einen Unterschied zwischen den Modellen gemerkt oder nur einen vermutet?"
 
-**Material:** 3 Slides, 15 Sortierkarten, Firmenrichtlinie (falls vorhanden), kein Video.
+**Material:** 3 Slides, 15 Sortierkarten im gemeinsamen Dokument, die Firmenrichtlinie als Link. Kein Video.
 
 ---
 
-### 15. Bias: Die KI hat Vorurteile, weil wir welche haben 🟢🔵
+### 15. Bias: Die KI hat Vorurteile, weil wir welche haben 🟠🔵
 
 **Lernziel:** Verzerrungen in Antworten erkennen und gegensteuern.
 
@@ -291,12 +305,12 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 16. Quellen prüfen: ChatGPT mit Websuche und Copilot mit Firmendaten 🟢🔵
+### 16. Quellen prüfen: Websuche und Copilot mit Firmendaten 🟠🔵
 
 **Lernziel:** Antworten mit Quellen einfordern und die Quellen tatsächlich öffnen.
 
 **Zeigen:**
-- ChatGPT mit Websuche: "Was sind die aktuellen Regeln für Elternzeit in Deutschland? Mit Quellen." Jede Quelle anklicken. Ist es das Ministerium oder ein Blog?
+- Interne KI mit Websuche, falls freigeschaltet, sonst Copilot: "Was sind die aktuellen Regeln für Elternzeit in Deutschland? Mit Quellen." Jede Quelle anklicken. Ist es das Ministerium oder ein Blog?
 - Copilot-Chat (Arbeit): "Was steht in unserer Reisekostenrichtlinie zu Übernachtungen?" Copilot zitiert das Dokument. Zitat anklicken, Stelle prüfen.
 - Slide: Ohne Quelle = Meinung. Mit Quelle = Prüfauftrag.
 
@@ -310,7 +324,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 17. Manipulation: Wie man die KI austrickst und warum das wichtig ist 🟢🔵
+### 17. Manipulation: Wie man die KI austrickst und warum das wichtig ist 🟠🔵
 
 **Lernziel:** Verstehen, dass KI-Antworten von versteckten Anweisungen beeinflusst werden können (Prompt Injection), ohne technisches Detail.
 
@@ -331,7 +345,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ## Modul D: Fortgeschrittene Techniken (Sessions 18–23)
 
-### 18. Beispiele geben: "Mach es so wie hier" 🟢🔵
+### 18. Beispiele geben: "Mach es so wie hier" 🟠🔵
 
 **Lernziel:** Few-Shot-Prompting nutzen, ohne den Begriff zu brauchen.
 
@@ -350,31 +364,38 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 19. Schritt für Schritt: Die KI zum Nachdenken zwingen 🟢🔵
+### 19. Denkende Modelle: Wann Thinking hilft und wann es bremst 🟠🔵
 
-**Lernziel:** Komplexe Aufgaben zerlegen, "Denke Schritt für Schritt" und "Frag mich zuerst" nutzen.
+**Lernziel:** Ein Reasoning-Modell richtig einsetzen: die Denkspur lesen, nicht gegen sie anprompten, und wissen, wann ein schnelles Modell die bessere Wahl ist.
+
+**Warum diese Session hier steht und nicht "Denke Schritt für Schritt" heißt:** GPT-5.6 Thinking macht die Schritte von selbst. Der klassische Einsteigertrick ist bei diesem Setup überflüssig und kann sogar schaden, weil er die interne Struktur überschreibt. Die neuen Fähigkeiten sind andere.
 
 **Zeigen:**
-- Rechenaufgabe mit Text: "Ein Projekt hat 3 Phasen, Phase 1 dauert 2 Wochen, Phase 2 doppelt so lang, Phase 3 halb so lang wie 1 und 2 zusammen. Start 3. März. Wann ist Ende?" Direkt → oft falsch. Mit "Rechne Schritt für Schritt und zeige jeden Zwischenschritt" → meist richtig und prüfbar.
-- "Bevor du antwortest, stell mir 3 Rückfragen." Zeigen, wie die Rückfragen das Ergebnis verbessern.
-- Slide: Große Aufgabe = Kette kleiner Aufgaben. Die Zwischenschritte sind die Prüfstellen.
+- **Die Denkspur als Prüfwerkzeug.** Eine mehrstufige Aufgabe stellen (Budgetrechnung mit drei Bedingungen), die Denkspur aufklappen und laut mitlesen. Dann bewusst eine falsche Annahme darin finden und korrigieren: "In Schritt 2 hast du 19 % Umsatzsteuer angenommen, es sind 7 %. Rechne neu." Das ist präziser als "das ist falsch".
+- **Wann Thinking bremst.** Dreimal die gleiche triviale Aufgabe: "Formuliere diesen Satz höflicher." Mit dem denkenden Modell und mit einem schnellen. Zeit mitstoppen. Slide: Denken lohnt bei Rechnen, Planen, Widersprüchen und mehrstufigen Anweisungen. Bei Umformulieren, Übersetzen und Zusammenfassen kostet es nur Zeit.
+- **Aufgabe zerlegen bleibt richtig**, aber aus einem anderen Grund: nicht damit das Modell denkt, sondern damit **du** an jeder Naht prüfen kannst. Ein Umzugsplan als ein Prompt gegen vier Teilprompts (Zeitplan, Einkaufsliste, Kommunikation, Risiken).
+- **"Stell mir zuerst 3 Rückfragen"** funktioniert mit denkenden Modellen besonders gut. Vormachen.
 
 **Mitmachen:**
-- Aufgabe: Ein Umzugsplan für ein Büro mit 20 Personen. Erst als ein Prompt, dann zerlegt (Zeitplan, Einkaufsliste, Kommunikation, Risiken). Vergleich der Qualität.
+- Aufgabe A: Ein fehlerhafter mehrstufiger Plan, den die KI erzeugt hat, liegt im gemeinsamen Dokument. Jedes Paar öffnet die Denkspur, findet den Schritt mit der falschen Annahme und formuliert eine Korrektur, die genau diesen Schritt adressiert. Antwort und Korrekturprompt ins Dokument.
+- Aufgabe B, Zeitmessung: Eine einfache Umformulierung mit dem denkenden Modell und, wenn verfügbar, mit einem schnellen. Sekunden ins Dokument. Die Tabelle am Ende ist das Ergebnis der Session.
 - Jeder nutzt einmal "Stell mir zuerst Rückfragen" für eine eigene Aufgabe.
 
-**Fragerunde-Impulse:** "Welche Rückfrage hat euch überrascht?"
+**Fragerunde-Impulse:** "Welche Rückfrage hat euch überrascht?" · "Bei welcher eurer täglichen Aufgaben ist Denken Verschwendung?"
 
-**Material:** 2 Slides, Backup-Video 3 min.
+**Material:** 3 Slides, ein vorbereiteter fehlerhafter Plan mit Denkspur (Screenshot, falls die Spur nicht teilbar ist), Backup-Video 3 min.
 
 ---
 
-### 20. Einmal einstellen, immer nutzen: Custom Instructions, Projekte, Copilot-Seiten 🟢🔵
+### 20. Einmal einstellen, immer nutzen: Custom Instructions, Projekte, Copilot-Seiten 🟠🔵
 
 **Lernziel:** Wiederkehrende Kontexte speichern, statt sie jedes Mal zu tippen.
 
+> **Vorab prüfen:** Diese Session hängt davon ab, was die interne KI-Software durchreicht. Einstellungen, Projekte, Datei-Upload, Bildgenerierung und Sprachmodus sind Funktionen der ChatGPT-Oberfläche, nicht des Modells. Ein eigener Wrapper lässt sie oft weg. Teste das eine Woche vorher. Fällt eine Funktion weg, steht die Copilot-Variante darunter.
+
 **Zeigen:**
-- ChatGPT: Persönliche Anweisungen ("Ich arbeite in der Buchhaltung eines Mittelständlers, antworte knapp, per Sie, auf Deutsch"). Projekte anlegen mit Dateien und Anweisungen.
+- Interne KI: Persönliche Anweisungen ("Ich arbeite in der Buchhaltung eines Mittelständlers, antworte knapp, per Sie, auf Deutsch"). Projekte anlegen mit Dateien und Anweisungen, sofern die Oberfläche das anbietet.
+- Wenn der Wrapper keine gespeicherten Anweisungen kennt, ist der Ersatz ein **Textbaustein**: Die drei Zeilen stehen in OneNote oder als Outlook-Schnellbaustein und werden vor jeden Prompt kopiert. Unbequem, aber es funktioniert und ist ehrlicher als eine Funktion zu zeigen, die es nicht gibt.
 - Copilot: Pages/Notebook, ein Thema mit mehreren Prompts sammeln. Copilot-Agents ansprechen, sofern freigeschaltet.
 - Slide: Was ins Profil gehört (Rolle, Stil, Sprache) und was nicht (Aufgaben, Daten).
 
@@ -388,13 +409,15 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 21. Dateien hochladen: PDF, Excel, Bilder analysieren 🟢🔵
+### 21. Dateien hochladen: PDF, Excel, Bilder analysieren 🟠🔵
 
 **Lernziel:** Dokumente als Kontext nutzen, statt sie zu beschreiben.
 
+> **Vorab prüfen:** Diese Session hängt davon ab, was die interne KI-Software durchreicht. Einstellungen, Projekte, Datei-Upload, Bildgenerierung und Sprachmodus sind Funktionen der ChatGPT-Oberfläche, nicht des Modells. Ein eigener Wrapper lässt sie oft weg. Teste das eine Woche vorher. Fällt eine Funktion weg, steht die Copilot-Variante darunter.
+
 **Zeigen:**
 - 30-seitiges fiktives Handbuch als PDF hochladen: "Wo steht, wie ich ein Ticket eskaliere? Zitiere die Seite." · "Erstelle eine Checkliste aus Kapitel 3."
-- Excel hochladen in ChatGPT: "Welche Auffälligkeiten siehst du in diesen Daten?" (ChatGPT rechnet, Copilot in Excel zeigt Formeln, beides zeigen.)
+- Excel in die interne KI hochladen: "Welche Auffälligkeiten siehst du in diesen Daten?" Die interne KI rechnet, Copilot in Excel zeigt stattdessen Formeln. Beides zeigen, der Unterschied ist der Lerninhalt: Eine Formel kann man prüfen, eine Zahl im Chat nicht.
 - Foto eines Whiteboards: "Tippe die Punkte ab und strukturiere sie."
 
 **Mitmachen:**
@@ -407,9 +430,11 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 22. Bilder: Verstehen und erzeugen 🟢🔵
+### 22. Bilder: Verstehen und erzeugen 🟠🔵
 
 **Lernziel:** Bildgenerierung für Alltag nutzen, Grenzen und Rechte kennen.
+
+> **Vorab prüfen:** Diese Session hängt davon ab, was die interne KI-Software durchreicht. Einstellungen, Projekte, Datei-Upload, Bildgenerierung und Sprachmodus sind Funktionen der ChatGPT-Oberfläche, nicht des Modells. Ein eigener Wrapper lässt sie oft weg. Teste das eine Woche vorher. Fällt eine Funktion weg, steht die Copilot-Variante darunter.
 
 **Zeigen:**
 - Bild erzeugen: "Ein Icon für unseren internen Newsletter, flacher Stil, blau, ohne Text." 3 Varianten, eine nachbessern.
@@ -426,18 +451,20 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 23. Sprechen statt tippen: Sprachmodus und Diktat 🟢🔵
+### 23. Sprechen statt tippen: Sprachmodus und Diktat 🟠🔵
 
-**Lernziel:** Voice-Modus in ChatGPT und Diktieren in Copilot nutzen, insbesondere unterwegs.
+**Lernziel:** Sprachmodus und Diktieren nutzen, insbesondere unterwegs und am Handy.
+
+> **Vorab prüfen:** Diese Session hängt davon ab, was die interne KI-Software durchreicht. Einstellungen, Projekte, Datei-Upload, Bildgenerierung und Sprachmodus sind Funktionen der ChatGPT-Oberfläche, nicht des Modells. Ein eigener Wrapper lässt sie oft weg. Teste das eine Woche vorher. Fällt eine Funktion weg, steht die Copilot-Variante darunter.
 
 **Zeigen:**
-- ChatGPT-App auf dem Handy, Sprachmodus: Ein Gespräch über "Wie bereite ich ein schwieriges Mitarbeitergespräch vor?" Unterbrechen, nachfragen.
+- Handy-App der internen KI, Sprachmodus, sofern vorhanden: Ein Gespräch über "Wie bereite ich ein schwieriges Mitarbeitergespräch vor?" Unterbrechen, nachfragen.
 - Word: Diktieren, dann Copilot: "Mach aus meinem Diktat einen strukturierten Text."
 - Slide: Sprachmodus für Denken und Vorbereiten, Tippen für Präzision.
 
 **Mitmachen:**
 - Jeder diktiert 2 Minuten frei zu einem Thema (z. B. "Was hat mich diese Woche genervt") und lässt daraus 3 saubere Bullets machen.
-- Zu zweit: Einer führt ein Sprachgespräch mit ChatGPT zu einer Rollenspielsituation (Kundenbeschwerde), der andere beobachtet.
+- Zu zweit im Breakout: Einer führt ein Sprachgespräch zu einer Rollenspielsituation (Kundenbeschwerde), der andere beobachtet und notiert, wo die KI gut und wo sie hölzern war.
 
 **Fragerunde-Impulse:** "Wo im Alltag würde Sprache Tippen ersetzen?"
 
@@ -447,7 +474,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ## Modul E: Anwenden (Sessions 24–26)
 
-### 24. Die eigene Prompt-Bibliothek 🟢🔵
+### 24. Die eigene Prompt-Bibliothek 🟠🔵
 
 **Lernziel:** Die 5–10 wichtigsten Prompts des eigenen Jobs sammeln, testen, teilen.
 
@@ -466,7 +493,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 25. Ein ganzer Workflow: Von der Anfrage bis zum Ergebnis 🟢🔵
+### 25. Ein ganzer Workflow: Von der Anfrage bis zum Ergebnis 🟠🔵
 
 **Lernziel:** Mehrere Werkzeuge in einer realen Aufgabe kombinieren und die Prüfstellen bewusst setzen.
 
@@ -484,7 +511,7 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 ---
 
-### 26. Abschluss: Show & Tell, Prompt-Battle-Finale, Was bleibt 🟢🔵
+### 26. Abschluss: Show & Tell, Prompt-Battle-Finale, Was bleibt 🟠🔵
 
 **Lernziel:** Gelerntes sichtbar machen, Erfolge feiern, Weiterlernen organisieren.
 
@@ -508,4 +535,6 @@ Legende Werkzeug: 🟢 ChatGPT · 🔵 Copilot · 🟢🔵 beide
 
 Wenn die Gruppe schnell ist: Sessions 1 und 3 zusammenlegen, Session 22 streichen.
 Wenn die Gruppe ängstlich ist: Session 14 (Datenschutz) auf Position 2 vorziehen. Viele trauen sich erst danach, überhaupt etwas einzugeben.
-Wenn die Gruppe kein Copilot hat: Sessions 4, 5, 9, 10, 11 durch ChatGPT-Varianten ersetzen (Text einfügen statt Dokument öffnen). Die Lernziele bleiben gleich.
+Wenn eine Funktion der internen KI fehlt (Upload, Bilder, Sprache): Sessions 21, 22, 23 auf die Copilot-Variante umstellen. Die Lernziele bleiben gleich, nur das Werkzeug wechselt.
+
+Wenn das Sprachmodus- und Bilder-Thema komplett wegfällt, sind Session 22 und 23 frei. Ersatzvorschläge in der Reihenfolge, in der ich sie einsetzen würde: (1) Eine zweite Workflow-Session wie 25, mit einem Prozess aus einem anderen Bereich. (2) Eine offene Sprechstunde ohne Programm, nur Bring Your Own Problem. Bei Einsteigern ist die Sprechstunde oft die beliebteste Session der Reihe.

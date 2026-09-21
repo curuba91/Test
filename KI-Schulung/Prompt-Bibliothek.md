@@ -2,6 +2,10 @@
 
 Alle Prompts zum Kopieren. Platzhalter in [eckigen Klammern] ersetzen. Reihenfolge folgt den Sessions.
 
+**Remote:** Jeden Prompt als Chat-Nachricht posten, nicht nur auf die Slide. Bei geteiltem Bildschirm kann niemand von einer Slide abtippen, während er selbst tippt.
+
+**Bei GPT-5.6 Thinking weggelassen:** "Denke Schritt für Schritt" steht hier nicht mehr als eigener Prompt. Das Modell macht es selbst. Stattdessen stehen unten die Prompts für denkende Modelle.
+
 ## Grundlagen
 
 **Der Vier-Bausteine-Prompt (Session 2)**
@@ -109,16 +113,33 @@ Hier sind drei Beispiele für [Stil / Format]:
 Erstelle ein viertes im exakt gleichen Stil für: [neuer Fall]
 ```
 
-**Schritt für Schritt (Session 19)**
+**Denkende Modelle (Session 19)**
+
+Einen einzelnen falschen Schritt aus der Denkspur korrigieren, statt "das ist falsch" zu sagen:
 ```
-Rechne Schritt für Schritt und zeige jeden Zwischenschritt.
+In Schritt [2] hast du [19 % Umsatzsteuer] angenommen. Richtig ist [7 %].
+Rechne von dort neu, alles Übrige bleibt.
 ```
+Rückfragen erzwingen, funktioniert bei denkenden Modellen besonders gut:
 ```
 Bevor du antwortest, stell mir 3 Rückfragen, die deine Antwort verbessern würden.
 ```
+Zerlegen, damit du an jeder Naht prüfen kannst:
 ```
 Zerlege diese Aufgabe in Teilaufgaben. Bearbeite dann nur die erste und warte auf mein OK.
 ```
+Nachbessern bündeln, weil jede Runde Wartezeit kostet (Session 3):
+```
+Kürzer, förmlicher, und streich den letzten Absatz.
+```
+
+**Modelle vergleichen (Session 14)**
+
+Dieselbe Aufgabe an ein OpenAI- und ein Claude-Modell in Copilot, dann vergleichen:
+```
+[Deine echte Arbeitsaufgabe, wörtlich identisch in beiden Durchläufen.]
+```
+Danach notieren: Welches Ergebnis passte besser und woran genau lag es?
 
 **Persönliche Anweisungen (Session 20, Vorlage)**
 ```
