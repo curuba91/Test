@@ -279,6 +279,7 @@ th[aria-sort] .sort { color: var(--accent); }
 .stage-aktiv .stage-text { color: var(--accent); font-weight: 600; }
 .stage-luecke .stage-text { color: var(--amber); font-weight: 600; }
 .step-list { display: grid; gap: var(--s1); margin-top: var(--s1); }
+.step-list li { display: flex; align-items: center; gap: var(--s2); }
 .step-list .status { font-weight: 400; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s5); align-items: start; }
