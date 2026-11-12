@@ -13,6 +13,7 @@ export async function renderSources(box, app) {
   let data = await api("GET", "/api/import/log");
   const readOnly = app.state.mode === "nur-lesen";
   const note = h("div", { role: "status" });
+  const migration = h("div", { class: "stack-tight" });
   draw();
 
   function draw() {
@@ -63,8 +64,6 @@ export async function renderSources(box, app) {
           { label: "Hinweis", value: (r) => r.message },
         ], data.items) : emptyState("Noch kein Importlauf. Der erste Lauf startet automatisch, sobald die Quellen eingerichtet sind, oder über „Jetzt importieren“.")));
   }
-
-  const migration = h("div", { class: "stack-tight" });
 
   function drawReport(report) {
     const rows = [

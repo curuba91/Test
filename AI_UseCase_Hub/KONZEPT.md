@@ -616,6 +616,10 @@ Arbeitsweise (FEST):
 | 12 | Governance-Fortschritt bei entfallenen Schritten | 2 | Bestätigung | **ANNAHME aus Phase 2:** Gezählt werden nur anwendbare Schritte, bei Herkunft `übernommen` also „x von 4“ statt „x von 6“. |
 | 13 | Startseite: Auswahl des einen Eintrags „Offen“ je Use Case; Neueingänge | 2 | Bestätigung | **ANNAHME aus Phase 2:** Vorrang H10, dann H09, dann H12. Was unter „Neu eingegangen“ steht, erscheint nicht zusätzlich als „Nächster Schritt: Bewerten“ oder „Ticket zuordnen“. |
 | 14 | Eingangsdatum und Melder:in ohne Spalte in Quelle 1 | 2 | Entscheidung zum Flow | Nicht zwingend. Ohne Spalte gilt der Tag des ersten Imports als Eingangsdatum; Melder:in bleibt leer oder wird im Hub nachgetragen. Schreibt der Flow die Angaben später, genügt die Zuordnung in `standort.json`. |
+| 15 | Vorabcheck: welche Fragen „entscheidungsrelevant“ sind und wann „unklar“ zu „Klärung erforderlich“ führt | 4 | Bestätigung | **ANNAHME aus Phase 4:** Fragen 1 bis 3 immer; 7, 8 und 10 nur auf dem Weg zu Pfad A; 11 nur auf dem Weg zu Pfad B. Frage 9 entscheidet nicht. Steht so in `validation_rules.json` und ist dort änderbar. |
+| 16 | S9: Buchung nach „Rückgängig“ | 3 | Bestätigung | **ANNAHME aus Phase 3:** Eine zurückgenommene Buchung wird bei einem späteren Statuswechsel nicht erneut ausgelöst. |
+| 17 | Schutz vor versehentlichem Zugriff einer zweiten Person | 5 | Bestätigung | Umgesetzt als Liste berechtigter Benutzer (`Hub_Uebergabe/berechtigte.json`) plus Sperrdatei; alle anderen und jede zweite gleichzeitige Sitzung sehen den Hub nur lesend. |
+| 18 | Migration: Umgang mit vorhandenen Werten | 6 | Bestätigung | **ANNAHME aus Phase 6:** Leere Felder im Hub werden gefüllt, vorhandene nie überschrieben (Widerspruch im Bericht). „AI Summary“ wird zur Beschreibung, „Interner Titel“ und „Life Cycle erforderlich“ kommen in die Notizen. |
 
 ---
 

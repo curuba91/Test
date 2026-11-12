@@ -5,7 +5,7 @@ Alles Standortspezifische steht in Dateien im Programmordner, nicht im Code:
 | Datei | Inhalt | Stand |
 |---|---|---|
 | `standort.json` | Bezeichnungen, Wertelisten, Spaltenzuordnung, Stichtag, Score-Regel, Pfad-Vorgaben | vorhanden |
-| `validation_rules.json` | Entscheidungslogik, Risikomatrix, Kontrollen und Texte des Vorabchecks | entsteht in Phase 4 nach demselben Muster |
+| `validation_rules.json` | Entscheidungslogik, Risikomatrix, Kontrollen und Texte des Vorabchecks | vorhanden, drei Teile sind PLATZHALTER |
 
 ## Ablauf
 
@@ -81,4 +81,36 @@ Meine Angaben:
 
 Die Datei:
 <Inhalt von standort.json einfügen>
+```
+
+## Regelwerk des Vorabchecks (`validation_rules.json`)
+
+Prüfen, im Programmordner:
+
+```bash
+python -B -m hub.validation
+```
+
+Beide Dateien lassen sich auch im Hub bearbeiten: Verwaltung → Einstellungen → „… bearbeiten“. Gespeichert wird
+nur, was die Prüfung besteht.
+
+| Abschnitt | Was einzutragen ist |
+|---|---|
+| `decision.rules` | Reihenfolge der Entscheidung. Jede Regel hat `result` (Schlüssel aus `results`) und optional `if` (Frage → erlaubte Antworten) und `if_unclear` (Fragen, von denen eine unbeantwortet oder „unklar“ ist). Die erste zutreffende Regel gilt, die letzte hat keine Bedingung. Der ausgelieferte Stand ist die ANNAHME aus Kapitel 10.4 des Konzepts. |
+| `risk_matrix.values` | Neun Werte: `values[Entscheidungsfolge][Modelleinfluss]`, jeweils `hoch`, `mittel` oder `niedrig` laut Richtlinie. |
+| `controls.by_capability` | Je KI-Fähigkeit die Liste der erforderlichen Kontrollen als Texte. |
+| `status` in diesen drei Abschnitten | Nach Bestätigung von `PLATZHALTER` auf `FEST` setzen. Solange einer `PLATZHALTER` ist, zeigt der Hub „Regelwerk unvollständig“. |
+| `rules_version` | Bei jeder inhaltlichen Änderung erhöhen; die Version wird mit jedem Durchlauf gespeichert. |
+
+Prompt für die KI, zusätzlich zu den Regeln oben:
+
+```text
+Trage in diese JSON-Datei ausschließlich Werte ein, die wörtlich oder sinngemäß in den beigefügten
+Richtliniendokumenten stehen, und nenne zu jedem eingetragenen Wert nach dem JSON den Abschnitt der
+Richtlinie. Erfinde keine Werte der Risikomatrix und keine Kontrollen. Was die Richtlinie nicht hergibt,
+bleibt "PLATZHALTER". Ändere keine Schlüssel in "questions" und "results". Gib die vollständige Datei
+als gültiges JSON zurück.
+
+Die Datei:
+<Inhalt von validation_rules.json einfügen>
 ```
