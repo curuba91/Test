@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import APP_ID, APP_VERSION, audit, handover, importer, rules, testdata
 from . import db as dbm
-from .config import PATH_KEYS, Config
+from .config import FREE_LISTS, LOGIC_LISTS, PATH_KEYS, Config
 
 PORT_ATTEMPTS = 10
 MAX_BODY_BYTES = 1_000_000
@@ -292,9 +292,11 @@ def api_actions(app, _params):
             new = rules.new_items(conn)
     else:
         items = rules.handlungsbedarf(None, app.cfg, [], app.test_mode)
+    shown = rules.start_selection(items)  # je Use Case höchstens ein Eintrag „Offen“
     return {
-        "blocking": [a for a in items if a["level"] == rules.LEVEL_BLOCKING],
-        "open": [a for a in items if a["level"] == rules.LEVEL_OPEN],
+        "blocking": [a for a in shown if a["level"] == rules.LEVEL_BLOCKING],
+        "open": [a for a in shown if a["level"] == rules.LEVEL_OPEN],
+        "total": len(items),
         "new": new,
     }
 
@@ -530,6 +532,206 @@ def api_backup_restore(app, body):
     return {"restored": backup["name"], "db_state": app.db_state}
 
 
+# --- Use Cases (Phase 2) -------------------------------------------------------------
+
+
+def _value_lists(cfg) -> dict:
+    """Wertelisten für Auswahlfelder: feste Schlüssel, Anzeige aus standort.json."""
+    lists = cfg.site.get("value_lists") if isinstance(cfg.site.get("value_lists"), dict) else {}
+    result = {}
+    for name, keys in LOGIC_LISTS.items():
+        entries = (lists.get(name) or {}).get("entries") if isinstance(lists.get(name), dict) else None
+        labels = {e.get("key"): e.get("label") for e in entries or [] if isinstance(e, dict)}
+        result[name] = [{"key": key, "label": labels.get(key) or key} for key in keys]
+    for name in FREE_LISTS:
+        values = (lists.get(name) or {}).get("values") if isinstance(lists.get(name), dict) else None
+        result[name] = [v for v in values or [] if isinstance(v, str)]
+    return result
+
+
+def _score_config(cfg) -> dict:
+    score = cfg.site.get("score") if isinstance(cfg.site.get("score"), dict) else {}
+    criteria = [c for c in score.get("criteria", []) if isinstance(c, dict) and c.get("key")]
+    return {"mode": score.get("mode", "manuell"), "criteria": criteria}
+
+
+def api_meta(app, _params):
+    cfg = app.cfg
+    return {
+        "lists": _value_lists(cfg),
+        "score": _score_config(cfg),
+        "labels": cfg.site.get("labels") if isinstance(cfg.site.get("labels"), dict) else {},
+        "field_labels": dbm.FIELD_LABELS,
+        "stages": [{"key": key, "label": label} for key, label in rules.STAGES] + [{"key": "archiv", "label": "Archiv"}],
+    }
+
+
+def api_usecases(app, _params):
+    database = app.require_db()
+    with database.read() as conn:
+        rows = rules.overview(conn, rules.deadline_of(app.cfg))
+    return {"items": rows}
+
+
+def _usecase_detail(app, conn, usecase_id) -> dict:
+    row = conn.execute("SELECT * FROM usecases WHERE id = ?", (usecase_id,)).fetchone()
+    if row is None:
+        raise ApiError(404, "not_found", f"Use Case {usecase_id} nicht gefunden.")
+    usecase = dict(row)
+    today = time.strftime("%Y-%m-%d")
+    milestones = dbm.sub_list(conn, "milestones", usecase_id)
+    for milestone in milestones:
+        milestone["overdue"] = bool(milestone["planned_date"]) and milestone["planned_date"] < today \
+            and not milestone["done_date"]
+    releases = dbm.sub_list(conn, "releases", usecase_id)
+    tickets = [dict(r) for r in conn.execute("SELECT * FROM tickets WHERE usecase_id = ? ORDER BY id", (usecase_id,))]
+    steps = rules.stepper(usecase, milestones)
+    source_fields = dbm.SOURCE_FIELDS["usecases"]
+    from_source = usecase["in_source"] is not None
+    return {
+        "usecase": {k: v for k, v in usecase.items() if not k.endswith("_src")},
+        "from_source": from_source,
+        "src": {f: usecase[f"{f}_src"] for f in source_fields},
+        "differs": [f for f in source_fields if from_source and usecase[f] != usecase[f"{f}_src"]],
+        "stepper": steps,
+        "actions": rules.usecase_detail_actions(conn, usecase, milestones, len(releases), tickets,
+                                                rules.deadline_of(app.cfg)),
+        "milestones": milestones,
+        "releases": releases,
+        "links": dbm.sub_list(conn, "links", usecase_id),
+        "tickets": [{"id": t["id"], "title": t["title"], "status": t["status"], "severity": t["severity"]}
+                    for t in tickets],
+        "scores": dict(conn.execute("SELECT criterion, value FROM usecase_scores WHERE usecase_id = ?",
+                                    (usecase_id,)).fetchall()),
+        "merged_from": [r[0] for r in conn.execute("SELECT id FROM usecases WHERE merged_into = ? ORDER BY id",
+                                                   (usecase_id,))],
+        "history": audit.query(conn, entity="usecases", entity_id=usecase_id, limit=300)["items"],
+    }
+
+
+def _detail(app, usecase_id) -> dict:
+    with app.db.read() as conn:
+        return _usecase_detail(app, conn, usecase_id)
+
+
+def _data_errors(func):
+    """Übersetzt Fehler der Datenschicht in Antworten mit Klartext."""
+    def wrapper(app, params, *groups):
+        try:
+            return func(app, params, *groups)
+        except dbm.StaleValue as exc:
+            raise ApiError(409, "stale", "Der Wert wurde inzwischen an anderer Stelle geändert. Die Seite zeigt "
+                           "jetzt den aktuellen Stand.", current=exc.current) from None
+        except KeyError as exc:  # vor LookupError prüfen: KeyError ist davon abgeleitet
+            raise ApiError(400, "format", str(exc.args[0]) if exc.args else "Unbekanntes Feld.") from None
+        except LookupError as exc:
+            raise ApiError(404, "not_found", str(exc)) from None
+        except ValueError as exc:
+            raise ApiError(422, "validation", str(exc)) from None
+    return wrapper
+
+
+def _expected(body):
+    return {"expected": body["expected"]} if "expected" in body else {}
+
+
+@_data_errors
+def api_usecase_get(app, _params, usecase_id):
+    app.require_db()
+    return _detail(app, usecase_id)
+
+
+@_data_errors
+def api_usecase_create(app, body):
+    database = app.require_db()
+    with database.write(user=app.user, machine=app.machine) as tx:
+        usecase_id = dbm.create_manual(tx, "usecases", body.get("title"))
+    return _detail(app, usecase_id)
+
+
+@_data_errors
+def api_usecase_patch(app, body, usecase_id):
+    """Ändert genau ein Feld; ``expected`` ist der Wert, den die Oberfläche zuletzt gezeigt hat."""
+    database = app.require_db()
+    field = body.get("field")
+    if not isinstance(field, str):
+        raise ApiError(400, "format", "field fehlt.")
+    with database.write(user=app.user, machine=app.machine) as tx:
+        if field == "phase":
+            dbm.set_phase(tx, usecase_id, body.get("value"), body.get("merged_into"), **_expected(body))
+        else:
+            value = dbm.clean_value("usecases", field, body.get("value"))
+            dbm.update_field(tx, "usecases", usecase_id, field, value, **_expected(body))
+    return _detail(app, usecase_id)
+
+
+@_data_errors
+def api_usecase_score(app, body, usecase_id):
+    """Einzelscore speichern; bei score.mode = gewichtet folgt der Gesamtscore als Regel."""
+    database = app.require_db()
+    config = _score_config(app.cfg)
+    criterion = {c["key"]: c for c in config["criteria"]}.get(body.get("criterion"))
+    if criterion is None:
+        raise ApiError(400, "format", "Unbekanntes Kriterium.")
+    with database.write(user=app.user, machine=app.machine) as tx:
+        dbm.set_criterion_score(tx, usecase_id, criterion["key"], criterion.get("label", criterion["key"]),
+                                body.get("value"))
+        changed = tx.bump
+        values = dict(tx.execute("SELECT criterion, value FROM usecase_scores WHERE usecase_id = ?", (usecase_id,)))
+        total = rules.weighted_score(config, values)
+        if config["mode"] == "gewichtet":
+            changed = dbm.update_field(tx, "usecases", usecase_id, "score", total, source="regel") or changed
+        tx.bump = changed
+    return _detail(app, usecase_id)
+
+
+@_data_errors
+def api_sub_add(app, body, usecase_id, table):
+    database = app.require_db()
+    with database.write(user=app.user, machine=app.machine) as tx:
+        dbm.sub_add(tx, table, usecase_id, body.get("values"))
+    return _detail(app, usecase_id)
+
+
+@_data_errors
+def api_sub_patch(app, body, table, row_id):
+    database = app.require_db()
+    field = body.get("field")
+    if not isinstance(field, str):
+        raise ApiError(400, "format", "field fehlt.")
+    with database.write(user=app.user, machine=app.machine) as tx:
+        usecase_id = dbm.sub_update(tx, table, int(row_id), field, body.get("value"), **_expected(body))
+    return _detail(app, usecase_id)
+
+
+@_data_errors
+def api_sub_delete(app, _body, table, row_id):
+    database = app.require_db()
+    with database.write(user=app.user, machine=app.machine) as tx:
+        usecase_id = dbm.sub_delete(tx, table, int(row_id))
+    return _detail(app, usecase_id)
+
+
+def api_search(app, params):
+    """Globale Suche über ID, Titel und Melder:in."""
+    database = app.require_db()
+    text = (params.get("q") or "").strip()
+    if not text:
+        return {"q": "", "items": []}
+    like = f"%{text}%"
+    items = []
+    with database.read() as conn:
+        for row in conn.execute("SELECT id, title, phase FROM usecases WHERE id LIKE ? OR title LIKE ? OR reporter LIKE ? "
+                                "ORDER BY id LIMIT 50", (like, like, like)):
+            items.append({"kind": "Use Case", "id": row["id"], "title": row["title"], "state": row["phase"],
+                          "target": f"#/usecases/{row['id']}"})
+        for row in conn.execute("SELECT id, title, status FROM tickets WHERE id LIKE ? OR title LIKE ? OR reporter LIKE ? "
+                                "ORDER BY id LIMIT 50", (like, like, like)):
+            items.append({"kind": "Ticket", "id": row["id"], "title": row["title"], "state": row["status"],
+                          "target": f"#/tickets/{row['id']}"})
+    return {"q": text, "items": items}
+
+
 def api_heartbeat(app, _body):
     app.beat()
     return {"ok": True}
@@ -558,6 +760,16 @@ ROUTES = [
     ("GET", re.compile(r"^/api/errors$"), api_errors),
     ("GET", re.compile(r"^/api/backups$"), api_backups),
     ("POST", re.compile(r"^/api/backups/restore$"), api_backup_restore),
+    ("GET", re.compile(r"^/api/meta$"), api_meta),
+    ("GET", re.compile(r"^/api/search$"), api_search),
+    ("GET", re.compile(r"^/api/usecases$"), api_usecases),
+    ("POST", re.compile(r"^/api/usecases$"), api_usecase_create),
+    ("GET", re.compile(r"^/api/usecases/([^/]+)$"), api_usecase_get),
+    ("PATCH", re.compile(r"^/api/usecases/([^/]+)$"), api_usecase_patch),
+    ("PUT", re.compile(r"^/api/usecases/([^/]+)/scores$"), api_usecase_score),
+    ("POST", re.compile(r"^/api/usecases/([^/]+)/(milestones|releases|links)$"), api_sub_add),
+    ("PATCH", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_patch),
+    ("DELETE", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_delete),
     ("POST", re.compile(r"^/api/heartbeat$"), api_heartbeat),
     ("POST", re.compile(r"^/api/shutdown$"), api_shutdown),
 ]
@@ -606,7 +818,8 @@ class Handler(BaseHTTPRequestHandler):
                 for route_method, pattern, func in ROUTES:
                     match = pattern.match(path)
                     if match and route_method == method:
-                        return self._send_json(200, func(app, params, *match.groups()))
+                        groups = [unquote(group) for group in match.groups()]
+                        return self._send_json(200, func(app, params, *groups))
                 if any(pattern.match(path) for _, pattern, _ in ROUTES):
                     raise ApiError(405, "method", "Methode für diese Adresse nicht erlaubt.")
                 raise ApiError(404, "not_found", "Unbekannte API-Adresse.")

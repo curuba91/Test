@@ -324,7 +324,7 @@ def editable_fields(entity) -> list:
 _MISSING = object()
 
 
-def update_field(tx, entity, entity_id, field, new, expected=_MISSING):
+def update_field(tx, entity, entity_id, field, new, expected=_MISSING, source=None):
     """Ändert genau ein Feld mit Audit-Eintrag.
 
     ``expected`` ist der Wert, den die Oberfläche zuletzt gesehen hat. Weicht er
@@ -343,5 +343,242 @@ def update_field(tx, entity, entity_id, field, new, expected=_MISSING):
         tx.bump = False
         return False
     tx.execute(f"UPDATE {entity} SET {field} = ?, updated_at = ? WHERE id = ?", (new, now_ts(), entity_id))
-    tx.audit(entity, entity_id, field, old, new)
+    tx.audit(entity, entity_id, field, old, new, source)
     return True
+
+
+# --- Eingaben prüfen -------------------------------------------------------------
+
+DATE_FIELDS = {"reg_confirmed_at", "sponsor_date", "board_date", "comm_date", "next_review", "last_review",
+               "resolved_at", "closed_at", "planned_date", "done_date", "date"}
+# Feld -> Werteliste mit festen Schlüsseln (hub/config.py, LOGIC_LISTS)
+LIST_FIELDS = {
+    "usecases": {"phase": "phase", "origin": "origin", "reg_status": "reg_status", "sponsor_status": "sponsor_status",
+                 "board_status": "board_status", "portal_status": "portal_status", "comm_status": "comm_status"},
+    "tickets": {"status": "ticket_status", "severity": "ticket_severity"},
+}
+MAY_BE_EMPTY = {"origin", "severity"}
+MAX_TEXT = 20000
+
+
+def clean_date(value) -> str:
+    text = "" if value is None else str(value).strip()
+    if not text:
+        return ""
+    try:
+        if len(text) != 10:
+            raise ValueError
+        return datetime.date.fromisoformat(text).isoformat()
+    except ValueError:
+        raise ValueError("Kein gültiges Datum (erwartet: TT.MM.JJJJ).") from None
+
+
+def clean_number(value):
+    if value is None or isinstance(value, bool):
+        if value is None:
+            return None
+        raise ValueError("Erwartet wird eine Zahl.")
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().replace(",", ".")
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        raise ValueError("Erwartet wird eine Zahl, zum Beispiel 3,5.") from None
+
+
+def clean_text(value) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError("Erwartet wird ein Text.")
+    text = value.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if len(text) > MAX_TEXT:
+        raise ValueError(f"Der Text ist zu lang (höchstens {MAX_TEXT} Zeichen).")
+    return text
+
+
+def clean_url(value) -> str:
+    text = clean_text(value)
+    if text and not text.lower().startswith(("http://", "https://")):
+        raise ValueError("Die Adresse muss mit http:// oder https:// beginnen.")
+    return text
+
+
+def clean_value(entity, field, value):
+    """Prüft und normalisiert eine Eingabe für ein Feld. Fehler als ValueError mit Klartext."""
+    from .config import LOGIC_LISTS  # hier, um einen Importkreis zu vermeiden
+
+    if field not in editable_fields(entity) or field in ("merged_into", "usecase_id"):
+        raise KeyError(f"Feld nicht änderbar: {entity}.{field}")
+    if field == "score":
+        return clean_number(value)
+    if field == "needs_help":
+        if value in (True, 1, "1"):
+            return 1
+        if value in (False, 0, "0", None, ""):
+            return 0
+        raise ValueError("Erwartet wird ja oder nein.")
+    if field in DATE_FIELDS:
+        return clean_date(value)
+    list_name = LIST_FIELDS[entity].get(field)
+    if list_name:
+        text = clean_text(value)
+        if text == "" and field in MAY_BE_EMPTY:
+            return ""
+        if text not in LOGIC_LISTS[list_name]:
+            raise ValueError(f"Unbekannter Wert. Erlaubt: {', '.join(LOGIC_LISTS[list_name])}.")
+        return text
+    text = clean_text(value)
+    if field == "title" and not text:
+        raise ValueError("Der Titel darf nicht leer sein.")
+    return text
+
+
+# --- Use Cases ---------------------------------------------------------------------
+
+
+def create_manual(tx, entity, title) -> str:
+    """Legt einen Datensatz von Hand an: M-xxx bzw. TM-xxx."""
+    title = clean_text(title)
+    if not title:
+        raise ValueError("Der Titel darf nicht leer sein.")
+    prefix = ID_PREFIX_MANUAL[entity]
+    numbers = [int(row[0][len(prefix):]) for row in tx.execute(f"SELECT id FROM {entity} WHERE id LIKE ?", (prefix + "%",))
+               if row[0][len(prefix):].isdigit()]
+    new_id = f"{prefix}{max(numbers, default=0) + 1:03d}"
+    now = now_ts()
+    tx.execute(f"INSERT INTO {entity} (id, title, title_src, created_at, updated_at) VALUES (?, ?, '', ?, ?)",
+               (new_id, title, now, now))
+    tx.audit(entity, new_id, "angelegt", "", title)
+    return new_id
+
+
+def set_phase(tx, usecase_id, phase, merged_into=None, expected=_MISSING) -> None:
+    """Phasenwechsel inklusive „Zusammenführen mit …“ (nichts wird gelöscht, Regel S7)."""
+    phase = clean_value("usecases", "phase", phase)
+    row = tx.execute("SELECT phase, merged_into FROM usecases WHERE id = ?", (usecase_id,)).fetchone()
+    if row is None:
+        raise LookupError(f"Use Case {usecase_id} nicht gefunden.")
+    target = None
+    if phase == "Zusammengeführt":
+        target = clean_text(merged_into)
+        if not target:
+            raise ValueError("Bitte den Use Case angeben, mit dem zusammengeführt wird.")
+        if target == usecase_id:
+            raise ValueError("Ein Use Case kann nicht mit sich selbst zusammengeführt werden.")
+        other = tx.execute("SELECT phase, merged_into FROM usecases WHERE id = ?", (target,)).fetchone()
+        if other is None:
+            raise ValueError(f"Use Case {target} nicht gefunden.")
+        if other["phase"] == "Zusammengeführt":
+            raise ValueError(f"{target} ist selbst zusammengeführt (mit {other['merged_into']}). Bitte dessen Ziel wählen.")
+    changed = update_field(tx, "usecases", usecase_id, "phase", phase, expected)
+    if row["merged_into"] != target:
+        tx.execute("UPDATE usecases SET merged_into = ?, updated_at = ? WHERE id = ?", (target, now_ts(), usecase_id))
+        tx.audit("usecases", usecase_id, "merged_into", row["merged_into"], target)
+        changed = True
+    tx.bump = changed
+
+
+def set_criterion_score(tx, usecase_id, criterion, label, value) -> None:
+    """Speichert einen Einzelscore (Kriterien aus standort.json, Abschnitt score)."""
+    value = clean_number(value)
+    if tx.execute("SELECT 1 FROM usecases WHERE id = ?", (usecase_id,)).fetchone() is None:
+        raise LookupError(f"Use Case {usecase_id} nicht gefunden.")
+    row = tx.execute("SELECT value FROM usecase_scores WHERE usecase_id = ? AND criterion = ?",
+                     (usecase_id, criterion)).fetchone()
+    old = row[0] if row else None
+    if old == value:
+        tx.bump = False
+        return
+    tx.execute("INSERT INTO usecase_scores (usecase_id, criterion, value) VALUES (?, ?, ?) "
+               "ON CONFLICT (usecase_id, criterion) DO UPDATE SET value = excluded.value",
+               (usecase_id, criterion, value))
+    tx.execute("UPDATE usecases SET updated_at = ? WHERE id = ?", (now_ts(), usecase_id))
+    tx.audit("usecases", usecase_id, f"Score {label}", old, value)
+
+
+# --- Unterlisten eines Use Cases: Meilensteine, Updatehistorie, Links ---------------
+
+SUBLISTS = {
+    "milestones": {"label": "Meilenstein", "name": "title", "order": "sort_order, planned_date, id",
+                   "fields": {"title": "Titel", "planned_date": "geplant", "done_date": "erledigt am"}},
+    "releases": {"label": "Update", "name": "version", "order": "date DESC, id DESC",
+                 "fields": {"date": "Datum", "version": "Version", "change": "Änderung", "released_by": "durch"}},
+    "links": {"label": "Link", "name": "label", "order": "id",
+              "fields": {"label": "Bezeichnung", "url": "Adresse"}},
+}
+
+
+def _clean_sub(table, field, value) -> str:
+    if field not in SUBLISTS[table]["fields"]:
+        raise KeyError(f"Feld nicht änderbar: {table}.{field}")
+    if field in DATE_FIELDS:
+        return clean_date(value)
+    if field == "url":
+        return clean_url(value)
+    return clean_text(value)
+
+
+def _describe_sub(table, row) -> str:
+    parts = [f"{label}: {row[field]}" for field, label in SUBLISTS[table]["fields"].items() if row[field]]
+    return "; ".join(parts) or "(leer)"
+
+
+def sub_list(conn, table, usecase_id) -> list:
+    spec = SUBLISTS[table]
+    return [dict(row) for row in conn.execute(
+        f"SELECT * FROM {table} WHERE usecase_id = ? ORDER BY {spec['order']}", (usecase_id,))]
+
+
+def sub_add(tx, table, usecase_id, values) -> int:
+    spec = SUBLISTS[table]
+    if tx.execute("SELECT 1 FROM usecases WHERE id = ?", (usecase_id,)).fetchone() is None:
+        raise LookupError(f"Use Case {usecase_id} nicht gefunden.")
+    clean = {field: _clean_sub(table, field, (values or {}).get(field)) for field in spec["fields"]}
+    if not any(clean.values()):
+        raise ValueError("Bitte mindestens ein Feld ausfüllen.")
+    names = ["usecase_id"] + list(clean)
+    cursor = tx.execute(f"INSERT INTO {table} ({', '.join(names)}) VALUES ({', '.join('?' * len(names))})",
+                        [usecase_id] + list(clean.values()))
+    tx.execute("UPDATE usecases SET updated_at = ? WHERE id = ?", (now_ts(), usecase_id))
+    tx.audit("usecases", usecase_id, spec["label"], "", _describe_sub(table, clean))
+    return cursor.lastrowid
+
+
+def _sub_row(tx, table, row_id):
+    if table not in SUBLISTS:
+        raise KeyError(table)
+    row = tx.execute(f"SELECT * FROM {table} WHERE id = ?", (row_id,)).fetchone()
+    if row is None:
+        raise LookupError(f"{SUBLISTS[table]['label']} nicht gefunden.")
+    return row
+
+
+def sub_update(tx, table, row_id, field, value, expected=_MISSING) -> str:
+    """Ändert ein Feld einer Unterlisten-Zeile. Rückgabe: ID des Use Cases."""
+    spec = SUBLISTS[table]
+    row = _sub_row(tx, table, row_id)
+    new = _clean_sub(table, field, value)
+    old = row[field]
+    if expected is not _MISSING and _as_text(expected) != _as_text(old):
+        raise StaleValue(old)
+    if new == old:
+        tx.bump = False
+        return row["usecase_id"]
+    tx.execute(f"UPDATE {table} SET {field} = ? WHERE id = ?", (new, row_id))
+    tx.execute("UPDATE usecases SET updated_at = ? WHERE id = ?", (now_ts(), row["usecase_id"]))
+    name = row[spec["name"]] or f"Nr. {row_id}"
+    tx.audit("usecases", row["usecase_id"], f"{spec['label']} ‚{name}‘: {spec['fields'][field]}", old, new)
+    return row["usecase_id"]
+
+
+def sub_delete(tx, table, row_id) -> str:
+    spec = SUBLISTS[table]
+    row = _sub_row(tx, table, row_id)
+    tx.execute(f"DELETE FROM {table} WHERE id = ?", (row_id,))
+    tx.execute("UPDATE usecases SET updated_at = ? WHERE id = ?", (now_ts(), row["usecase_id"]))
+    tx.audit("usecases", row["usecase_id"], spec["label"], _describe_sub(table, row), "gelöscht")
+    return row["usecase_id"]
