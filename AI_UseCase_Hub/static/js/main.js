@@ -8,6 +8,7 @@ import { renderUsecases } from "./views/usecases.js";
 import { renderTickets } from "./views/tickets.js";
 import { renderAdmin } from "./views/admin.js";
 import { renderSearch } from "./views/search.js";
+import { renderPrint } from "./views/print.js";
 
 const HEARTBEAT_MS = 15000;
 const main = document.getElementById("main");
@@ -31,6 +32,7 @@ const AREAS = {
   tickets: renderTickets,
   verwaltung: renderAdmin,
   suche: renderSearch,
+  druck: renderPrint,
 };
 
 function parseHash() {
@@ -91,6 +93,16 @@ function renderBands() {
           ? h("button", { class: "btn", type: "button", onclick: restoreBackup }, "Jüngstes gültiges Backup wiederherstellen")
           : null));
     }
+    const pending = state.handover_pending;
+    if (pending) {
+      const who = pending.user ? `von ${pending.user} an ${pending.machine}, ${formatTs(pending.ts)}` : "eines anderen Rechners";
+      const diverged = pending.situation === "auseinander";
+      items.push(band(diverged ? "red" : "amber", "alert",
+        diverged ? `Achtung: Im Team-Ordner liegt ein anderer Stand (${who}), und lokal gibt es ${pending.local_unpublished} unveröffentlichte Änderungen. Es wird nie automatisch zusammengeführt.`
+          : `Im Team-Ordner liegt ein neuerer Stand ${who}.`,
+        [h("button", { class: "btn", type: "button", onclick: () => decide("uebernehmen", diverged) }, "Geteilten Stand übernehmen"),
+          diverged ? h("button", { class: "btn", type: "button", onclick: () => decide("behalten", true) }, "Eigenen Stand behalten und veröffentlichen") : null]));
+    }
     for (const warning of state.warnings || []) items.push(band("amber", "alert", warning));
   }
   bands.replaceChildren(...items);
@@ -135,6 +147,21 @@ async function restoreBackup() {
   if (!window.confirm("Die beschädigte Datenbank durch das jüngste gültige Backup ersetzen? Die beschädigte Datei bleibt unter neuem Namen im Datenordner erhalten.")) return;
   try {
     await api("POST", "/api/backups/restore");
+  } catch (error) {
+    window.alert(error.message);
+  }
+  await app.refreshState();
+  route();
+}
+
+// Rückfrage ist hier vorgesehen: Ein Stand wird übernommen oder verworfen (Konzept 9.7).
+async function decide(choice, diverged) {
+  const text = choice === "uebernehmen"
+    ? `Den geteilten Stand übernehmen? Die lokale Datenbank wird vorher gesichert${diverged ? "; die lokalen unveröffentlichten Änderungen sind danach nur noch im Backup" : ""}.`
+    : "Den eigenen Stand behalten und veröffentlichen? Der andere Stand bleibt als Backup erhalten, seine Änderungen fehlen danach im Hub.";
+  if (!window.confirm(text)) return;
+  try {
+    await api("POST", "/api/handover/decide", { choice });
   } catch (error) {
     window.alert(error.message);
   }

@@ -485,3 +485,140 @@ class Importer:
 
     def states(self) -> list:
         return [dict(self.state[key], path=str(self.path_for(key) or "")) for key in SOURCES]
+
+
+# --- Einmalige Migration der bisherigen Pflegeinformationen (Phase 6) -------------------------
+# Liest die Pflegespalten der bisherigen Excel (standort.json, Abschnitt migration) über die ID.
+# Der Abgleichsbericht schreibt nichts; geschrieben wird erst mit migration_apply.
+
+_SCORE_PREFIX = "score_"
+
+
+def _phase_lookup(site) -> dict:
+    lists = site.get("value_lists") if isinstance(site.get("value_lists"), dict) else {}
+    entries = (lists.get("phase") or {}).get("entries") if isinstance(lists.get("phase"), dict) else []
+    lookup = {}
+    for entry in entries or []:
+        if isinstance(entry, dict) and entry.get("key"):
+            for name in [entry["key"], entry.get("label", "")] + list(entry.get("aliases") or []):
+                if isinstance(name, str) and name.strip():
+                    lookup[name.strip().casefold()] = entry["key"]
+    return lookup
+
+
+def migration_report(database, site, path, tmp_dir, copy=shutil.copyfile) -> dict:
+    """Abgleichsbericht: übernehmbare, nicht zuordenbare und widersprüchliche Angaben."""
+    columns = site.get("columns") if isinstance(site.get("columns"), dict) else {}
+    usecases = columns.get("usecases") if isinstance(columns.get("usecases"), dict) else {}
+    id_column = (usecases.get("fields") or {}).get("id")
+    migration = site.get("migration") if isinstance(site.get("migration"), dict) else {}
+    wanted = {f: c for f, c in (migration.get("columns") or {}).items() if isinstance(c, str) and c.strip()}
+    if path is None:
+        raise SourceError("nicht_eingerichtet", "Quelle 1 ist nicht eingerichtet (Verwaltung → Einstellungen).")
+    if not id_column or not wanted:
+        raise SourceError("zuordnung_fehlt", "In standort.json fehlen die ID-Spalte (columns.usecases) oder die "
+                          "Pflegespalten (migration.columns).")
+    wanted = dict(wanted, id=id_column)
+    Path(tmp_dir).mkdir(parents=True, exist_ok=True)
+    tmp = Path(tmp_dir) / f"migration_{threading.get_ident()}.xlsx"
+    try:
+        copy(str(path), str(tmp))
+        data = parse_workbook(tmp, wanted, usecases.get("id_prefix") or "UC-", "Quelle 1")
+    except SourceError:
+        raise
+    except Exception as exc:
+        raise SourceError("nicht_lesbar", f"Quelle 1 konnte für die Migration nicht gelesen werden: {_describe(exc)}.") from None
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+    phases = _phase_lookup(site)
+    labels = {c["key"]: c.get("label", c["key"]) for c in (site.get("score") or {}).get("criteria", [])
+              if isinstance(c, dict) and c.get("key")}
+    report = {"rows": data.row_count, "apply": [], "unassigned": [], "conflicts": [], "unchanged": 0}
+    if data.missing_id:
+        report["unassigned"].append({"id": "", "reason": f"{data.missing_id} Zeile(n) ohne ID"})
+    with database.read() as conn:
+        hub = {row["id"]: row for row in conn.execute("SELECT * FROM usecases")}
+        scores = {}
+        for row in conn.execute("SELECT usecase_id, criterion, value FROM usecase_scores"):
+            scores.setdefault(row["usecase_id"], {})[row["criterion"]] = row["value"]
+    for record in data.rows:
+        current = hub.get(record["id"])
+        if current is None:
+            report["unassigned"].append({"id": record["id"], "reason": "ID im Hub nicht vorhanden – zuerst importieren"})
+            continue
+        changes = []
+
+        def offer(target, label, value, hub_value, kind="field"):
+            """Leere Hub-Felder werden gefüllt; abweichende Werte sind ein Widerspruch und bleiben unangetastet."""
+            if value in ("", None):
+                return
+            if hub_value in ("", None):
+                changes.append({"target": target, "label": label, "value": value, "kind": kind})
+            elif str(hub_value) != str(value) and not (kind != "field" and float(hub_value) == float(value)):
+                report["conflicts"].append({"id": record["id"], "label": label, "hub": hub_value, "source": value})
+
+        def number(text, label):
+            try:
+                return dbm.clean_number(text)
+            except ValueError:
+                report["unassigned"].append({"id": record["id"], "reason": f"{label}: „{text}“ ist keine Zahl"})
+                return None
+
+        offer("owner", "Owner", record.get("owner", ""), current["owner"])
+        if record.get("summary"):
+            offer("description", "Beschreibung (aus AI Summary)", record["summary"], current["description"])
+        if record.get("score"):
+            value = number(record["score"], "Gesamtscore")
+            if value is not None and (current["score"] is None or float(current["score"]) != value):
+                offer("score", "Score", value, current["score"], "number")
+        for field, text in record.items():
+            if field.startswith(_SCORE_PREFIX) and text:
+                key = field[len(_SCORE_PREFIX):]
+                value = number(text, labels.get(key, key))
+                have = scores.get(record["id"], {}).get(key)
+                if value is not None and (have is None or float(have) != value):
+                    offer(key, f"Score {labels.get(key, key)}", value, have, "criterion")
+        status = record.get("phase", "")
+        if status:
+            mapped = phases.get(status.casefold())
+            if mapped is None:
+                report["unassigned"].append({"id": record["id"], "reason": f"Status „{status}“ ist keiner Phase "
+                                             "zugeordnet (Alias in standort.json, value_lists.phase, ergänzen)"})
+            elif mapped != current["phase"]:
+                if current["phase"] == "Eingang":
+                    changes.append({"target": "phase", "label": "Phase", "value": mapped, "kind": "field"})
+                else:
+                    report["conflicts"].append({"id": record["id"], "label": "Phase", "hub": current["phase"], "source": mapped})
+        extra = []
+        if record.get("internal_title") and record["internal_title"] != current["title"]:
+            extra.append(f"Interner Titel: {record['internal_title']}")
+        if record.get("lifecycle_required"):
+            extra.append(f"Life Cycle erforderlich nach Implementierung: {record['lifecycle_required']}")
+        line = "Aus der bisherigen Excel – " + "; ".join(extra) if extra else ""
+        if line and line not in current["notes"]:
+            changes.append({"target": "notes", "label": "Notizen", "kind": "field",
+                            "value": f"{current['notes']}\n{line}".strip()})
+        if changes:
+            report["apply"].append({"id": record["id"], "title": current["title"], "changes": changes})
+        else:
+            report["unchanged"] += 1
+    return report
+
+
+def migration_apply(database, report, user, machine) -> dict:
+    """Schreibt die übernehmbaren Angaben aus dem Bericht – in einer Transaktion, mit Audit."""
+    written = 0
+    with database.write(user=user, machine=machine, source="import") as tx:
+        for entry in report["apply"]:
+            for change in entry["changes"]:
+                if change["kind"] == "criterion":
+                    dbm.set_criterion_score(tx, entry["id"], change["target"], change["label"].replace("Score ", ""), change["value"])
+                else:
+                    dbm.update_field(tx, "usecases", entry["id"], change["target"], change["value"])
+                written += 1
+        tx.bump = written > 0
+    return {"usecases": len(report["apply"]), "values": written}

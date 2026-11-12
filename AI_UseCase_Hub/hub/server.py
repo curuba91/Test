@@ -1166,6 +1166,28 @@ def api_sitefile_put(app, body):
     return api_sitefile_get(app, {"file": name})
 
 
+# --- Migration (Phase 6) -----------------------------------------------------------------
+
+
+def _migration_report(app):
+    database = app.require_db()
+    try:
+        return importer.migration_report(database, app.cfg.site, app.source_path("usecases"), app.data_root / "tmp")
+    except importer.SourceError as exc:
+        raise ApiError(409, "not_possible", str(exc)) from None
+
+
+def api_migration_preview(app, _body):
+    """Abgleichsbericht. Schreibt nichts."""
+    return _migration_report(app)
+
+
+def api_migration_apply(app, _body):
+    report = _migration_report(app)
+    result = importer.migration_apply(app.db, report, app.user, app.machine)
+    return dict(result, conflicts=len(report["conflicts"]), unassigned=len(report["unassigned"]))
+
+
 def api_heartbeat(app, _body):
     app.beat()
     return {"ok": True}
@@ -1204,6 +1226,8 @@ ROUTES = [
     ("POST", re.compile(r"^/api/usecases/([^/]+)/(milestones|releases|links)$"), api_sub_add),
     ("PATCH", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_patch),
     ("DELETE", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_delete),
+    ("GET", re.compile(r"^/api/migration/preview$"), api_migration_preview),
+    ("POST", re.compile(r"^/api/migration/apply$"), api_migration_apply),
     ("GET", re.compile(r"^/api/handover$"), api_handover),
     ("POST", re.compile(r"^/api/handover/decide$"), api_handover_decide),
     ("POST", re.compile(r"^/api/handover/users$"), api_handover_users),

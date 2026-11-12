@@ -7,14 +7,17 @@ import { renderSources } from "./admin_sources.js";
 import { renderConflicts } from "./admin_conflicts.js";
 import { renderLog } from "./admin_log.js";
 
-const BUILT = { quellen: renderSources, konflikte: renderConflicts, protokoll: renderLog };
+import { renderExport } from "./admin_export.js";
+import { renderHandover } from "./admin_handover.js";
+
+const BUILT = { quellen: renderSources, konflikte: renderConflicts, protokoll: renderLog, export: renderExport, uebergabe: renderHandover };
 
 const PAGES = [
   ["quellen", "Quellen & Import", ""],
   ["konflikte", "Konflikte", ""],
   ["protokoll", "Protokoll", ""],
-  ["export", "Export & Bericht", "Hier entstehen Reporting-Excel, Druckansicht und die Auswahlliste für das Ticket-Formular (Phase 5)."],
-  ["uebergabe", "Übergabe & Backups", "Hier stehen Übergabestand, Sperre und die Backups zum Wiederherstellen (Phase 5)."],
+  ["export", "Export & Bericht", ""],
+  ["uebergabe", "Übergabe & Backups", ""],
   ["einstellungen", "Einstellungen", ""],
 ];
 
@@ -219,6 +222,27 @@ async function renderSettings(box, app) {
       note);
   }
 
+  function fileEditor(file, title) {
+    const area = h("textarea", { rows: "16", spellcheck: "false", "aria-label": title, class: "code", disabled: readOnly });
+    const result = h("div", { role: "status" });
+    const body = h("div", { class: "stack-tight", hidden: true }, area, h("div", { class: "toolbar" },
+      h("button", { class: "btn", type: "button", disabled: readOnly, onclick: async () => {
+        try {
+          area.value = (await api("PUT", "/api/sitefile", { file, text: area.value })).text;
+          await app.refreshState();
+          result.replaceChildren(h("p", { class: "field-note ok" }, icon("check"), h("span", null, "Geprüft und gespeichert.")));
+        } catch (error) {
+          result.replaceChildren(h("p", { class: "field-note bad" }, icon("alert"), h("span", null, error.message)));
+        }
+      } }, "Prüfen und speichern")), result);
+    const toggle = h("button", { class: "btn", type: "button", "aria-expanded": "false", onclick: async () => {
+      body.hidden = !body.hidden;
+      toggle.setAttribute("aria-expanded", String(!body.hidden));
+      if (!body.hidden) area.value = (await api("GET", `/api/sitefile?file=${file}`)).text;
+    } }, title);
+    return h("div", { class: "stack-tight" }, h("div", null, toggle), body);
+  }
+
   function siteSection() {
     const site = settings.site;
     const rows = [
@@ -231,8 +255,10 @@ async function renderSettings(box, app) {
       h("h2", null, "Standortkonfiguration",
         h("span", { class: "count" }, `(${site.errors.length} Fehler, ${site.open.length} offen)`)),
       h("p", { class: "muted" }, "Wertelisten, Spaltenzuordnung, Stichtag und Bezeichnungen stehen in ",
-        h("code", null, "standort.json"), " im Programmordner. Wie die Datei angepasst wird, beschreibt ",
-        h("code", null, "ANPASSUNG.md"), ". Die Bearbeitung in dieser Oberfläche folgt in Phase 5."),
+        h("code", null, "standort.json"), ", das Regelwerk des Vorabchecks in ", h("code", null, "validation_rules.json"),
+        ". Beide lassen sich hier bearbeiten oder nach ", h("code", null, "ANPASSUNG.md"), " per KI anpassen. Gespeichert wird nur, was die Prüfung besteht."),
+      fileEditor("standort", "standort.json bearbeiten"),
+      fileEditor("regeln", "validation_rules.json bearbeiten"),
       rows.length ? h("ul", { class: "check-list" }, rows)
         : emptyState("Die Standortkonfiguration ist vollständig und fehlerfrei."));
   }

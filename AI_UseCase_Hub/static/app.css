@@ -337,3 +337,15 @@ textarea[readonly] { background: var(--bg); width: 100%; }
   .cols { grid-template-columns: minmax(0, 1fr); }
   .search { width: 140px; }
 }
+
+/* --- Druckansicht und Editor ------------------------------------------------ */
+.pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+textarea.code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 14px; width: 100%; }
+.panel > textarea { width: 100%; }
+.band { flex-wrap: wrap; }
+@media print {
+  .topbar, #bands, .no-print, .skip-link { display: none !important; }
+  body { background: #fff; }
+  #main { padding: 0; max-width: none; }
+  .panel { border: none; padding: 0 0 var(--s4) 0; break-inside: avoid; }
+}

@@ -38,6 +38,17 @@ export async function renderSources(box, app) {
               icon(source.state === "ok" ? "circle" : "alert"), h("span", null, source.message)) : null))),
         h("p", { class: "muted" }, "Die Quell-Excels werden nur gelesen, über eine temporäre Kopie. Geprüft wird automatisch, sobald sich eine Datei ändert.")),
       h("section", { class: "panel" },
+        h("h2", null, "Einmalige Migration der bisherigen Pflegeangaben"),
+        h("p", { class: "muted" }, "Liest Verantwortliche Person, Scores, Status und weitere Pflegespalten aus Quelle 1 und ordnet sie über die ID zu. Erst der Abgleich, dann die Bestätigung; leere Felder im Hub werden gefüllt, vorhandene nie überschrieben."),
+        h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", onclick: async () => {
+          try {
+            drawReport(await api("GET", "/api/migration/preview"));
+          } catch (error) {
+            migration.replaceChildren(h("p", { class: "field-note bad" }, icon("alert"), h("span", null, error.message)));
+          }
+        } }, "Abgleich prüfen")),
+        migration),
+      h("section", { class: "panel" },
         h("h2", null, "Letzte Läufe"),
         data.items.length ? table([
           { label: "Zeit", value: (r) => formatTs(r.ts) },
@@ -51,6 +62,30 @@ export async function renderSources(box, app) {
           { label: "Ohne ID", num: true, value: (r) => r.missing_id },
           { label: "Hinweis", value: (r) => r.message },
         ], data.items) : emptyState("Noch kein Importlauf. Der erste Lauf startet automatisch, sobald die Quellen eingerichtet sind, oder über „Jetzt importieren“.")));
+  }
+
+  const migration = h("div", { class: "stack-tight" });
+
+  function drawReport(report) {
+    const rows = [
+      ...report.apply.map((e) => ({ kind: "übernehmen", id: e.id, text: e.changes.map((c) => `${c.label}: ${String(c.value).split("\n").pop()}`).join(" · ") })),
+      ...report.conflicts.map((c) => ({ kind: "Widerspruch", id: c.id, text: `${c.label}: im Hub „${c.hub}“, in der Excel „${c.source}“ – bleibt unverändert` })),
+      ...report.unassigned.map((u) => ({ kind: "nicht zuordenbar", id: u.id || "–", text: u.reason })),
+    ];
+    migration.replaceChildren(
+      h("p", null, `Abgleich: ${report.apply.length} Use Cases mit übernehmbaren Angaben, ${report.conflicts.length} Widersprüche, ${report.unassigned.length} nicht zuordenbar, ${report.unchanged} ohne Änderung. Bisher wurde nichts geschrieben.`),
+      rows.length ? table([{ label: "Ergebnis", value: (r) => r.kind }, { label: "ID", value: (r) => r.id }, { label: "Angabe", value: (r) => r.text }], rows) : null,
+      report.apply.length ? h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", disabled: readOnly, onclick: async () => {
+        if (!window.confirm(`Angaben für ${report.apply.length} Use Cases in den Hub übernehmen? Widersprüche und nicht zuordenbare Zeilen bleiben unberührt.`)) return;
+        try {
+          const done = await api("POST", "/api/migration/apply");
+          await app.refreshState();
+          migration.replaceChildren(h("p", { class: "field-note ok" }, icon("check"),
+            h("span", null, `${done.values} Angaben für ${done.usecases} Use Cases übernommen. Ab jetzt gehören diese Felder dem Hub; die Pflegespalten der Excel werden nicht mehr gelesen.`)));
+        } catch (error) {
+          migration.replaceChildren(h("p", { class: "field-note bad" }, icon("alert"), h("span", null, error.message)));
+        }
+      } }, "Übernehmen")) : null);
   }
 
   async function finish(steps) {
