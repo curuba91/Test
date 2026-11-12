@@ -3,11 +3,16 @@
 
 import { api } from "../api.js";
 import { h, icon, emptyState, pageHead } from "../dom.js";
+import { renderSources } from "./admin_sources.js";
+import { renderConflicts } from "./admin_conflicts.js";
+import { renderLog } from "./admin_log.js";
+
+const BUILT = { quellen: renderSources, konflikte: renderConflicts, protokoll: renderLog };
 
 const PAGES = [
-  ["quellen", "Quellen & Import", "Hier stehen der Zustand beider Quell-Excels und die letzten Importläufe (Phase 1)."],
-  ["konflikte", "Konflikte", "Hier erscheinen Felder, bei denen Quelle und Hub voneinander abweichen, zur Entscheidung per Klick (Phase 1)."],
-  ["protokoll", "Protokoll", "Hier stehen alle Änderungen und Fehler, filterbar (Phase 1)."],
+  ["quellen", "Quellen & Import", ""],
+  ["konflikte", "Konflikte", ""],
+  ["protokoll", "Protokoll", ""],
   ["export", "Export & Bericht", "Hier entstehen Reporting-Excel, Druckansicht und die Auswahlliste für das Ticket-Formular (Phase 5)."],
   ["uebergabe", "Übergabe & Backups", "Hier stehen Übergabestand, Sperre und die Backups zum Wiederherstellen (Phase 5)."],
   ["einstellungen", "Einstellungen", ""],
@@ -23,10 +28,10 @@ export async function renderAdmin(view, rest, app) {
     pageHead("Verwaltung"),
     h("nav", { class: "subnav", "aria-label": "Verwaltung" }, PAGES.map(([key, label]) =>
       h("a", { href: `#/verwaltung/${key}`, "aria-current": key === current[0] ? "page" : null }, label))));
-  if (current[0] === "einstellungen") {
+  if (current[0] === "einstellungen" || BUILT[current[0]]) {
     const box = h("div", { class: "stack" });
     view.append(box);
-    await renderSettings(box, app);
+    await (BUILT[current[0]] || renderSettings)(box, app);
   } else {
     view.append(h("section", { class: "panel" }, h("h2", null, current[1]), emptyState(current[2])));
   }
@@ -49,7 +54,12 @@ async function renderSettings(box, app) {
           h("dt", null, "Lokaler Datenordner"), h("dd", null, settings.data_dir)),
         Object.entries(settings.paths).map(([key, info]) => pathField(key, info)),
         publishRow()),
-      h("section", { class: "panel" }, h("h2", null, "Betrieb"), shutdownField()),
+      h("section", { class: "panel" }, h("h2", null, "Betrieb"),
+        numberField("auto", "auto_shutdown_minutes", "Automatisch beenden nach", "Minuten", 0, 240,
+          "Minuten ohne offenen Browser-Tab, nach denen sich der Hub selbst beendet. 0 schaltet das ab."),
+        numberField("interval", "import_interval_seconds", "Quellen prüfen alle", "Sekunden", 5, 3600,
+          "Abstand, in dem der Hub prüft, ob sich eine Quell-Excel geändert hat."),
+        testModeField()),
       siteSection());
     if (focusKey) {
       const target = box.querySelector(`[data-focus="${focusKey}"]`);
@@ -180,19 +190,32 @@ async function renderSettings(box, app) {
     return h("div", { class: "field" }, h("div", { class: "field-row" }, button), note);
   }
 
-  function shutdownField() {
-    const id = "auto-shutdown";
-    const note = h("p", { class: "field-note", id: `${id}-note`, role: "status" },
-      h("span", null, "Minuten ohne offenen Browser-Tab, nach denen sich der Hub selbst beendet. 0 schaltet das ab."));
+  function numberField(focusKey, name, label, unit, min, max, hint) {
+    const id = `setting-${name}`;
+    const note = h("p", { class: "field-note", id: `${id}-note`, role: "status" }, h("span", null, hint));
     const input = h("input", {
-      type: "number", id, min: "0", max: "240", step: "1", value: String(settings.auto_shutdown_minutes),
-      disabled: readOnly, "data-focus": "auto", "aria-describedby": `${id}-note`,
-      onchange: () => save({ auto_shutdown_minutes: Number(input.value) }, note, input, "auto"),
+      type: "number", id, min: String(min), max: String(max), step: "1", value: String(settings[name]),
+      disabled: readOnly, "data-focus": focusKey, "aria-describedby": `${id}-note`,
+      onchange: () => save({ [name]: Number(input.value) }, note, input, focusKey),
     });
     return h("div", { class: "field" },
-      h("label", { for: id }, "Automatisch beenden nach"),
-      h("div", { class: "field-row" }, input, h("span", null, "Minuten"),
-        h("span", { class: "saved", "data-saved": "auto", role: "status" })),
+      h("label", { for: id }, label),
+      h("div", { class: "field-row" }, input, h("span", null, unit),
+        h("span", { class: "saved", "data-saved": focusKey, role: "status" })),
+      note);
+  }
+
+  function testModeField() {
+    const id = "setting-test-mode";
+    const note = h("p", { class: "field-note", id: `${id}-note`, role: "status" },
+      h("span", null, `Arbeitet auf einer eigenen Datenbank mit erfundenen Beispieldaten unter ${settings.test_dir}. Die echte Datenbank und die echten Quellen werden im Testmodus nicht geöffnet.`));
+    const input = h("input", {
+      type: "checkbox", id, checked: settings.test_mode, "data-focus": "test", "aria-describedby": `${id}-note`,
+      onchange: () => save({ test_mode: input.checked }, note, input, "test"),
+    });
+    return h("div", { class: "field" },
+      h("div", { class: "checkline" }, input, h("label", { for: id }, "Testmodus"),
+        h("span", { class: "saved", "data-saved": "test", role: "status" })),
       note);
   }
 

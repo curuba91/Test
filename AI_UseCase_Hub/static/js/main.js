@@ -2,13 +2,13 @@
 // Geschäftsregeln gibt es hier nicht; angezeigt wird, was die API liefert.
 
 import { api, onConnectionProblem } from "./api.js";
-import { h, add, icon } from "./dom.js";
+import { h, add, icon, formatTs } from "./dom.js";
 import { renderStart } from "./views/start.js";
 import { renderUsecases } from "./views/usecases.js";
 import { renderTickets } from "./views/tickets.js";
 import { renderAdmin } from "./views/admin.js";
 
-const HEARTBEAT_MS = 30000;
+const HEARTBEAT_MS = 15000;
 const main = document.getElementById("main");
 const bands = document.getElementById("bands");
 const tools = document.getElementById("tools");
@@ -83,7 +83,11 @@ function renderBands() {
   if (state) {
     if (state.test_mode) items.push(band("amber", "alert", "TESTMODUS – es wird mit Beispieldaten gearbeitet"));
     if (state.mode === "nur-lesen") {
-      items.push(band("amber", "lock", `Nur-Lese-Modus${state.read_only_reason ? ": " + state.read_only_reason : ""}`));
+      items.push(band(state.db_state === "ok" ? "amber" : "red", "lock",
+        `Nur-Lese-Modus${state.read_only_reason ? ": " + state.read_only_reason : ""}`,
+        state.db_state === "defekt"
+          ? h("button", { class: "btn", type: "button", onclick: restoreBackup }, "Jüngstes gültiges Backup wiederherstellen")
+          : null));
     }
     for (const warning of state.warnings || []) items.push(band("amber", "alert", warning));
   }
@@ -109,12 +113,24 @@ function renderTools() {
     h("div", { class: "status-panel" },
       h("dl", { class: "stat-list" },
         h("div", null, h("dt", null, "Angemeldet"), h("dd", null, `${state.user} an ${state.machine}`)),
-        h("div", null, h("dt", null, "Letzter Import"), h("dd", null, state.last_import || "noch keiner")),
+        h("div", null, h("dt", null, "Letzter Import"), h("dd", null, formatTs(state.last_import) || "noch keiner")),
         h("div", null, h("dt", null, "Automatisches Ende"),
           h("dd", null, minutes ? `nach ${minutes} min ohne Tab` : "aus")),
         h("div", null, h("dt", null, "Version"), h("dd", null, state.version))),
       h("button", { class: "btn", type: "button", onclick: shutdown }, icon("power"), "Hub beenden")));
   tools.replaceChildren(search, create, menu);
+}
+
+// Rückfrage ist hier vorgesehen: Ein Stand wird verworfen (Konzept 9.7).
+async function restoreBackup() {
+  if (!window.confirm("Die beschädigte Datenbank durch das jüngste gültige Backup ersetzen? Die beschädigte Datei bleibt unter neuem Namen im Datenordner erhalten.")) return;
+  try {
+    await api("POST", "/api/backups/restore");
+  } catch (error) {
+    window.alert(error.message);
+  }
+  await app.refreshState();
+  route();
 }
 
 async function shutdown() {
@@ -131,14 +147,22 @@ async function shutdown() {
     h("p", null, "Dieses Fenster kann geschlossen werden. Neustart per Doppelklick auf AI_UseCase_Hub.pyw.")));
 }
 
+function stamp(state) {
+  return state ? `${state.revision}|${state.last_import}|${state.mode}|${state.db_state}|${state.test_mode}` : "";
+}
+
+// Seiten, die sich selbst aktualisieren, wenn ein Import neue Daten gebracht hat.
+const LIVE = ["#/start", "#/verwaltung/quellen", "#/verwaltung/konflikte"];
+
 async function heartbeat() {
   if (app.connection === "ended" || app.connection === "token") return;
   try {
     await api("POST", "/api/heartbeat");
-    if (app.connection === "offline") {
-      app.connection = "ok";
-      renderBands();
-    }
+    if (app.connection === "offline") app.connection = "ok";
+    const before = stamp(app.state);
+    await app.refreshState();
+    const typing = ["INPUT", "SELECT", "TEXTAREA"].includes((document.activeElement || {}).tagName);
+    if (before !== stamp(app.state) && !typing && LIVE.some((prefix) => location.hash.startsWith(prefix))) route();
   } catch (error) {
     // onConnectionProblem setzt das Band
   }

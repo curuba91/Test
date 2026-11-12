@@ -56,10 +56,13 @@ class HubTestCase(unittest.TestCase):
     def make_config(self) -> Config:
         return Config(program_dir=self.program, data_dir=self.data)
 
-    def start(self, cfg=None):
+    def start(self, cfg=None, data=False):
         app, running = server.bind(cfg or self.make_config(), self.base_port)
         if app is None:
             return None, running
+        if data:  # Datenbank öffnen; den Import stoßen die Tests selbst an
+            app.autostart_import = False
+            app.open_data()
         thread = threading.Thread(target=app.serve, daemon=True)
         thread.start()
         self.apps.append((app, thread))

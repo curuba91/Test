@@ -16,6 +16,7 @@
     "team_folder": ".."
   },
   "deadline": {
+    "_hinweis": "HIER DEN STICHTAG EINTRAGEN: \"date\" im Format JJJJ-MM-TT, zum Beispiel \"2027-06-30\". Solange dort null steht, meldet Regel H09 fehlende Einordnungen ohne Frist. \"lead_days\" = Tage vor dem Stichtag, ab denen H09 blockierend wird.",
     "date": null,
     "lead_days": 60
   },
@@ -123,9 +124,10 @@
     }
   },
   "columns": {
-    "_hinweis": "Zuordnung Hub-Feld -> Spaltenname in der Quell-Excel. null = Spalte gibt es (noch) nicht. Leerzeichen am Rand und Groß-/Kleinschreibung werden beim Abgleich ignoriert.",
+    "_hinweis": "Zuordnung Hub-Feld -> Spaltenname in der Quell-Excel. null = Spalte gibt es (noch) nicht. Leerzeichen am Rand und Groß-/Kleinschreibung werden beim Abgleich ignoriert. Die ID-Spalte füllt der Flow mit der Formular-Antwort-ID; aus 7 wird mit id_prefix UC-007.",
     "usecases": {
-      "status": "PLATZHALTER",
+      "status": "VORSCHLAG",
+      "id_prefix": "UC-",
       "fields": {
         "id": "ID",
         "title": "Titel Use Case",
@@ -139,14 +141,15 @@
       }
     },
     "tickets": {
-      "status": "PLATZHALTER",
+      "status": "VORSCHLAG",
+      "id_prefix": "T-",
       "fields": {
-        "id": null,
-        "title": null,
-        "description": null,
-        "reporter": null,
-        "affected_tool_raw": null,
-        "submitted_at": null
+        "id": "ID",
+        "title": "Titel",
+        "description": "Beschreibung",
+        "affected_tool_raw": "Betroffenes Tool",
+        "reporter": "Melder:in",
+        "submitted_at": "Gemeldet am"
       }
     }
   },

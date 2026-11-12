@@ -16,9 +16,10 @@ import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import APP_ID, APP_VERSION, rules
+from . import APP_ID, APP_VERSION, audit, handover, importer, rules, testdata
+from . import db as dbm
 from .config import PATH_KEYS, Config
 
 PORT_ATTEMPTS = 10
@@ -53,6 +54,8 @@ class ApiError(Exception):
 class HubApp:
     """Zustand eines laufenden Hubs."""
 
+    autostart_import = True  # Tests schalten den Hintergrund-Import ab
+
     def __init__(self, cfg: Config):
         self.cfg = cfg
         self.token = secrets.token_urlsafe(32)
@@ -67,11 +70,24 @@ class HubApp:
         self._last_beat = time.monotonic()
         self._stop = threading.Event()
         self._lock = threading.Lock()
+        self._data_lock = threading.RLock()
+        self.data_ready = threading.Event()  # gelöscht, solange die Datenbank beim Start geöffnet wird
+        self.data_ready.set()
         try:
             self.user = getpass.getuser()
         except Exception:  # kein Benutzername ermittelbar
             self.user = "unbekannt"
         self.machine = platform.node() or "unbekannt"
+        # Datenschicht (open_data)
+        self.db = None
+        self.importer = None
+        self.db_state = "geschlossen"
+        self.db_message = ""
+        self.test_mode = False
+        self.data_root = cfg.data_dir
+        self.db_path = None
+        self.backup_dir = None
+        self.notices = []
 
     @property
     def static_dir(self) -> Path:
@@ -83,6 +99,91 @@ class HubApp:
                 handle.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {text.rstrip()}\n")
         except OSError:
             pass
+
+    # --- Datenschicht -----------------------------------------------------------
+
+    def open_data(self) -> None:
+        """Öffnet Datenbank und Import für den aktuellen Modus (echt oder Testmodus).
+
+        Im Testmodus wird die echte Datenbank nie geöffnet (Kapitel 6.1).
+        """
+        with self._data_lock:
+            self.close_data()
+            cfg = self.cfg
+            self.test_mode = bool(cfg.local.get("test_mode"))
+            self.data_root = cfg.data_dir / "test" if self.test_mode else cfg.data_dir
+            self.db_path = self.data_root / ("hub_test.db" if self.test_mode else "hub.db")
+            self.backup_dir = self.data_root / "backups"
+            self.read_only, self.read_only_reason = False, ""
+            self.db_state, self.db_message, self.notices = "ok", "", []
+            try:
+                if self.test_mode:
+                    testdata.ensure_sources(cfg.site, self.data_root)
+                self.db = dbm.open_database(
+                    self.db_path,
+                    before_migration=lambda database, version: handover.create_backup(
+                        database, self.backup_dir, "migration"))
+            except dbm.DatabaseCorrupt as exc:
+                self._data_failed("defekt", f"Die Datenbank ist beschädigt ({exc}). Es wird nichts geschrieben.")
+                return
+            except dbm.SchemaTooNew as exc:
+                self._data_failed("schema_neuer", f"{exc} Bitte das Programm aktualisieren.")
+                return
+            except Exception:
+                self.log_error("Datenbank konnte nicht geöffnet werden:\n" + traceback.format_exc())
+                self._data_failed("fehler", f"Die Datenbank konnte nicht geöffnet werden. Details in {ERROR_LOG}.")
+                return
+            try:
+                handover.create_backup(self.db, self.backup_dir, "start")
+            except Exception as exc:
+                self.log_error(f"Start-Backup fehlgeschlagen: {exc}")
+                self.notices.append("Das Backup beim Start ist fehlgeschlagen. Details im Fehlerprotokoll.")
+            self.importer = importer.Importer(
+                self.db, columns=lambda: self.cfg.site.get("columns"), path_for=self.source_path,
+                tmp_dir=self.data_root / "tmp", user=self.user, machine=self.machine, log_error=self.log_error)
+            if self.autostart_import:
+                self.importer.start(self._import_interval())
+
+    def _data_failed(self, state, message) -> None:
+        self.db = None
+        self.importer = None
+        self.db_state, self.db_message = state, message
+        self.read_only, self.read_only_reason = True, message
+
+    def close_data(self) -> None:
+        with self._data_lock:
+            if self.importer is not None:
+                self.importer.stop()
+                self.importer = None
+            if self.db is not None:
+                self.db.close()
+                self.db = None
+            self.db_state = "geschlossen"
+
+    def _import_interval(self) -> float:
+        value = self.cfg.local.get("import_interval_seconds", 20)
+        return value if isinstance(value, (int, float)) and value >= 1 else 20
+
+    def source_path(self, key):
+        """Pfad einer Quelle im aktuellen Modus oder None, wenn keiner angegeben ist."""
+        if self.test_mode:
+            return testdata.source_paths(self.data_root)[key]
+        return self.cfg.resolve(self.cfg.local["paths"][importer.SOURCES[key]["path_key"]])
+
+    def configured(self) -> bool:
+        if self.test_mode:
+            return self.cfg.check_path("team_folder", self.cfg.local["paths"]["team_folder"]) is None
+        return self.cfg.is_configured()
+
+    def require_db(self):
+        if self.db is None:
+            raise ApiError(503, "db", self.db_message or "Die Datenbank ist nicht geöffnet.")
+        return self.db
+
+    def source_states(self) -> list:
+        return self.importer.states() if self.importer is not None else []
+
+    # --- Lebenszyklus -------------------------------------------------------------
 
     def beat(self) -> None:
         self._last_beat = time.monotonic()
@@ -117,6 +218,10 @@ class HubApp:
                     hook()
                 except Exception:
                     self.log_error("Fehler beim Beenden:\n" + traceback.format_exc())
+            try:
+                self.close_data()
+            except Exception:
+                self.log_error("Fehler beim Schließen der Datenbank:\n" + traceback.format_exc())
             self.httpd.server_close()
 
 
@@ -133,15 +238,30 @@ class HubHTTPServer(ThreadingHTTPServer):
 
 
 # --- API ----------------------------------------------------------------------
+# Jede Funktion erhält (app, params, *Gruppen aus dem Pfad). ``params`` ist bei
+# schreibenden Aufrufen der JSON-Körper, sonst die Parameter der Adresse.
 
 
-def api_ping(app, _body):
+def _int(params, name, default, low, high):
+    try:
+        return max(low, min(high, int(params.get(name, default))))
+    except (TypeError, ValueError):
+        return default
+
+
+def api_ping(app, _params):
     return {"app": APP_ID, "version": APP_VERSION, "instance": app.instance}
 
 
-def api_state(app, _body):
+def api_state(app, _params):
     cfg = app.cfg
     deadline = cfg.site.get("deadline") if isinstance(cfg.site.get("deadline"), dict) else {}
+    sources = app.source_states()
+    counts, revision = None, None
+    if app.db is not None:
+        with app.db.read() as conn:
+            counts = rules.counts(conn)
+        revision = app.db.meta()["revision"]
     return {
         "app": APP_ID,
         "version": APP_VERSION,
@@ -149,28 +269,37 @@ def api_state(app, _body):
         "read_only_reason": app.read_only_reason,
         "user": app.user,
         "machine": app.machine,
-        "configured": cfg.is_configured(),
-        "test_mode": bool(cfg.local.get("test_mode")),
+        "configured": app.configured(),
+        "test_mode": app.test_mode,
         "auto_shutdown_minutes": cfg.local.get("auto_shutdown_minutes", 0),
-        "last_import": None,
-        "counts": None,
+        "db_state": app.db_state,
+        "revision": revision,
+        "sources": sources,
+        "last_import": max((s["last_success"] for s in sources), default="") or None,
+        "counts": counts,
         "deadline": {"date": deadline.get("date"), "lead_days": deadline.get("lead_days")},
         "labels": cfg.site.get("labels") if isinstance(cfg.site.get("labels"), dict) else {},
         "site_errors": len(cfg.site_check["errors"]),
-        "warnings": list(cfg.warnings),
+        "warnings": list(cfg.warnings) + list(app.notices),
     }
 
 
-def api_actions(app, _body):
-    items = rules.system_actions(app.cfg)
+def api_actions(app, _params):
+    new = {"total": 0, "items": []}
+    if app.db is not None:
+        with app.db.read() as conn:
+            items = rules.handlungsbedarf(conn, app.cfg, app.source_states(), app.test_mode)
+            new = rules.new_items(conn)
+    else:
+        items = rules.handlungsbedarf(None, app.cfg, [], app.test_mode)
     return {
         "blocking": [a for a in items if a["level"] == rules.LEVEL_BLOCKING],
         "open": [a for a in items if a["level"] == rules.LEVEL_OPEN],
-        "new": [],
+        "new": new,
     }
 
 
-def api_settings_get(app, _body):
+def api_settings_get(app, _params):
     cfg = app.cfg
     cfg.reload_site()
     paths = cfg.local["paths"]
@@ -180,6 +309,9 @@ def api_settings_get(app, _body):
         "paths": cfg.path_report(),
         "configured": cfg.is_configured(),
         "auto_shutdown_minutes": cfg.local.get("auto_shutdown_minutes", 0),
+        "import_interval_seconds": cfg.local.get("import_interval_seconds", 20),
+        "test_mode": bool(cfg.local.get("test_mode")),
+        "test_dir": str(cfg.data_dir / "test"),
         "can_publish_defaults": (
             cfg.is_configured()
             and not cfg.site_check["errors"]
@@ -188,6 +320,14 @@ def api_settings_get(app, _body):
         "defaults_published": cfg.site.get("default_paths") == paths,
         "site": cfg.site_check,
     }
+
+
+def _whole_number(body, name, low, high, errors, text):
+    value = body[name]
+    if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+        errors[name] = text
+        return None
+    return value
 
 
 def api_settings_put(app, body):
@@ -206,22 +346,35 @@ def api_settings_put(app, body):
             errors[key] = error
         else:
             new_paths[key] = stored
-    minutes = cfg.local.get("auto_shutdown_minutes", 0)
+    updates = {}
     if "auto_shutdown_minutes" in body:
-        value = body["auto_shutdown_minutes"]
-        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 240:
-            errors["auto_shutdown_minutes"] = "Erwartet wird eine ganze Zahl von 0 (aus) bis 240."
+        updates["auto_shutdown_minutes"] = _whole_number(
+            body, "auto_shutdown_minutes", 0, 240, errors, "Erwartet wird eine ganze Zahl von 0 (aus) bis 240.")
+    if "import_interval_seconds" in body:
+        updates["import_interval_seconds"] = _whole_number(
+            body, "import_interval_seconds", 5, 3600, errors, "Erwartet wird eine ganze Zahl von 5 bis 3600.")
+    if "test_mode" in body:
+        if not isinstance(body["test_mode"], bool):
+            errors["test_mode"] = "Erwartet wird wahr oder falsch."
         else:
-            minutes = value
+            updates["test_mode"] = body["test_mode"]
     if errors:
         raise ApiError(422, "validation", "Eingabe nicht gespeichert.", fields=errors)
+    paths_changed = new_paths != cfg.local["paths"]
+    mode_changed = "test_mode" in updates and updates["test_mode"] != bool(cfg.local.get("test_mode"))
+    interval_changed = ("import_interval_seconds" in updates
+                        and updates["import_interval_seconds"] != cfg.local.get("import_interval_seconds"))
     cfg.local["paths"] = new_paths
-    cfg.local["auto_shutdown_minutes"] = minutes
+    cfg.local.update(updates)
     cfg.save_local()
+    if mode_changed or interval_changed:
+        app.open_data()  # anderer Modus: andere Datenbank und andere Quellen
+    elif paths_changed and app.importer is not None and app.autostart_import:
+        threading.Thread(target=app.importer.check, daemon=True).start()
     return api_settings_get(app, None)
 
 
-def api_settings_publish_paths(app, _body):
+def api_settings_publish_paths(app, _params):
     try:
         app.cfg.publish_default_paths()
     except ValueError as exc:
@@ -274,6 +427,109 @@ def api_fs_list(app, body):
     }
 
 
+def api_import_log(app, params):
+    database = app.require_db()
+    with database.read() as conn:
+        rows = conn.execute("SELECT * FROM import_log ORDER BY id DESC LIMIT ?",
+                            (_int(params, "limit", 30, 1, 500),)).fetchall()
+    items = []
+    for row in rows:
+        item = dict(row)
+        item["source_label"] = importer.SOURCES.get(row["source"], {}).get("short", row["source"])
+        items.append(item)
+    return {"sources": app.source_states(), "items": items}
+
+
+def api_import_run(app, _body):
+    app.require_db()
+    if app.importer is None:
+        raise ApiError(503, "db", "Der Import ist nicht verfügbar.")
+    return {"runs": app.importer.run(), "sources": app.source_states()}
+
+
+def api_import_simulate(app, _body):
+    database = app.require_db()
+    if not app.test_mode:
+        raise ApiError(409, "not_possible", "Meldungen lassen sich nur im Testmodus simulieren.")
+    steps = testdata.simulate(app.cfg.site, app.data_root, database, app.user, app.machine)
+    return {"steps": steps, "runs": app.importer.run(), "sources": app.source_states()}
+
+
+def _conflict_view(row):
+    item = dict(row)
+    item["field_label"] = dbm.FIELD_LABELS.get(row["field"], row["field"])
+    item["entity_label"] = dbm.ENTITY_LABELS.get(row["entity"], row["entity"])
+    return item
+
+
+def api_conflicts(app, _params):
+    database = app.require_db()
+    with database.read() as conn:
+        open_rows = conn.execute("SELECT * FROM conflicts WHERE status = 'offen' ORDER BY id").fetchall()
+        decided = conn.execute(
+            "SELECT * FROM conflicts WHERE status = 'entschieden' ORDER BY resolved_at DESC, id DESC LIMIT 20"
+        ).fetchall()
+    return {"open": [_conflict_view(r) for r in open_rows], "decided": [_conflict_view(r) for r in decided]}
+
+
+def api_conflict_resolve(app, body, conflict_id):
+    database = app.require_db()
+    try:
+        result = importer.resolve_conflict(database, int(conflict_id), body.get("choice"), app.user, app.machine)
+    except LookupError as exc:
+        raise ApiError(404, "not_found", str(exc)) from None
+    except ValueError as exc:
+        raise ApiError(409, "not_possible", str(exc)) from None
+    return result
+
+
+def api_audit(app, params):
+    database = app.require_db()
+    with database.read() as conn:
+        return audit.query(
+            conn, entity=params.get("entity") or None, entity_id=params.get("entity_id") or None,
+            source=params.get("source") or None, text=params.get("q") or None,
+            limit=_int(params, "limit", 100, 1, 1000), offset=_int(params, "offset", 0, 0, 10**9))
+
+
+def api_errors(app, _params):
+    """Die letzten Einträge des Fehlerprotokolls."""
+    path = app.cfg.data_dir / ERROR_LOG
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            lines = handle.read().splitlines()[-200:]
+    except OSError:
+        lines = []
+    return {"path": str(path), "lines": lines}
+
+
+def api_backups(app, _params):
+    return {"items": handover.list_backups(app.backup_dir) if app.backup_dir else []}
+
+
+def api_backup_restore(app, body):
+    """Stellt ein Backup wieder her (ohne Angabe: das jüngste gültige)."""
+    name = body.get("name")
+    with app._data_lock:
+        if name:
+            match = [b for b in handover.list_backups(app.backup_dir) if b["name"] == name]
+            backup = match[0] if match else None
+        else:
+            backup = handover.latest_valid_backup(app.backup_dir)
+        if backup is None:
+            raise ApiError(404, "not_found", "Es gibt kein gültiges Backup.")
+        if app.db is not None:
+            handover.create_backup(app.db, app.backup_dir, "wiederherstellung")
+        app.close_data()
+        try:
+            handover.restore_backup(backup["path"], app.db_path)
+        except ValueError as exc:
+            app.open_data()
+            raise ApiError(409, "not_possible", str(exc)) from None
+        app.open_data()
+    return {"restored": backup["name"], "db_state": app.db_state}
+
+
 def api_heartbeat(app, _body):
     app.beat()
     return {"ok": True}
@@ -293,6 +549,15 @@ ROUTES = [
     ("PUT", re.compile(r"^/api/settings$"), api_settings_put),
     ("POST", re.compile(r"^/api/settings/publish-paths$"), api_settings_publish_paths),
     ("POST", re.compile(r"^/api/fs/list$"), api_fs_list),
+    ("GET", re.compile(r"^/api/import/log$"), api_import_log),
+    ("POST", re.compile(r"^/api/import/run$"), api_import_run),
+    ("POST", re.compile(r"^/api/import/simulate$"), api_import_simulate),
+    ("GET", re.compile(r"^/api/conflicts$"), api_conflicts),
+    ("POST", re.compile(r"^/api/conflicts/(\d+)/resolve$"), api_conflict_resolve),
+    ("GET", re.compile(r"^/api/audit$"), api_audit),
+    ("GET", re.compile(r"^/api/errors$"), api_errors),
+    ("GET", re.compile(r"^/api/backups$"), api_backups),
+    ("POST", re.compile(r"^/api/backups/restore$"), api_backup_restore),
     ("POST", re.compile(r"^/api/heartbeat$"), api_heartbeat),
     ("POST", re.compile(r"^/api/shutdown$"), api_shutdown),
 ]
@@ -328,16 +593,20 @@ class Handler(BaseHTTPRequestHandler):
         app = self.server.app
         try:
             self._check_host(app)
-            path = urlsplit(self.path).path
-            body = None
+            parts = urlsplit(self.path)
+            path = parts.path
+            if path.startswith("/api/") and path != "/api/ping":
+                app.data_ready.wait(30)  # Start: erst antworten, wenn die Datenbank geöffnet ist
             if method in WRITE_METHODS:
                 self._check_write(app, path)
-                body = self._read_json()
+                params = self._read_json()
+            else:
+                params = {key: values[0] for key, values in parse_qs(parts.query).items()}
             if path.startswith("/api/"):
                 for route_method, pattern, func in ROUTES:
                     match = pattern.match(path)
                     if match and route_method == method:
-                        return self._send_json(200, func(app, body, *match.groups()))
+                        return self._send_json(200, func(app, params, *match.groups()))
                 if any(pattern.match(path) for _, pattern, _ in ROUTES):
                     raise ApiError(405, "method", "Methode für diese Adresse nicht erlaubt.")
                 raise ApiError(404, "not_found", "Unbekannte API-Adresse.")
@@ -374,7 +643,9 @@ class Handler(BaseHTTPRequestHandler):
         if content_type != "application/json":
             raise ApiError(415, "content_type", "Erwartet wird application/json.")
         if app.read_only and path not in ALLOWED_WHEN_READ_ONLY:
-            raise ApiError(403, "read_only", "Nur-Lese-Modus: Änderungen sind gesperrt.")
+            # Einzige Ausnahme: eine beschädigte Datenbank aus dem Backup wiederherstellen.
+            if not (path == "/api/backups/restore" and app.db_state == "defekt"):
+                raise ApiError(403, "read_only", "Nur-Lese-Modus: Änderungen sind gesperrt.")
 
     def _read_json(self):
         try:
@@ -498,6 +769,20 @@ def main(argv=None) -> int:
         if not args.no_browser:
             webbrowser.open(url)
         return 0
+    # Der Server antwortet sofort auf /api/ping (Zweitstart-Erkennung); die
+    # Datenbank wird parallel geöffnet, alle anderen Aufrufe warten darauf.
+    app.data_ready.clear()
+
+    def open_data():
+        try:
+            app.open_data()
+        except Exception:
+            app.log_error("Start der Datenschicht fehlgeschlagen:\n" + traceback.format_exc())
+            app._data_failed("fehler", f"Die Datenbank konnte nicht geöffnet werden. Details in {ERROR_LOG}.")
+        finally:
+            app.data_ready.set()
+
+    threading.Thread(target=open_data, daemon=True).start()
     if not args.no_browser:
         threading.Timer(0.3, webbrowser.open, args=(url,)).start()
     app.serve()

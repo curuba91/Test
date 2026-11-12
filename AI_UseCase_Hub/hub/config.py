@@ -131,6 +131,8 @@ def check_site(site) -> dict:
     if not isinstance(deadline, dict):
         errors.append("deadline fehlt oder ist kein Objekt.")
     else:
+        # STICHTAG (Regel H09): wird in standort.json unter deadline.date eingetragen,
+        # nicht hier. null bedeutet: H09 meldet ohne Frist.
         date = deadline.get("date")
         if date is None:
             open_items.append("deadline.date: Stichtag der Richtlinie ist nicht festgelegt (Regel H09 bleibt ohne Frist).")
@@ -245,6 +247,9 @@ def _check_columns(columns, errors, open_items) -> None:
             errors.append(f"{where}.fields fehlt.")
             continue
         fields = mapping["fields"]
+        prefix = mapping.get("id_prefix", "")
+        if not isinstance(prefix, str) or not prefix.strip() or prefix.strip().upper() in ("M-", "TM-"):
+            errors.append(f"{where}.id_prefix fehlt oder ist reserviert (M- und TM- sind für manuell angelegte Einträge).")
         used = {}
         for field, column in fields.items():
             if column is not None and (not isinstance(column, str) or not column.strip()):

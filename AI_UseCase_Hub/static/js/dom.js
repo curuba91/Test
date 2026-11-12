@@ -35,6 +35,7 @@ const ICONS = {
   plus: ["M8 3v10", "M3 8h10"],
   power: ["M8 2v6", "M4.6 4.4a5 5 0 1 0 6.8 0"],
   x: ["M4 4l8 8", "M12 4l-8 8"],
+  refresh: ["M13 8a5 5 0 1 1-1.6-3.7", "M13 2.5v3h-3"],
 };
 
 export function icon(name, label) {
@@ -70,4 +71,24 @@ export function formatDate(iso) {
   if (!iso) return "";
   const [year, month, day] = iso.slice(0, 10).split("-");
   return `${day}.${month}.${year}`;
+}
+
+// "2026-11-12T08:15:30" -> "12.11.2026 08:15"
+export function formatTs(ts) {
+  if (!ts) return "";
+  const time = ts.length >= 16 ? ` ${ts.slice(11, 16)}` : "";
+  return `${formatDate(ts)}${time}`;
+}
+
+// Tabelle aus Spaltenbeschreibung: [{ label, value(row) -> Text oder Knoten, num }]
+export function table(columns, rows, caption) {
+  return h("div", { class: "table-wrap" }, h("table", { class: "table" },
+    caption ? h("caption", null, caption) : null,
+    h("thead", null, h("tr", null, columns.map((c) => h("th", { scope: "col", class: c.num ? "num" : null }, c.label)))),
+    h("tbody", null, rows.map((row) =>
+      h("tr", null, columns.map((c) => h("td", { class: c.num ? "num" : null }, c.value(row))))))));
+}
+
+export function status(kind, symbol, text) {
+  return h("span", { class: `status status-${kind}` }, icon(symbol), text);
 }
