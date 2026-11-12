@@ -32,6 +32,10 @@ STATE_TEXT = {
 }
 
 
+# S8: „Betroffenes Tool“ beginnt mit einer ID, gefolgt von einem Gedankenstrich und dem Titel.
+_TOOL_ID = re.compile(r"^\s*([^\s–—-]+-[^\s–—-]+)\s*[–—-]\s*\S")
+
+
 class SourceError(Exception):
     def __init__(self, kind, message):
         super().__init__(message)
@@ -255,6 +259,22 @@ def apply(database, key, data, mapped, user, machine) -> dict:
                 touched = True
             if record_changed:
                 summary["changed"] += 1
+
+        if entity == "tickets":  # S8: „UC-xxx – Titel“ ordnet ein neues Ticket automatisch zu
+            known = {row[0].casefold(): row[0] for row in tx.execute("SELECT id FROM usecases")}
+            assigned = 0
+            for row in tx.execute("SELECT id, affected_tool_raw FROM tickets WHERE usecase_id IS NULL "
+                                  "AND status = 'Neu'").fetchall():
+                match = _TOOL_ID.match(row["affected_tool_raw"])
+                usecase_id = known.get(match.group(1).casefold()) if match else None
+                if usecase_id:
+                    tx.execute("UPDATE tickets SET usecase_id = ?, updated_at = ? WHERE id = ?",
+                               (usecase_id, now, row["id"]))
+                    tx.audit("tickets", row["id"], "usecase_id", "", usecase_id, "regel")
+                    assigned += 1
+            if assigned:
+                touched = True
+                notes.append(f"{assigned} {'Ticket' if assigned == 1 else 'Tickets'} automatisch zugeordnet")
 
         # S7: Datensätze werden nie gelöscht; eine verschwundene ID wird nur vermerkt.
         present = {record["id"] for record in data.rows}

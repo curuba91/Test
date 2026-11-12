@@ -713,6 +713,85 @@ def api_sub_delete(app, _body, table, row_id):
     return _detail(app, usecase_id)
 
 
+# --- Tickets (Phase 3) -----------------------------------------------------------------
+
+
+def _ticket_view(row, titles, today):
+    ticket = {k: v for k, v in dict(row).items() if not k.endswith("_src")}
+    ticket["usecase_title"] = titles.get(row["usecase_id"], "")
+    ticket["age_days"] = rules.ticket_age(row, today)
+    return ticket
+
+
+def api_tickets(app, _params):
+    database = app.require_db()
+    import datetime
+    today = datetime.date.today()
+    with database.read() as conn:
+        titles = dict(conn.execute("SELECT id, title FROM usecases").fetchall())
+        rows = conn.execute("SELECT * FROM tickets ORDER BY id").fetchall()
+    return {"items": [_ticket_view(row, titles, today) for row in rows],
+            "lists": {k: v for k, v in _value_lists(app.cfg).items() if k.startswith("ticket_")}}
+
+
+def _ticket_detail(app, ticket_id) -> dict:
+    import datetime
+    with app.db.read() as conn:
+        row = conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        if row is None:
+            raise ApiError(404, "not_found", f"Ticket {ticket_id} nicht gefunden.")
+        titles = dict(conn.execute("SELECT id, title FROM usecases").fetchall())
+        fields = dbm.SOURCE_FIELDS["tickets"]
+        from_source = row["in_source"] is not None
+        return {
+            "ticket": _ticket_view(row, titles, datetime.date.today()),
+            "from_source": from_source,
+            "src": {f: row[f"{f}_src"] for f in fields},
+            "differs": [f for f in fields if from_source and row[f] != row[f"{f}_src"]],
+            "history": audit.query(conn, entity="tickets", entity_id=ticket_id, limit=200)["items"],
+        }
+
+
+@_data_errors
+def api_ticket_get(app, _params, ticket_id):
+    app.require_db()
+    return _ticket_detail(app, ticket_id)
+
+
+@_data_errors
+def api_ticket_create(app, body):
+    database = app.require_db()
+    with database.write(user=app.user, machine=app.machine) as tx:
+        ticket_id = dbm.create_manual(tx, "tickets", body.get("title"))
+    return _ticket_detail(app, ticket_id)
+
+
+@_data_errors
+def api_ticket_patch(app, body, ticket_id):
+    database = app.require_db()
+    field = body.get("field")
+    if not isinstance(field, str):
+        raise ApiError(400, "format", "field fehlt.")
+    booking = None
+    with database.write(user=app.user, machine=app.machine) as tx:
+        if field == "status":
+            booking = dbm.set_ticket_status(tx, ticket_id, body.get("value"), **_expected(body))
+        elif field == "usecase_id":
+            dbm.set_ticket_usecase(tx, ticket_id, body.get("value"), **_expected(body))
+        else:
+            value = dbm.clean_value("tickets", field, body.get("value"))
+            dbm.update_field(tx, "tickets", ticket_id, field, value, **_expected(body))
+    return dict(_ticket_detail(app, ticket_id), booking=booking)
+
+
+@_data_errors
+def api_ticket_undo_booking(app, body, ticket_id):
+    database = app.require_db()
+    with database.write(user=app.user, machine=app.machine) as tx:
+        dbm.undo_ticket_booking(tx, ticket_id, body.get("old_version"))
+    return _ticket_detail(app, ticket_id)
+
+
 def api_search(app, params):
     """Globale Suche über ID, Titel und Melder:in."""
     database = app.require_db()
@@ -771,6 +850,11 @@ ROUTES = [
     ("POST", re.compile(r"^/api/usecases/([^/]+)/(milestones|releases|links)$"), api_sub_add),
     ("PATCH", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_patch),
     ("DELETE", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_delete),
+    ("GET", re.compile(r"^/api/tickets$"), api_tickets),
+    ("POST", re.compile(r"^/api/tickets$"), api_ticket_create),
+    ("GET", re.compile(r"^/api/tickets/([^/]+)$"), api_ticket_get),
+    ("PATCH", re.compile(r"^/api/tickets/([^/]+)$"), api_ticket_patch),
+    ("POST", re.compile(r"^/api/tickets/([^/]+)/undo-booking$"), api_ticket_undo_booking),
     ("POST", re.compile(r"^/api/heartbeat$"), api_heartbeat),
     ("POST", re.compile(r"^/api/shutdown$"), api_shutdown),
 ]

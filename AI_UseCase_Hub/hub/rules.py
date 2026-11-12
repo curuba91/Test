@@ -433,3 +433,28 @@ def weighted_score(score_config, values):
         total += float(value) * float(weight)
         weight_sum += float(weight)
     return round(total / weight_sum, 2) if weight_sum else None
+
+
+# --- Versionen (S9) -------------------------------------------------------------------
+
+
+def parse_version(text):
+    """„1.2“ oder „1.2.3“ -> (1, 2, 3); nicht lesbare Angaben -> None."""
+    parts = str(text or "").strip().split(".")
+    if len(parts) not in (2, 3) or not all(part.isdigit() for part in parts):
+        return None
+    numbers = [int(part) for part in parts]
+    return tuple(numbers + [0] * (3 - len(numbers)))
+
+
+def version_higher(candidate, current):
+    """True/False, ob ``candidate`` höher ist; None, wenn eine der Versionen nicht lesbar ist."""
+    new = parse_version(candidate)
+    if new is None:
+        return None
+    if not str(current or "").strip():
+        return True
+    old = parse_version(current)
+    if old is None:
+        return None
+    return new > old

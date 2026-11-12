@@ -163,6 +163,8 @@ MIGRATIONS = [
         "created_at TEXT NOT NULL, resolved_at TEXT NOT NULL DEFAULT '', resolution TEXT NOT NULL DEFAULT '')",
         "CREATE INDEX idx_conflicts_status ON conflicts(status)",
     ]),
+    # S9: merkt, dass die Fix-Version eines Tickets bereits einmal gebucht wurde (auch nach „Rückgängig“).
+    (2, ["ALTER TABLE tickets ADD COLUMN release_booked INTEGER NOT NULL DEFAULT 0"]),
 ]
 
 
@@ -284,10 +286,11 @@ class Database:
         if current > latest_version():
             raise SchemaTooNew(
                 f"Die Datenbank hat Schema-Version {current}, das Programm kennt nur {latest_version()}.")
+        existed = current > 0  # eine neu angelegte Datenbank braucht kein Backup
         for version, statements in MIGRATIONS:
             if version <= current:
                 continue
-            if current > 0 and before_migration is not None:
+            if existed and before_migration is not None:
                 before_migration(self, version)
             with self._lock:
                 self.conn.execute("BEGIN IMMEDIATE")
@@ -582,3 +585,79 @@ def sub_delete(tx, table, row_id) -> str:
     tx.execute("UPDATE usecases SET updated_at = ? WHERE id = ?", (now_ts(), row["usecase_id"]))
     tx.audit("usecases", row["usecase_id"], spec["label"], _describe_sub(table, row), "gelöscht")
     return row["usecase_id"]
+
+
+# --- Tickets (Phase 3) -----------------------------------------------------------------
+
+
+def set_ticket_usecase(tx, ticket_id, usecase_id, expected=_MISSING, source=None) -> bool:
+    """Ordnet ein Ticket einem Use Case zu (oder löst die Zuordnung mit einem leeren Wert)."""
+    usecase_id = clean_text(usecase_id) or None
+    row = tx.execute("SELECT usecase_id FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+    if row is None:
+        raise LookupError(f"Ticket {ticket_id} nicht gefunden.")
+    if expected is not _MISSING and _as_text(expected) != _as_text(row[0]):
+        raise StaleValue(row[0])
+    if usecase_id and tx.execute("SELECT 1 FROM usecases WHERE id = ?", (usecase_id,)).fetchone() is None:
+        raise ValueError(f"Use Case {usecase_id} nicht gefunden.")
+    if usecase_id == row[0]:
+        tx.bump = False
+        return False
+    tx.execute("UPDATE tickets SET usecase_id = ?, updated_at = ? WHERE id = ?", (usecase_id, now_ts(), ticket_id))
+    tx.audit("tickets", ticket_id, "usecase_id", row[0], usecase_id, source)
+    return True
+
+
+def set_ticket_status(tx, ticket_id, status, expected=_MISSING):
+    """Statuswechsel mit Regel S9: Fix-Version genau einmal in die Updatehistorie buchen.
+
+    Rückgabe: None oder Angaben zur automatischen Buchung (für die Bestätigung mit „Rückgängig“).
+    """
+    from . import rules  # hier, um einen Importkreis zu vermeiden
+
+    status = clean_value("tickets", "status", status)
+    ticket = tx.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+    if ticket is None:
+        raise LookupError(f"Ticket {ticket_id} nicht gefunden.")
+    changed = update_field(tx, "tickets", ticket_id, "status", status, expected)
+    tx.bump = changed
+    if not changed or status not in ("Gelöst", "Geschlossen"):
+        return None
+    if not ticket["resolved_at"]:
+        tx.execute("UPDATE tickets SET resolved_at = ? WHERE id = ?", (today(), ticket_id))
+    if status == "Geschlossen" and not ticket["closed_at"]:
+        tx.execute("UPDATE tickets SET closed_at = ? WHERE id = ?", (today(), ticket_id))
+    fix = ticket["fix_version"]
+    if not fix or ticket["release_booked"]:
+        return None
+    if not ticket["usecase_id"]:
+        return {"booked": False, "hint": "Fix-Version nicht gebucht: Das Ticket ist keinem Use Case zugeordnet."}
+    usecase_id = ticket["usecase_id"]
+    current = tx.execute("SELECT version FROM usecases WHERE id = ?", (usecase_id,)).fetchone()[0]
+    tx.execute("INSERT INTO releases (usecase_id, date, version, change, released_by, ticket_id) VALUES (?, ?, ?, ?, ?, ?)",
+               (usecase_id, today(), fix, f"{ticket_id}: {ticket['title']}", tx.user, ticket_id))
+    tx.execute("UPDATE tickets SET release_booked = 1 WHERE id = ?", (ticket_id,))
+    tx.audit("usecases", usecase_id, "Update", "", f"Version {fix} aus {ticket_id}", "regel")
+    higher = rules.version_higher(fix, current)
+    hint = ""
+    if higher is True:
+        update_field(tx, "usecases", usecase_id, "version", fix, source="regel")
+    elif higher is None:
+        hint = (f"Version von {usecase_id} nicht automatisch geändert: „{fix}“ oder „{current}“ entspricht nicht "
+                "dem Format Haupt.Neben[.Patch].")
+    tx.bump = True
+    return {"booked": True, "ticket_id": ticket_id, "usecase_id": usecase_id, "version": fix,
+            "old_version": current, "version_raised": higher is True, "hint": hint}
+
+
+def undo_ticket_booking(tx, ticket_id, old_version=None) -> None:
+    """Nimmt die automatische Buchung aus S9 zurück. Sie wird danach nicht erneut ausgelöst."""
+    release = tx.execute("SELECT * FROM releases WHERE ticket_id = ?", (ticket_id,)).fetchone()
+    if release is None:
+        raise LookupError("Zu diesem Ticket gibt es keine automatische Buchung.")
+    usecase_id = release["usecase_id"]
+    tx.execute("DELETE FROM releases WHERE id = ?", (release["id"],))
+    tx.audit("usecases", usecase_id, "Update", f"Version {release['version']} aus {ticket_id}", "zurückgenommen", "regel")
+    current = tx.execute("SELECT version FROM usecases WHERE id = ?", (usecase_id,)).fetchone()[0]
+    if old_version is not None and current == release["version"] and old_version != current:
+        update_field(tx, "usecases", usecase_id, "version", clean_text(old_version), source="regel")

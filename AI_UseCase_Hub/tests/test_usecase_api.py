@@ -30,7 +30,7 @@ class ListAndDetailTest(UsecaseApiCase):
         self.assertEqual(len(rows), 10)
         row = rows["UC-001"]
         self.assertEqual((row["stage"], row["next_step"], row["attention"], row["open_tickets"]),
-                         ("eingang", "Bewerten", "offen", 0))  # Tickets werden erst in Phase 3 zugeordnet (S8)
+                         ("eingang", "Bewerten", "offen", 3))
         self.assertEqual(row["next_target"], "#/usecases/UC-001/ueberblick")
 
     def test_detail_contains_everything_the_page_needs(self):
@@ -38,7 +38,7 @@ class ListAndDetailTest(UsecaseApiCase):
         self.assertEqual(detail["usecase"]["title"], "Suche in Arbeitsanweisungen")
         self.assertEqual(detail["stepper"]["next"]["key"], "bewertet")
         self.assertEqual([a["rule"] for a in detail["actions"]], ["H10"])
-        self.assertEqual([t["id"] for t in detail["tickets"]], [])  # Zuordnung der Tickets folgt in Phase 3 (S8)
+        self.assertEqual([t["id"] for t in detail["tickets"]], ["T-002", "T-004"])  # automatisch zugeordnet (S8)
         self.assertEqual(detail["history"][0]["field"], "angelegt")
         self.assertEqual((detail["from_source"], detail["differs"]), (True, []))
         self.assertNotIn("title_src", detail["usecase"])
