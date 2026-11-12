@@ -292,7 +292,8 @@ def api_actions(app, _params):
             new = rules.new_items(conn)
     else:
         items = rules.handlungsbedarf(None, app.cfg, [], app.test_mode)
-    shown = rules.start_selection(items)  # je Use Case höchstens ein Eintrag „Offen“
+    # Je Use Case höchstens ein Eintrag „Offen“; Neueingänge stehen nur unter „Neu eingegangen“.
+    shown = rules.start_selection(items, [item["id"] for item in new["items"]])
     return {
         "blocking": [a for a in shown if a["level"] == rules.LEVEL_BLOCKING],
         "open": [a for a in shown if a["level"] == rules.LEVEL_OPEN],

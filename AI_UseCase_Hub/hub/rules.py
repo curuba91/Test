@@ -312,8 +312,14 @@ def handlungsbedarf(conn, cfg, source_states, test_mode=False, today=None) -> li
     return actions
 
 
-def start_selection(actions) -> list:
-    """Regel gegen Überladung: je Use Case höchstens ein Eintrag der Stufe „Offen“, alle blockierenden."""
+def start_selection(actions, new_ids=()) -> list:
+    """Regel gegen Überladung: je Use Case höchstens ein Eintrag der Stufe „Offen“, alle blockierenden.
+
+    Was unter „Neu eingegangen“ steht (``new_ids``), erscheint nicht noch einmal als
+    „Nächster Schritt: Bewerten“ (H10) oder „Ticket zuordnen“ (H11).
+    """
+    new_ids = set(new_ids)
+    actions = [a for a in actions if not (a["rule"] in ("H10", "H11") and a["subject"] in new_ids)]
     chosen = {}
     for action in actions:
         if action["level"] != LEVEL_OPEN or action["rule"] not in OPEN_PRIORITY:
@@ -396,7 +402,7 @@ def counts(conn) -> dict:
     return result
 
 
-def new_items(conn, limit=10) -> dict:
+def new_items(conn, limit=200) -> dict:
     """„Neu eingegangen“: noch unbewertete Use Cases und neue Tickets, neueste zuerst."""
     usecases = conn.execute(
         "SELECT id, title, created_at FROM usecases WHERE phase = 'Eingang' AND owner = '' AND type = '' "

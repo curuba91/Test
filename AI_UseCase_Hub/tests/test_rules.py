@@ -247,6 +247,12 @@ class StartSelectionTest(unittest.TestCase):
         only_history = actions_for(in_operation(), [ms()], releases=0)
         self.assertEqual(rule_ids(rules.start_selection(only_history)), ["H12"])
 
+    def test_new_arrivals_are_not_repeated_as_open_entries(self):
+        found = actions_for(uc()) + actions_for(uc(id="UC-002", needs_help=1))
+        found += rules.ticket_actions([ticket(usecase_id=None), ticket(id="T-002", usecase_id=None, severity="hoch")], TODAY)
+        start = rules.start_selection(found, new_ids=["UC-001", "UC-002", "T-001", "T-002"])
+        self.assertEqual([(a["rule"], a["subject"]) for a in start], [("H05", "UC-002"), ("H02", "T-002")])
+
     def test_no_fact_appears_twice(self):
         for usecase, milestones in ((uc(), []), (rated(phase="Abgeschlossen"), [ms()]),
                                     (in_operation(board_status="Nachschärfen gefordert"), [ms()])):

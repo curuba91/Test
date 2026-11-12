@@ -42,18 +42,23 @@ export async function renderStart(view, _rest, app) {
     actionGroup("Offen", "open", "circle", actions.open, SHOWN_OPEN));
 
   const fresh = actions.new;
+  const freshList = h("ul", { class: "new-list" });
+  const freshMore = h("div");
+  const drawFresh = (count) => {
+    freshList.replaceChildren(...fresh.items.slice(0, count).map((item) =>
+      h("li", null, h("a", { href: item.target },
+        h("span", { class: "action-subject" }, item.id),
+        h("span", { class: "action-text" }, item.title || "(ohne Titel)"),
+        h("span", { class: "chip" }, item.action),
+        icon("arrow")))));
+    freshMore.replaceChildren(fresh.items.length > count
+      ? h("button", { class: "btn", type: "button", onclick: () => drawFresh(fresh.items.length) }, `Alle ${fresh.total} anzeigen`) : "");
+  };
+  drawFresh(SHOWN_OPEN);
   const incoming = h("section", { class: "panel" },
     h("h2", null, "Neu eingegangen", h("span", { class: "count" }, `(${fresh.total})`)),
-    fresh.items.length
-      ? h("ul", { class: "new-list" }, fresh.items.map((item) =>
-          h("li", null, h("a", { href: item.target },
-            h("span", { class: "action-subject" }, item.id),
-            h("span", { class: "action-text" }, item.title || "(ohne Titel)"),
-            h("span", { class: "chip" }, item.action),
-            icon("arrow")))))
-      : emptyState("Keine neuen Meldungen. Hier erscheinen unbewertete Use Cases und neue Tickets aus den beiden Formularen."),
-    fresh.total > fresh.items.length
-      ? h("p", { class: "muted" }, `Angezeigt werden die ${fresh.items.length} neuesten von ${fresh.total}.`) : null);
+    fresh.items.length ? [freshList, freshMore]
+      : emptyState("Keine neuen Meldungen. Hier erscheinen unbewertete Use Cases und neue Tickets aus den beiden Formularen."));
 
   const counts = state.counts || {};
   const deadline = state.deadline || {};

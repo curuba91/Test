@@ -60,7 +60,8 @@ class TestModeTest(TestModeCase):
         actions = self.get("/api/actions")
         self.assertEqual(actions["blocking"], [])
         self.assertEqual(actions["new"]["total"], 16)
-        self.assertEqual(len(actions["new"]["items"]), 10)
+        self.assertEqual(len(actions["new"]["items"]), 16)
+        self.assertEqual(actions["open"], [])  # Neueingänge stehen nicht zusätzlich im Handlungsbedarf
         log = self.get("/api/import/log")
         self.assertEqual(len(log["items"]), 2)
         self.assertEqual({s["state"] for s in log["sources"]}, {"ok"})

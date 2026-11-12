@@ -15,6 +15,8 @@ const STEP_STATE = {
 const STAGE_TEXT = { erledigt: "erledigt", offen: "offen" };
 
 let meta = null;
+// Hinweis mit „Rückgängig“; bleibt stehen, wenn die Hauptaktion in den nächsten Abschnitt springt.
+let carried = null;
 
 export async function renderUsecase(view, id, section, app) {
   if (!meta) meta = await api("GET", "/api/meta");
@@ -32,20 +34,40 @@ export async function renderUsecase(view, id, section, app) {
   let others = null; // andere Use Cases für „Zusammenführen mit …“
   const root = h("div", { class: "stack" }, frame, toast, body);
   view.append(root);
-  draw();
 
   // --- Daten ändern ---------------------------------------------------------------
 
   function apply(next, savedKey) {
     detail = next;
+    carried = null;
+    toast.replaceChildren();
     keepFocus(root, draw);
     flashSaved(root, savedKey);
     app.refreshState();
   }
 
-  function notify(text, undo) {
+  function showCarried() {
+    if (!carried || carried.id !== id) {
+      carried = null;
+      return;
+    }
+    const { text, undo } = carried;
     toast.replaceChildren(h("p", { class: "field-note ok" }, icon("check"), h("span", null, text),
-      undo ? h("button", { class: "btn", type: "button", onclick: async () => { toast.replaceChildren(); await undo(); } }, "Rückgängig") : null));
+      undo ? h("button", { class: "btn", type: "button", onclick: async () => {
+        carried = null;
+        try {
+          await undo();
+        } catch (error) {
+          fail(error);
+          return;
+        }
+        window.dispatchEvent(new Event("hashchange")); // Seite mit dem wiederhergestellten Stand neu aufbauen
+      } }, "Rückgängig") : null));
+  }
+
+  function notify(text, undo) {
+    carried = { id, text, undo };
+    showCarried();
   }
 
   function fail(error) {
@@ -75,13 +97,7 @@ export async function renderUsecase(view, id, section, app) {
       fail(error);
       return false;
     }
-    notify(message, async () => {
-      try {
-        apply(await api("PATCH", url, { field: "phase", value: before.phase, merged_into: before.merged }));
-      } catch (error) {
-        fail(error);
-      }
-    });
+    notify(message, () => api("PATCH", url, { field: "phase", value: before.phase, merged_into: before.merged }));
     return true;
   }
 
@@ -198,13 +214,7 @@ export async function renderUsecase(view, id, section, app) {
         fail(error);
         return;
       }
-      notify("Zeile gelöscht.", async () => {
-        try {
-          apply(await api("POST", `${url}/${name}`, { values }));
-        } catch (error) {
-          fail(error);
-        }
-      });
+      notify("Zeile gelöscht.", () => api("POST", `${url}/${name}`, { values }));
     }
 
     return h("div", { class: "table-wrap" },
@@ -421,4 +431,7 @@ export async function renderUsecase(view, id, section, app) {
               h("button", { class: "btn", type: "button", disabled: readOnly, onclick: discontinue }, "Discontinued")),
           ]);
   }
+
+  draw();
+  showCarried();
 }

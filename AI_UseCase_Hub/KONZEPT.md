@@ -612,6 +612,10 @@ Arbeitsweise (FEST):
 | 8 | Pfad des Team-Ordners; ist der Ordner für die Vertretung synchronisiert? | 5 | Bestätigung | Das gesamte Konstrukt liegt auf einem Teams-SharePoint. Pfade werden relativ zum Programmordner gespeichert. Die Datenbank bleibt lokal (E3). |
 | 9 | Automatisches Beenden nach 10 Minuten ohne offenen Tab | 0 | Zustimmung oder Ablehnung | Zustimmung. Zusätzlich gewünscht: Schutz gegen versehentlichen Zugriff einer zweiten Person (Umsetzung mit der Sperre in Phase 5). |
 | 10 | Liegt der bisherige Entwurf als Referenz vor? | 0 | Datei im Arbeitsverzeichnis | Nein. Neubau ausschließlich auf Basis dieses Konzepts. |
+| 11 | Wechsel von „Eingang“ in die Umsetzung: Kapitel 8.1 nennt dafür keinen Schritt | 2 | Bestätigung | **ANNAHME aus Phase 2:** Ist ein Use Case bewertet und noch in Phase `Eingang`, heißt die Hauptaktion „Umsetzung starten“ (setzt Phase `In Bearbeitung`, mit „Rückgängig“). Es gibt keinen automatischen Phasenwechsel. |
+| 12 | Governance-Fortschritt bei entfallenen Schritten | 2 | Bestätigung | **ANNAHME aus Phase 2:** Gezählt werden nur anwendbare Schritte, bei Herkunft `übernommen` also „x von 4“ statt „x von 6“. |
+| 13 | Startseite: Auswahl des einen Eintrags „Offen“ je Use Case; Neueingänge | 2 | Bestätigung | **ANNAHME aus Phase 2:** Vorrang H10, dann H09, dann H12. Was unter „Neu eingegangen“ steht, erscheint nicht zusätzlich als „Nächster Schritt: Bewerten“ oder „Ticket zuordnen“. |
+| 14 | Eingangsdatum und Melder:in ohne Spalte in Quelle 1 | 2 | Entscheidung zum Flow | Nicht zwingend. Ohne Spalte gilt der Tag des ersten Imports als Eingangsdatum; Melder:in bleibt leer oder wird im Hub nachgetragen. Schreibt der Flow die Angaben später, genügt die Zuordnung in `standort.json`. |
 
 ---
 
