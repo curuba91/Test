@@ -112,7 +112,7 @@ function renderTools() {
   const hadFocus = oldSearch && document.activeElement === oldSearch;
   const create = h("a", {
     class: "btn", href: readOnly ? null : "#/usecases/neu", "aria-disabled": readOnly ? "true" : null,
-    title: "Use Case manuell anlegen (Tickets folgen in Phase 3)",
+    title: "Use Case oder Ticket manuell anlegen",
   }, icon("plus"), "Neu");
   const minutes = state.auto_shutdown_minutes;
   const menu = h("details", { class: "status-menu", open: menuWasOpen },
@@ -162,6 +162,7 @@ function stamp(state) {
 
 // Seiten, die sich selbst aktualisieren, wenn ein Import neue Daten gebracht hat.
 const LIVE = ["#/start", "#/verwaltung/quellen", "#/verwaltung/konflikte", "#/usecases/stufe"];
+const LIVE_EXACT = ["#/tickets"];
 
 async function heartbeat() {
   if (app.connection === "ended" || app.connection === "token") return;
@@ -171,7 +172,7 @@ async function heartbeat() {
     const before = stamp(app.state);
     await app.refreshState();
     const typing = ["INPUT", "SELECT", "TEXTAREA"].includes((document.activeElement || {}).tagName);
-    if (before !== stamp(app.state) && !typing && LIVE.some((prefix) => location.hash.startsWith(prefix))) route();
+    if (before !== stamp(app.state) && !typing && (LIVE.some((prefix) => location.hash.startsWith(prefix)) || LIVE_EXACT.includes(location.hash))) route();
   } catch (error) {
     // onConnectionProblem setzt das Band
   }

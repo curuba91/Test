@@ -49,6 +49,7 @@ class HubTestCase(unittest.TestCase):
         self.program.mkdir(parents=True)
         shutil.copytree(PROGRAM_DIR / "static", self.program / "static")
         shutil.copy(PROGRAM_DIR / "standort.json", self.program / "standort.json")
+        shutil.copy(PROGRAM_DIR / "validation_rules.json", self.program / "validation_rules.json")
         self.data = self.tmp / "local"
         self.base_port = free_port_block()
         self.apps = []

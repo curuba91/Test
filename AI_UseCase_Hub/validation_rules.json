@@ -1,0 +1,494 @@
+{
+  "_hinweis": "Regelwerk des Validierungs-Vorabchecks. Pflege von Hand oder per KI nach ANPASSUNG.md; prüfen mit: python -B -m hub.validation. Abschnitte mit \"status\": \"PLATZHALTER\" sind nicht bestätigt; solange einer davon PLATZHALTER ist, zeigt der Hub beim Ergebnis „Regelwerk unvollständig“. Werte der Risikomatrix und Kontrollen dürfen nicht erfunden werden.",
+  "rules_version": "0.1",
+  "notice": {
+    "de": "Der Check ersetzt keine Freigabe. Die verbindliche Entscheidung trifft die zuständige Qualitäts- bzw. Validierungsfunktion; das freigegebene Assessment liegt im kontrollierten Dokumentensystem, der Hub speichert nur den Verweis.",
+    "en": "This check does not replace an approval. The binding decision is made by the responsible quality or validation function; the approved assessment is kept in the controlled document system, the hub only stores the reference."
+  },
+  "unclear": {
+    "key": "unklar",
+    "label": "unklar",
+    "label_en": "unclear"
+  },
+  "questions": [
+    {
+      "key": "reguliert",
+      "nr": 1,
+      "text": "Wird der KI-Output in einem regulierten Prozess verwendet?",
+      "text_en": "Is the AI output used in a regulated process?",
+      "options": [
+        {
+          "key": "ja",
+          "label": "ja",
+          "label_en": "yes"
+        },
+        {
+          "key": "nein",
+          "label": "nein",
+          "label_en": "no"
+        }
+      ]
+    },
+    {
+      "key": "art",
+      "nr": 2,
+      "text": "Art der Lösung",
+      "text_en": "Type of solution",
+      "options": [
+        {
+          "key": "enterprise_tool",
+          "label": "freigegebenes Enterprise-GenAI-Tool",
+          "label_en": "approved enterprise GenAI tool"
+        },
+        {
+          "key": "eigene_anwendung",
+          "label": "eigene Anwendung",
+          "label_en": "custom application"
+        },
+        {
+          "key": "keine_ki",
+          "label": "keine KI-Funktion",
+          "label_en": "no AI function"
+        }
+      ]
+    },
+    {
+      "key": "eingebettet",
+      "nr": 3,
+      "text": "Ist die KI-Funktion in einen regulierten Prozess eingebettet oder automatisiert sie ihn?",
+      "text_en": "Is the AI function embedded in a regulated process, or does it automate it?",
+      "options": [
+        {
+          "key": "ja",
+          "label": "ja",
+          "label_en": "yes"
+        },
+        {
+          "key": "nein",
+          "label": "nein",
+          "label_en": "no"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "entscheidungsfolge",
+      "nr": 4,
+      "text": "Entscheidungsfolge bei falschem Output",
+      "text_en": "Decision consequence of a wrong output",
+      "options": [
+        {
+          "key": "hoch",
+          "label": "hoch",
+          "label_en": "high"
+        },
+        {
+          "key": "mittel",
+          "label": "mittel",
+          "label_en": "medium"
+        },
+        {
+          "key": "niedrig",
+          "label": "niedrig",
+          "label_en": "low"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "modelleinfluss",
+      "nr": 5,
+      "text": "Einfluss des Modells auf das Ergebnis",
+      "text_en": "Influence of the model on the result",
+      "options": [
+        {
+          "key": "hoch",
+          "label": "hoch",
+          "label_en": "high"
+        },
+        {
+          "key": "mittel",
+          "label": "mittel",
+          "label_en": "medium"
+        },
+        {
+          "key": "niedrig",
+          "label": "niedrig",
+          "label_en": "low"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "faehigkeiten",
+      "nr": 6,
+      "text": "Genutzte KI-Fähigkeiten",
+      "text_en": "AI capabilities used",
+      "options": [
+        {
+          "key": "chat",
+          "label": "Chat",
+          "label_en": "chat"
+        },
+        {
+          "key": "extraktion",
+          "label": "Extraktion",
+          "label_en": "extraction"
+        },
+        {
+          "key": "klassifikation",
+          "label": "Klassifikation",
+          "label_en": "classification"
+        },
+        {
+          "key": "semantische_suche",
+          "label": "semantische Suche",
+          "label_en": "semantic search"
+        },
+        {
+          "key": "trendanalyse",
+          "label": "Trendanalyse",
+          "label_en": "trend analysis"
+        }
+      ],
+      "multiple": true,
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "selbst_gewaehlt",
+      "nr": 7,
+      "text": "Werden nur Inhalte verarbeitet, die der Nutzer selbst auswählt?",
+      "text_en": "Is only content processed that the user selects?",
+      "options": [
+        {
+          "key": "ja",
+          "label": "ja",
+          "label_en": "yes"
+        },
+        {
+          "key": "nein",
+          "label": "nein",
+          "label_en": "no"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "geschulte_person",
+      "nr": 8,
+      "text": "Prüft und verantwortet eine geschulte Person jeden Output?",
+      "text_en": "Does a trained person review and take responsibility for every output?",
+      "options": [
+        {
+          "key": "ja",
+          "label": "ja",
+          "label_en": "yes"
+        },
+        {
+          "key": "nein",
+          "label": "nein",
+          "label_en": "no"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "zweitpruefung",
+      "nr": 9,
+      "text": "Gibt es eine unabhängige Zweitprüfung im bestehenden Prozess?",
+      "text_en": "Is there an independent second review in the existing process?",
+      "options": [
+        {
+          "key": "ja",
+          "label": "ja",
+          "label_en": "yes"
+        },
+        {
+          "key": "nein",
+          "label": "nein",
+          "label_en": "no"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "freigabe_dokumentiert",
+      "nr": 10,
+      "text": "Wird die Freigabe durch den Prüfer dokumentiert?",
+      "text_en": "Is the approval by the reviewer documented?",
+      "options": [
+        {
+          "key": "ja",
+          "label": "ja",
+          "label_en": "yes"
+        },
+        {
+          "key": "nein",
+          "label": "nein",
+          "label_en": "no"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    },
+    {
+      "key": "direkter_bezug",
+      "nr": 11,
+      "text": "Besteht ein direkter Bezug zu Produktion oder behördlichen Einreichungen?",
+      "text_en": "Is there a direct link to production or regulatory submissions?",
+      "options": [
+        {
+          "key": "ja",
+          "label": "ja",
+          "label_en": "yes"
+        },
+        {
+          "key": "nein",
+          "label": "nein",
+          "label_en": "no"
+        }
+      ],
+      "hide_if": {
+        "art": [
+          "keine_ki"
+        ],
+        "reguliert": [
+          "nein"
+        ]
+      }
+    }
+  ],
+  "decision": {
+    "status": "PLATZHALTER",
+    "_hinweis": "ANNAHME aus dem Konzept (Kapitel 10.4), abgeleitet aus der Ergebnistabelle, NICHT aus der Richtlinie. Die Regeln werden von oben nach unten geprüft, die erste zutreffende gilt. \"if\": alle genannten Fragen haben eine der genannten Antworten. \"if_unclear\": mindestens eine der genannten Fragen ist unbeantwortet oder „unklar“. Eine Regel ohne Bedingung gilt immer.",
+    "rules": [
+      {
+        "if": {
+          "art": [
+            "keine_ki"
+          ]
+        },
+        "result": "keine_ki"
+      },
+      {
+        "if": {
+          "reguliert": [
+            "nein"
+          ]
+        },
+        "result": "ausserhalb"
+      },
+      {
+        "if_unclear": [
+          "reguliert",
+          "art",
+          "eingebettet"
+        ],
+        "result": "klaerung"
+      },
+      {
+        "if": {
+          "art": [
+            "enterprise_tool"
+          ],
+          "eingebettet": [
+            "nein"
+          ]
+        },
+        "if_unclear": [
+          "selbst_gewaehlt",
+          "geschulte_person",
+          "freigabe_dokumentiert"
+        ],
+        "result": "klaerung"
+      },
+      {
+        "if": {
+          "art": [
+            "enterprise_tool"
+          ],
+          "eingebettet": [
+            "nein"
+          ],
+          "selbst_gewaehlt": [
+            "ja"
+          ],
+          "geschulte_person": [
+            "ja"
+          ],
+          "freigabe_dokumentiert": [
+            "ja"
+          ]
+        },
+        "result": "pfad_a_erfuellt"
+      },
+      {
+        "if": {
+          "art": [
+            "enterprise_tool"
+          ],
+          "eingebettet": [
+            "nein"
+          ]
+        },
+        "result": "pfad_a_nicht_erfuellt"
+      },
+      {
+        "if_unclear": [
+          "direkter_bezug"
+        ],
+        "result": "klaerung"
+      },
+      {
+        "if": {
+          "direkter_bezug": [
+            "ja"
+          ]
+        },
+        "result": "pfad_b_direkt"
+      },
+      {
+        "result": "pfad_b"
+      }
+    ]
+  },
+  "results": {
+    "ausserhalb": {
+      "label": "Außerhalb des Geltungsbereichs",
+      "label_en": "Out of scope",
+      "text": "Output wird nicht in regulierten Prozessen genutzt; Begründung dokumentieren."
+    },
+    "keine_ki": {
+      "label": "Keine KI-Funktion",
+      "label_en": "No AI function",
+      "text": "Richtlinie nicht anwendbar; ggf. allgemeines Verfahren für computergestützte Systeme."
+    },
+    "pfad_a_erfuellt": {
+      "label": "Pfad A – Bedingungen erfüllt",
+      "label_en": "Path A – conditions met",
+      "text": "Nutzung unter definierten Bedingungen ohne formales Assessment."
+    },
+    "pfad_a_nicht_erfuellt": {
+      "label": "Pfad A – Bedingungen nicht erfüllt",
+      "label_en": "Path A – conditions not met",
+      "text": "Nachschärfen oder in Pfad B wechseln."
+    },
+    "pfad_b": {
+      "label": "Pfad B – formales Risiko-Assessment",
+      "label_en": "Path B – formal risk assessment",
+      "text": "Assessment mit Vorlage, Akzeptanzkriterien, Test, Monitoring, Change Control."
+    },
+    "pfad_b_direkt": {
+      "label": "Pfad B + direkter Einfluss",
+      "label_en": "Path B + direct impact",
+      "text": "Assessment wie Pfad B, zusätzlich erweiterter Standard für Modellbewertung."
+    },
+    "klaerung": {
+      "label": "Klärung erforderlich",
+      "label_en": "Clarification required",
+      "text": "Offene Fragen zuerst klären."
+    }
+  },
+  "risk_matrix": {
+    "status": "PLATZHALTER",
+    "_hinweis": "Gesamtrisiko = values[Antwort auf \"entscheidungsfolge\"][Antwort auf \"modelleinfluss\"]. Die neun Werte kommen aus der Richtlinie und sind hier bewusst nicht gefüllt.",
+    "values": {
+      "hoch": {
+        "hoch": "PLATZHALTER",
+        "mittel": "PLATZHALTER",
+        "niedrig": "PLATZHALTER"
+      },
+      "mittel": {
+        "hoch": "PLATZHALTER",
+        "mittel": "PLATZHALTER",
+        "niedrig": "PLATZHALTER"
+      },
+      "niedrig": {
+        "hoch": "PLATZHALTER",
+        "mittel": "PLATZHALTER",
+        "niedrig": "PLATZHALTER"
+      }
+    }
+  },
+  "controls": {
+    "status": "PLATZHALTER",
+    "_hinweis": "Erforderliche Kontrollen je gewählter KI-Fähigkeit (Frage 6), als Liste von Texten. Kommen aus der Richtlinie und sind hier bewusst nicht gefüllt.",
+    "by_capability": {
+      "chat": [
+        "PLATZHALTER"
+      ],
+      "extraktion": [
+        "PLATZHALTER"
+      ],
+      "klassifikation": [
+        "PLATZHALTER"
+      ],
+      "semantische_suche": [
+        "PLATZHALTER"
+      ],
+      "trendanalyse": [
+        "PLATZHALTER"
+      ]
+    }
+  },
+  "prompt": {
+    "_hinweis": "Vorlage des Prompts zum Kopieren. Platzhalter in geschweiften Klammern werden ersetzt: {id} {title} {description} {benefit} {answers} {result} {notice}.",
+    "de": "Du unterstützt bei der regulatorischen Einordnung eines KI-Anwendungsfalls. Arbeite ausschließlich mit den beigefügten Richtliniendokumenten und den Angaben unten.\n\nVerbindliche Regeln:\n1. Erfinde keine Fakten. Was nicht in den Dokumenten oder Angaben steht, benennst du als fehlend.\n2. Kennzeichne jede Annahme ausdrücklich mit „ANNAHME:“.\n3. Belege jede Aussage mit einem Abschnittsverweis auf das Richtliniendokument.\n4. Schließe mit einer Liste offener Fragen an die Qualitätsfunktion.\n\nHinweis: {notice}\n\nUse Case {id}: {title}\nBeschreibung: {description}\nErwarteter Nutzen: {benefit}\n\nAntworten aus dem Vorabcheck:\n{answers}\n\nVorläufiges Ergebnis des Vorabchecks: {result}\n\nAufgabe:\nA) Prüfe, ob das vorläufige Ergebnis nach der Richtlinie zutrifft, mit Abschnittsverweisen.\nB) Nenne die Bedingungen oder Kontrollen, die die Richtlinie für diesen Fall verlangt, mit Abschnittsverweisen.\nC) Liste alle Annahmen auf.\nD) Liste die offenen Fragen an die Qualitätsfunktion auf.",
+    "en": "You support the regulatory classification of an AI use case. Work exclusively with the attached guideline documents and the information below.\n\nBinding rules:\n1. Do not invent facts. State what is missing if it is not in the documents or the information below.\n2. Mark every assumption explicitly with \"ASSUMPTION:\".\n3. Support every statement with a section reference to the guideline document.\n4. End with a list of open questions for the quality function.\n\nNote: {notice}\n\nUse case {id}: {title}\nDescription: {description}\nExpected benefit: {benefit}\n\nAnswers from the pre-check:\n{answers}\n\nPreliminary result of the pre-check: {result}\n\nTask:\nA) Check whether the preliminary result is correct according to the guideline, with section references.\nB) Name the conditions or controls the guideline requires for this case, with section references.\nC) List all assumptions.\nD) List the open questions for the quality function."
+  }
+}

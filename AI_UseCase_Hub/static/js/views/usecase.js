@@ -32,6 +32,7 @@ export async function renderUsecase(view, id, section, app) {
   const toast = h("div", { role: "status" });
   const body = h("div", { class: "stack" });
   let others = null; // andere Use Cases für „Zusammenführen mit …“
+  const check = { open: false, rules: null, answers: {}, evaluation: null, lang: "de", error: "" }; // Vorabcheck
   const root = h("div", { class: "stack" }, frame, toast, body);
   view.append(root);
 
@@ -183,6 +184,121 @@ export async function renderUsecase(view, id, section, app) {
       })) : emptyState("Keine offenen Punkte. Alle Schritte sind erfüllt oder entfallen."));
   }
 
+  // --- Validierungs-Vorabcheck (Konzept 10) -------------------------------------------------
+
+  async function preview() {
+    try {
+      check.evaluation = await api("POST", "/api/validation/preview", { answers: check.answers });
+      check.answers = check.evaluation.answers;
+      check.error = "";
+    } catch (error) {
+      check.error = error.message;
+    }
+    keepFocus(root, draw);
+  }
+
+  async function openCheck() {
+    try {
+      check.rules = await api("GET", "/api/validation");
+    } catch (error) {
+      check.error = error.message;
+      draw();
+      return;
+    }
+    check.answers = detail.validations.length ? { ...detail.validations[0].answers } : {};
+    check.open = true;
+    await preview();
+  }
+
+  function incompleteNote(parts) {
+    return parts.length ? h("p", { class: "field-note bad" }, icon("alert"),
+      h("span", null, `Regelwerk unvollständig (${parts.join(", ")} sind Platzhalter). Das Ergebnis ist nur eine Orientierung.`)) : null;
+  }
+
+  function precheck() {
+    const last = detail.validations[0];
+    const notice = "Der Check ersetzt keine Freigabe. Die verbindliche Entscheidung trifft die zuständige Qualitäts- bzw. Validierungsfunktion; das freigegebene Assessment liegt im kontrollierten Dokumentensystem, der Hub speichert nur den Verweis.";
+    const parts = [h("p", { class: "field-note warn" }, icon("alert"), h("span", null, notice))];
+    if (check.error) parts.push(h("p", { class: "field-note bad" }, icon("alert"), h("span", null, check.error)));
+    if (last && !check.open) {
+      const prompt = h("textarea", { rows: "8", readonly: true, "aria-label": "Prompt zum Kopieren", "data-key": "vc-prompt" });
+      prompt.value = last.prompt_text;
+      const copied = h("span", { class: "saved", role: "status" });
+      parts.push(
+        h("dl", { class: "kv" },
+          h("dt", null, "Letzter Vorabcheck"), h("dd", null, `${formatTs(last.created_at)} durch ${last.created_by || "unbekannt"}, Regelwerk ${last.rules_version}`),
+          h("dt", null, "Ergebnis"), h("dd", null, h("strong", null, last.label), ` – ${last.text}`),
+          h("dt", null, "Gesamtrisiko"), h("dd", null, last.risk || "nicht ermittelt"),
+          h("dt", null, "Kontrollen"), h("dd", null, last.controls.length ? h("ul", { class: "check-list" }, last.controls.map((c) => h("li", null, c))) : "keine ermittelt")),
+        incompleteNote(last.incomplete_parts),
+        h("div", { class: "field wide" },
+          h("label", null, `Prompt (${last.prompt_lang === "en" ? "Englisch" : "Deutsch"}) – manuell im freigegebenen GenAI-Tool zusammen mit den Richtliniendokumenten ausführen`),
+          prompt,
+          h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", onclick: async () => {
+            try {
+              await navigator.clipboard.writeText(last.prompt_text);
+            } catch (error) {
+              prompt.select();
+              document.execCommand("copy");
+            }
+            copied.replaceChildren(icon("check"), "Kopiert");
+          } }, "Prompt kopieren"), copied)));
+    }
+    if (!check.open) {
+      parts.push(h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", disabled: readOnly, onclick: openCheck },
+        last ? "Vorabcheck wiederholen" : "Vorabcheck durchführen"),
+        detail.validations.length > 1 ? h("span", { class: "muted" }, `${detail.validations.length} Durchläufe gespeichert, der neueste gilt.`) : null));
+      return h("div", { class: "stack-tight wide" }, parts);
+    }
+    const unclear = check.rules.unclear;
+    const visible = check.evaluation ? check.evaluation.visible : check.rules.questions.map((q) => q.key);
+    for (const question of check.rules.questions.filter((q) => visible.includes(q.key))) {
+      const current = check.answers[question.key];
+      const choices = question.multiple ? question.options : [...question.options, unclear];
+      parts.push(h("fieldset", { class: "question" },
+        h("legend", null, `${question.nr}. ${question.text}`),
+        choices.map((option) => {
+          const id = `vc-${question.key}-${option.key}`;
+          const input = h("input", {
+            type: question.multiple ? "checkbox" : "radio", name: `vc-${question.key}`, id, "data-key": id,
+            checked: question.multiple ? (current || []).includes(option.key) : current === option.key,
+            onchange: () => {
+              if (question.multiple) {
+                const set = new Set(check.answers[question.key] || []);
+                if (input.checked) set.add(option.key); else set.delete(option.key);
+                check.answers[question.key] = [...set];
+              } else {
+                check.answers[question.key] = option.key;
+              }
+              preview();
+            },
+          });
+          return h("span", { class: "checkline" }, input, h("label", { for: id }, option.label));
+        })));
+    }
+    const lang = h("select", { "aria-label": "Sprache des Prompts", "data-key": "vc-lang", onchange: () => { check.lang = lang.value; } },
+      h("option", { value: "de", selected: check.lang === "de" }, "Prompt auf Deutsch"),
+      h("option", { value: "en", selected: check.lang === "en" }, "Prompt auf Englisch"));
+    if (check.evaluation) {
+      parts.push(h("div", { class: "result-box" },
+        h("p", null, "Ergebnis nach den bisherigen Antworten: ", h("strong", null, check.evaluation.label)),
+        h("p", { class: "muted" }, check.evaluation.text),
+        incompleteNote(check.evaluation.incomplete_parts)));
+    }
+    parts.push(h("div", { class: "toolbar" }, lang,
+      h("button", { class: "btn", type: "button", onclick: async () => {
+        try {
+          const next = await api("POST", `${url}/validations`, { answers: check.answers, lang: check.lang });
+          check.open = false;
+          apply(next);
+        } catch (error) {
+          fail(error);
+        }
+      } }, "Vorabcheck speichern"),
+      h("button", { class: "btn btn-quiet", type: "button", onclick: () => { check.open = false; draw(); } }, "Abbrechen")));
+    return h("div", { class: "stack-tight wide" }, parts);
+  }
+
   // --- Unterlisten -----------------------------------------------------------------------
 
   function sublist(name, columns, addLabel, emptyText) {
@@ -317,7 +433,8 @@ export async function renderUsecase(view, id, section, app) {
           missing.length ? `Es fehlen: ${missing.join(", ")}.` : "Life-Cycle-Owner, Version und nächstes Review sind gesetzt.",
           h("div", { class: "field wide" }, h("div", null, h("a", { class: "btn", href: `${base}/betrieb` }, "Zum Abschnitt Betrieb", icon("arrow"))))),
         card("eingeordnet", "2 · Eingeordnet",
-          `Regulatorische Einordnung nach ${meta.labels.guideline || "der Richtlinie"}. Der Hub speichert nur den Verweis auf das freigegebene Assessment im kontrollierten Dokumentensystem, nie das Assessment selbst. Der Validierungs-Vorabcheck folgt in Phase 4.`,
+          `Regulatorische Einordnung nach ${meta.labels.guideline || "der Richtlinie"}.`,
+          precheck(),
           f("reg_status", { kind: "select", options: options("reg_status") }),
           f("reg_confirmed_at", { kind: "date" }),
           f("reg_result", { hint: "Zum Beispiel: Pfad A, Pfad B, außerhalb des Geltungsbereichs." }),
@@ -362,7 +479,7 @@ export async function renderUsecase(view, id, section, app) {
             { label: "Titel", value: (t) => t.title },
             { label: "Status", value: (t) => t.status },
             { label: "Schwere", value: (t) => t.severity || "–" },
-          ], detail.tickets) : emptyState("Keine Tickets zu diesem Use Case. Tickets kommen über das Formular „Problem mit AI-Tool melden“; die Zuordnung folgt in Phase 3.")),
+          ], detail.tickets) : emptyState("Keine Tickets zu diesem Use Case. Tickets kommen über das Formular „Problem mit AI-Tool melden“ und werden über die ID im Feld „Betroffenes Tool“ zugeordnet.")),
       ];
     },
 

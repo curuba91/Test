@@ -147,12 +147,15 @@ export async function renderUsecases(view, rest, app) {
 async function renderNew(view, app) {
   const readOnly = app.state.mode === "nur-lesen";
   const note = h("p", { class: "field-note", role: "status" },
-    h("span", null, "Manuell angelegte Use Cases erhalten eine ID der Form M-001. Alles Weitere wird auf der Detailseite gepflegt."));
+    h("span", null, "Manuell angelegte Einträge erhalten eine ID der Form M-001 (Use Case) oder TM-001 (Ticket). Alles Weitere wird danach gepflegt."));
+  const kind = h("select", { id: "new-kind", disabled: readOnly },
+    h("option", { value: "usecases" }, "Use Case"), h("option", { value: "tickets" }, "Ticket"));
   const input = h("input", { type: "text", id: "new-title", disabled: readOnly, autocomplete: "off" });
   const create = async () => {
     try {
-      const detail = await api("POST", "/api/usecases", { title: input.value });
-      location.hash = `#/usecases/${encodeURIComponent(detail.usecase.id)}/ueberblick`;
+      const detail = await api("POST", `/api/${kind.value}`, { title: input.value });
+      location.hash = kind.value === "tickets" ? `#/tickets/${encodeURIComponent(detail.ticket.id)}`
+        : `#/usecases/${encodeURIComponent(detail.usecase.id)}/ueberblick`;
     } catch (error) {
       note.className = "field-note bad";
       note.replaceChildren(icon("alert"), h("span", null, error.message));
@@ -162,12 +165,13 @@ async function renderNew(view, app) {
   input.addEventListener("keydown", (event) => { if (event.key === "Enter") create(); });
   view.append(
     h("a", { class: "back", href: "#/usecases" }, "← Use Cases"),
-    pageHead("Use Case manuell anlegen"),
+    pageHead("Manuell anlegen"),
     h("section", { class: "panel" },
-      h("div", { class: "field" },
-        h("label", { for: "new-title" }, "Titel"),
-        h("div", { class: "field-row" }, input,
-          h("button", { class: "btn btn-primary", type: "button", disabled: readOnly, onclick: create }, "Anlegen")),
-        note)));
+      h("div", { class: "form-grid" },
+        h("div", { class: "field" }, h("label", { for: "new-kind" }, "Art"), kind),
+        h("div", { class: "field" }, h("label", { for: "new-title" }, "Titel"),
+          h("div", { class: "field-row" }, input,
+            h("button", { class: "btn btn-primary", type: "button", disabled: readOnly, onclick: create }, "Anlegen")))),
+      note));
   setTimeout(() => input.focus(), 0);
 }

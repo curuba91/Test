@@ -303,7 +303,35 @@ textarea[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(-
 .btn-quiet { border-color: transparent; padding: var(--s1); }
 a.btn[aria-disabled="true"] { pointer-events: none; }
 
+.stack-tight.wide { grid-column: 1 / -1; }
+.question { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s3) var(--s4); margin: 0; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
+.question legend { font-weight: 600; padding: 0 var(--s1); }
+.result-box { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: var(--radius); padding: var(--s3) var(--s4); display: grid; gap: var(--s1); }
+textarea[readonly] { background: var(--bg); width: 100%; }
+
+/* --- Tickets ---------------------------------------------------------------- */
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); align-items: start; }
+.column { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s3); display: grid; gap: var(--s2); align-content: start; min-height: 120px; }
+.column h2 { font-size: var(--fs-text); display: flex; gap: var(--s2); }
+.column.drop { border-color: var(--accent); background: var(--accent-soft); }
+.column-empty { padding: var(--s2); }
+.card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: var(--s3); display: grid; gap: var(--s1); cursor: pointer; }
+.card[draggable="true"] { cursor: grab; }
+.card[aria-current="true"] { border-color: var(--accent); outline: 1px solid var(--accent); }
+.card-head { display: flex; justify-content: space-between; gap: var(--s2); }
+.card-head a { font-weight: 600; }
+.card-title { font-weight: 600; overflow-wrap: anywhere; }
+.card select { width: 100%; margin-top: var(--s1); }
+.with-side { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: var(--s5); align-items: start; }
+.with-side .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.side { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s5); display: grid; gap: var(--s4); position: sticky; top: var(--s4); max-height: calc(100vh - var(--s8)); overflow: auto; }
+.form-grid.one { grid-template-columns: minmax(0, 1fr); }
+.history { display: grid; gap: var(--s2); }
+.history li { display: grid; overflow-wrap: anywhere; }
+
 @media (max-width: 1100px) {
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .with-side { grid-template-columns: minmax(0, 1fr); }
   .form-grid.five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .source-grid, .conflict-values { grid-template-columns: minmax(0, 1fr); }
   .cols { grid-template-columns: minmax(0, 1fr); }

@@ -18,7 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import APP_ID, APP_VERSION, audit, handover, importer, rules, testdata
+from . import APP_ID, APP_VERSION, audit, handover, importer, rules, testdata, validation
 from . import db as dbm
 from .config import FREE_LISTS, LOGIC_LISTS, PATH_KEYS, Config
 
@@ -26,7 +26,7 @@ PORT_ATTEMPTS = 10
 MAX_BODY_BYTES = 1_000_000
 WRITE_METHODS = ("POST", "PUT", "PATCH", "DELETE")
 # Diese Aufrufe verändern keine Daten und bleiben im Nur-Lese-Modus erlaubt.
-ALLOWED_WHEN_READ_ONLY = ("/api/heartbeat", "/api/shutdown", "/api/fs/list")
+ALLOWED_WHEN_READ_ONLY = ("/api/heartbeat", "/api/shutdown", "/api/fs/list", "/api/validation/preview")
 ERROR_LOG = "hub_fehler.log"
 
 MIME_TYPES = {
@@ -606,6 +606,7 @@ def _usecase_detail(app, conn, usecase_id) -> dict:
                                     (usecase_id,)).fetchall()),
         "merged_from": [r[0] for r in conn.execute("SELECT id FROM usecases WHERE merged_into = ? ORDER BY id",
                                                    (usecase_id,))],
+        "validations": _validation_list(app, conn, usecase_id),
         "history": audit.query(conn, entity="usecases", entity_id=usecase_id, limit=300)["items"],
     }
 
@@ -710,6 +711,78 @@ def api_sub_delete(app, _body, table, row_id):
     database = app.require_db()
     with database.write(user=app.user, machine=app.machine) as tx:
         usecase_id = dbm.sub_delete(tx, table, int(row_id))
+    return _detail(app, usecase_id)
+
+
+# --- Vorabcheck (Phase 4) ----------------------------------------------------------------
+
+
+def _validation_rules(app):
+    rules_data, errors = validation.load_rules(app.cfg.program_dir)
+    if errors:
+        raise ApiError(409, "rules", "Das Regelwerk des Vorabchecks ist fehlerhaft: " + " ".join(errors), errors=errors)
+    return rules_data
+
+
+def api_validation_rules(app, _params):
+    rules_data = _validation_rules(app)
+    return {"rules_version": rules_data["rules_version"], "notice": rules_data.get("notice", {}),
+            "unclear": rules_data.get("unclear", {"key": "unklar", "label": "unklar"}),
+            "questions": rules_data["questions"], "incomplete_parts": validation.incomplete_parts(rules_data)}
+
+
+def api_validation_preview(app, body):
+    answers = body.get("answers")
+    if not isinstance(answers, dict):
+        raise ApiError(400, "format", "answers fehlt.")
+    return validation.evaluate(_validation_rules(app), answers)
+
+
+def _validation_list(app, conn, usecase_id) -> list:
+    rules_data, _errors = validation.load_rules(app.cfg.program_dir)
+    results = rules_data.get("results", {})
+    items = []
+    for row in conn.execute("SELECT * FROM validations WHERE usecase_id = ? ORDER BY id DESC", (usecase_id,)):
+        extra = json.loads(row["controls_json"] or "{}")
+        entry = results.get(row["result"], {})
+        items.append({
+            "id": row["id"], "created_at": row["created_at"], "created_by": row["created_by"],
+            "result": row["result"], "label": entry.get("label", row["result"]), "text": entry.get("text", ""),
+            "risk": row["risk"], "controls": extra.get("controls", []),
+            "incomplete_parts": extra.get("incomplete_parts", []), "answers": json.loads(row["answers_json"] or "{}"),
+            "prompt_text": row["prompt_text"], "prompt_lang": row["prompt_lang"], "rules_version": row["rules_version"],
+        })
+    return items
+
+
+@_data_errors
+def api_validation_save(app, body, usecase_id):
+    """Speichert einen Durchlauf; der neueste gilt. Der Check ersetzt keine Freigabe."""
+    database = app.require_db()
+    answers = body.get("answers")
+    if not isinstance(answers, dict):
+        raise ApiError(400, "format", "answers fehlt.")
+    rules_data = _validation_rules(app)
+    evaluation = validation.evaluate(rules_data, answers)
+    lang = "en" if body.get("lang") == "en" else "de"
+    with database.write(user=app.user, machine=app.machine) as tx:
+        usecase = tx.execute("SELECT * FROM usecases WHERE id = ?", (usecase_id,)).fetchone()
+        if usecase is None:
+            raise LookupError(f"Use Case {usecase_id} nicht gefunden.")
+        prompt = validation.build_prompt(rules_data, dict(usecase), evaluation, lang)
+        extra = {"controls": evaluation["controls"], "incomplete_parts": evaluation["incomplete_parts"]}
+        tx.execute(
+            "INSERT INTO validations (usecase_id, created_at, created_by, answers_json, result, risk, controls_json, "
+            "prompt_text, prompt_lang, rules_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (usecase_id, dbm.now_ts(), app.user, json.dumps(evaluation["answers"], ensure_ascii=False),
+             evaluation["result"], evaluation["risk"] or "", json.dumps(extra, ensure_ascii=False), prompt, lang,
+             evaluation["rules_version"]))
+        tx.audit("usecases", usecase_id, "Vorabcheck", "", f"{evaluation['label']} (Regelwerk {evaluation['rules_version']})")
+        if usecase["reg_status"] != "bestätigt":  # eine bestätigte Einordnung fasst der Vorabcheck nicht an
+            if usecase["reg_status"] == "offen":
+                dbm.update_field(tx, "usecases", usecase_id, "reg_status", "Vorabcheck erfolgt", source="regel")
+            dbm.update_field(tx, "usecases", usecase_id, "reg_result", evaluation["label"], source="regel")
+        tx.bump = True
     return _detail(app, usecase_id)
 
 
@@ -850,6 +923,9 @@ ROUTES = [
     ("POST", re.compile(r"^/api/usecases/([^/]+)/(milestones|releases|links)$"), api_sub_add),
     ("PATCH", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_patch),
     ("DELETE", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_delete),
+    ("GET", re.compile(r"^/api/validation$"), api_validation_rules),
+    ("POST", re.compile(r"^/api/validation/preview$"), api_validation_preview),
+    ("POST", re.compile(r"^/api/usecases/([^/]+)/validations$"), api_validation_save),
     ("GET", re.compile(r"^/api/tickets$"), api_tickets),
     ("POST", re.compile(r"^/api/tickets$"), api_ticket_create),
     ("GET", re.compile(r"^/api/tickets/([^/]+)$"), api_ticket_get),
