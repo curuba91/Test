@@ -7,6 +7,7 @@ import { renderStart } from "./views/start.js";
 import { renderUsecases } from "./views/usecases.js";
 import { renderTickets } from "./views/tickets.js";
 import { renderAdmin } from "./views/admin.js";
+import { renderSearch } from "./views/search.js";
 
 const HEARTBEAT_MS = 15000;
 const main = document.getElementById("main");
@@ -29,6 +30,7 @@ const AREAS = {
   usecases: renderUsecases,
   tickets: renderTickets,
   verwaltung: renderAdmin,
+  suche: renderSearch,
 };
 
 function parseHash() {
@@ -99,12 +101,18 @@ function renderTools() {
   if (!state) return;
   const readOnly = state.mode === "nur-lesen";
   const menuWasOpen = Boolean(tools.querySelector(".status-menu[open]"));
+  const oldSearch = tools.querySelector(".search");
   const search = h("input", {
-    type: "search", class: "search", placeholder: "Suche (ID, Titel, Melder:in)",
-    "aria-label": "Suche", disabled: true, title: "Die Suche kommt mit den Use Cases in Phase 2.",
+    type: "search", class: "search", placeholder: "Suche (ID, Titel, Melder:in)", "aria-label": "Suche",
+    value: oldSearch ? oldSearch.value : null,
   });
-  const create = h("button", {
-    class: "btn", type: "button", disabled: true, title: "Manuelles Anlegen kommt in Phase 2.",
+  search.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && search.value.trim()) location.hash = `#/suche/${encodeURIComponent(search.value.trim())}`;
+  });
+  const hadFocus = oldSearch && document.activeElement === oldSearch;
+  const create = h("a", {
+    class: "btn", href: readOnly ? null : "#/usecases/neu", "aria-disabled": readOnly ? "true" : null,
+    title: "Use Case manuell anlegen (Tickets folgen in Phase 3)",
   }, icon("plus"), "Neu");
   const minutes = state.auto_shutdown_minutes;
   const menu = h("details", { class: "status-menu", open: menuWasOpen },
@@ -119,6 +127,7 @@ function renderTools() {
         h("div", null, h("dt", null, "Version"), h("dd", null, state.version))),
       h("button", { class: "btn", type: "button", onclick: shutdown }, icon("power"), "Hub beenden")));
   tools.replaceChildren(search, create, menu);
+  if (hadFocus) search.focus();
 }
 
 // Rückfrage ist hier vorgesehen: Ein Stand wird verworfen (Konzept 9.7).
@@ -152,7 +161,7 @@ function stamp(state) {
 }
 
 // Seiten, die sich selbst aktualisieren, wenn ein Import neue Daten gebracht hat.
-const LIVE = ["#/start", "#/verwaltung/quellen", "#/verwaltung/konflikte"];
+const LIVE = ["#/start", "#/verwaltung/quellen", "#/verwaltung/konflikte", "#/usecases/stufe"];
 
 async function heartbeat() {
   if (app.connection === "ended" || app.connection === "token") return;
