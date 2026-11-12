@@ -21,6 +21,20 @@ Alles Standortspezifische steht in Dateien im Programmordner, nicht im Code:
    `FEHLER` muss beseitigt werden, `OFFEN` listet die noch nicht bestätigten Platzhalter.
    Dieselbe Liste zeigt der Hub unter Verwaltung → Einstellungen.
 
+## Häufige Einzeländerungen
+
+- **Stichtag der Richtlinie (Regel H09):** in `standort.json` bei `"deadline"` den Wert von `"date"` von `null`
+  auf das Datum setzen, zum Beispiel `"date": "2027-06-30"`. Die Stelle ist in der Datei mit
+  „HIER DEN STICHTAG EINTRAGEN“ markiert. Im Programmcode ist nichts zu ändern.
+- **Spaltennamen der Quell-Excels:** unter `"columns"`. Die ID-Spalte füllt der Flow mit der
+  Formular-Antwort-ID; aus `7` macht der Hub `UC-007` (`"id_prefix"`). Zeilen ohne ID werden nicht
+  importiert und auf der Startseite gemeldet.
+- **Ticket-Excel:** Die vorgeschlagenen Kopfzeilen sind `ID`, `Titel`, `Beschreibung`, `Betroffenes Tool`,
+  `Melder:in`, `Gemeldet am`. Eine passende Datei mit Beispielzeilen erzeugt der Testmodus im lokalen
+  Datenordner unter `test\Quelle2_Tickets.xlsx`.
+- **Gewichteter Score:** je Kriterium unter `"score"` ein `"weight"` eintragen und `"mode"` auf
+  `"gewichtet"` stellen.
+
 ## Was geändert werden darf
 
 | Abschnitt | Erlaubt | Nicht erlaubt |
