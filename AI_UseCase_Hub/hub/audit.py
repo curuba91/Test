@@ -1,0 +1,1 @@
+"""Änderungsprotokoll (Phase 1)."""

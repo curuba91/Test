@@ -1,0 +1,169 @@
+{
+  "_hinweis": "Standortkonfiguration des AI Use Case Hub. Pflege von Hand oder per KI nach ANPASSUNG.md. Einträge mit \"status\": \"PLATZHALTER\" sind nicht bestätigt. Prüfen mit: python -B -m hub.config",
+  "config_version": 1,
+  "labels": {
+    "organisation": "<Organisation>",
+    "site": "<Standort>",
+    "sponsor": "<Sponsor>",
+    "board": "<AI-Gremium>",
+    "portal": "<Lösungsportal>",
+    "guideline": "<AI-Richtlinie>",
+    "comm_platform": "<interne Kommunikationsplattform>"
+  },
+  "default_paths": {
+    "source_usecases": "",
+    "source_tickets": "",
+    "team_folder": ".."
+  },
+  "deadline": {
+    "date": null,
+    "lead_days": 60
+  },
+  "version_format": "Haupt.Neben[.Patch]",
+  "score": {
+    "_hinweis": "mode = manuell: Gesamtscore wird eingegeben. mode = gewichtet: Gesamtscore = Summe(Einzelscore x weight) / Summe(weight); dafür braucht jedes Kriterium ein weight. Die Kriterien stammen aus den Spalten der bisherigen Excel; die Gewichte sind nicht bekannt.",
+    "mode": "manuell",
+    "criteria": [
+      { "key": "rft", "label": "Abweichungsvermeidung / RFT", "weight": null },
+      { "key": "capa", "label": "CAPA-Beschleunigung", "weight": null },
+      { "key": "time", "label": "Arbeitszeit-Reduktion", "weight": null },
+      { "key": "cost", "label": "Kosten-Reduktion", "weight": null },
+      { "key": "users", "label": "Potenzielle Anzahl Nutzer", "weight": null }
+    ]
+  },
+  "value_lists": {
+    "_hinweis": "Listen mit \"entries\" steuern Geschäftsregeln: key ist fest, anpassbar sind label (Anzeige) und aliases (abweichende Schreibweisen aus Alt-Excel/Quellen, die beim Import auf den key abgebildet werden). Listen mit \"values\" sind frei änderbar.",
+    "phase": {
+      "status": "PLATZHALTER",
+      "entries": [
+        { "key": "Eingang", "label": "Eingang", "aliases": [] },
+        { "key": "In Bearbeitung", "label": "In Bearbeitung", "aliases": [] },
+        { "key": "Abgeschlossen", "label": "Abgeschlossen", "aliases": [] },
+        { "key": "Zusammengeführt", "label": "Zusammengeführt", "aliases": [] },
+        { "key": "Discontinued", "label": "Discontinued", "aliases": [] }
+      ]
+    },
+    "origin": {
+      "status": "PLATZHALTER",
+      "entries": [
+        { "key": "lokal entwickelt", "label": "lokal entwickelt", "aliases": [] },
+        { "key": "übernommen", "label": "übernommen", "aliases": [] }
+      ]
+    },
+    "reg_status": {
+      "status": "PLATZHALTER",
+      "entries": [
+        { "key": "offen", "label": "offen", "aliases": [] },
+        { "key": "Vorabcheck erfolgt", "label": "Vorabcheck erfolgt", "aliases": [] },
+        { "key": "bestätigt", "label": "bestätigt", "aliases": [] }
+      ]
+    },
+    "sponsor_status": {
+      "status": "PLATZHALTER",
+      "entries": [
+        { "key": "offen", "label": "offen", "aliases": [] },
+        { "key": "besprochen", "label": "besprochen", "aliases": [] },
+        { "key": "nicht erforderlich", "label": "nicht erforderlich", "aliases": [] }
+      ]
+    },
+    "board_status": {
+      "status": "PLATZHALTER",
+      "entries": [
+        { "key": "offen", "label": "offen", "aliases": [] },
+        { "key": "vorgelegt", "label": "vorgelegt", "aliases": [] },
+        { "key": "freigegeben", "label": "freigegeben", "aliases": [] },
+        { "key": "Nachschärfen gefordert", "label": "Nachschärfen gefordert", "aliases": [] },
+        { "key": "nicht erforderlich", "label": "nicht erforderlich", "aliases": [] }
+      ]
+    },
+    "portal_status": {
+      "status": "PLATZHALTER",
+      "entries": [
+        { "key": "offen", "label": "offen", "aliases": [] },
+        { "key": "veröffentlicht", "label": "veröffentlicht", "aliases": [] }
+      ]
+    },
+    "comm_status": {
+      "status": "PLATZHALTER",
+      "entries": [
+        { "key": "offen", "label": "offen", "aliases": [] },
+        { "key": "kommuniziert", "label": "kommuniziert", "aliases": [] }
+      ]
+    },
+    "ticket_status": {
+      "status": "FEST",
+      "entries": [
+        { "key": "Neu", "label": "Neu", "aliases": [] },
+        { "key": "In Analyse", "label": "In Analyse", "aliases": [] },
+        { "key": "In Umsetzung", "label": "In Umsetzung", "aliases": [] },
+        { "key": "Gelöst", "label": "Gelöst", "aliases": [] },
+        { "key": "Geschlossen", "label": "Geschlossen", "aliases": [] },
+        { "key": "Abgelehnt", "label": "Abgelehnt", "aliases": [] }
+      ]
+    },
+    "ticket_severity": {
+      "status": "FEST",
+      "entries": [
+        { "key": "hoch", "label": "hoch", "aliases": [] },
+        { "key": "mittel", "label": "mittel", "aliases": [] },
+        { "key": "niedrig", "label": "niedrig", "aliases": [] }
+      ]
+    },
+    "usecase_type": {
+      "status": "PLATZHALTER",
+      "values": []
+    },
+    "ticket_type": {
+      "status": "PLATZHALTER",
+      "values": ["Fehler", "Verbesserung", "Frage"]
+    },
+    "area": {
+      "status": "PLATZHALTER",
+      "values": []
+    }
+  },
+  "columns": {
+    "_hinweis": "Zuordnung Hub-Feld -> Spaltenname in der Quell-Excel. null = Spalte gibt es (noch) nicht. Leerzeichen am Rand und Groß-/Kleinschreibung werden beim Abgleich ignoriert.",
+    "usecases": {
+      "status": "PLATZHALTER",
+      "fields": {
+        "id": "ID",
+        "title": "Titel Use Case",
+        "benefit": "Erwarteter Nutzen (Input Melder)",
+        "folder_link": "Link zu Ordner",
+        "description": null,
+        "area": null,
+        "reporter": null,
+        "reporter_email": null,
+        "submitted_at": null
+      }
+    },
+    "tickets": {
+      "status": "PLATZHALTER",
+      "fields": {
+        "id": null,
+        "title": null,
+        "description": null,
+        "reporter": null,
+        "affected_tool_raw": null,
+        "submitted_at": null
+      }
+    }
+  },
+  "migration": {
+    "_hinweis": "Nur für die einmalige Migration (Phase 6): Pflegespalten der bisherigen Excel. Werden nach der Migration nie wieder gelesen (Regel S6).",
+    "columns": {
+      "internal_title": "Interner Titel Use Case",
+      "summary": "AI Summary",
+      "owner": "Verantwortliche Person",
+      "score_rft": "Score Abweichungsvermeidung /RFT",
+      "score_capa": "Score CAPA-Beschleunigung",
+      "score_time": "Score Arbeitszeit-Reduktion",
+      "score_cost": "Score Kosten-Reduktion",
+      "score_users": "Score Potenzielle Anzahl Nutzer",
+      "lifecycle_required": "Life Cycle erforderlich nach Implementierung?",
+      "score": "Gewichteter Gesamtscore",
+      "phase": "Status Use Case"
+    }
+  }
+}

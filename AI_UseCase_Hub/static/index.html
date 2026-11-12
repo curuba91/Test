@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="hub-token" content="{{HUB_TOKEN}}">
+  <title>AI Use Case Hub</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+  <div id="bands" aria-live="polite"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="brand">AI Use Case Hub</span>
+      <nav class="mainnav" aria-label="Bereiche">
+        <a href="#/start" data-area="start">Start</a>
+        <a href="#/usecases" data-area="usecases">Use Cases</a>
+        <a href="#/tickets" data-area="tickets">Tickets</a>
+        <a href="#/verwaltung" data-area="verwaltung">Verwaltung</a>
+      </nav>
+      <div class="tools" id="tools"></div>
+    </div>
+  </header>
+  <main id="main" tabindex="-1"></main>
+  <noscript>Der AI Use Case Hub braucht JavaScript.</noscript>
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

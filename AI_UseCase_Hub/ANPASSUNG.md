@@ -1,0 +1,70 @@
+# Standortdaten lokal einfügen (von Hand oder per KI)
+
+Alles Standortspezifische steht in Dateien im Programmordner, nicht im Code:
+
+| Datei | Inhalt | Stand |
+|---|---|---|
+| `standort.json` | Bezeichnungen, Wertelisten, Spaltenzuordnung, Stichtag, Score-Regel, Pfad-Vorgaben | vorhanden |
+| `validation_rules.json` | Entscheidungslogik, Risikomatrix, Kontrollen und Texte des Vorabchecks | entsteht in Phase 4 nach demselben Muster |
+
+## Ablauf
+
+1. Sicherungskopie von `standort.json` anlegen.
+2. Datei im freigegebenen internen GenAI-Tool anpassen lassen (Prompt unten) oder von Hand ändern.
+3. Ergebnis zurück in den Programmordner speichern.
+4. Prüfen, im Programmordner:
+
+   ```bash
+   python -B -m hub.config
+   ```
+
+   `FEHLER` muss beseitigt werden, `OFFEN` listet die noch nicht bestätigten Platzhalter.
+   Dieselbe Liste zeigt der Hub unter Verwaltung → Einstellungen.
+
+## Was geändert werden darf
+
+| Abschnitt | Erlaubt | Nicht erlaubt |
+|---|---|---|
+| `labels` | Platzhalter wie `<Sponsor>` durch echte Bezeichnungen ersetzen | Schlüssel umbenennen |
+| `deadline` | `date` als `JJJJ-MM-TT` oder `null`; `lead_days` als ganze Zahl | anderes Datumsformat |
+| `value_lists` mit `values` (`usecase_type`, `ticket_type`, `area`) | Werte frei ändern, ergänzen, entfernen | doppelte Werte |
+| `value_lists` mit `entries` (Phase, Herkunft, Governance-Status, Ticket-Status, Schwere) | `label` (Anzeige) und `aliases` (Schreibweisen aus der Alt-Excel, die auf den Schlüssel abgebildet werden) | `key` ändern, Einträge hinzufügen, entfernen oder umsortieren |
+| `score` | `weight` je Kriterium setzen und `mode` auf `gewichtet` stellen | `gewichtet` ohne vollständige Gewichte |
+| `columns` | je Hub-Feld den exakten Spaltennamen der Quell-Excel oder `null` | dieselbe Spalte zwei Feldern zuordnen |
+| `status` | nach Bestätigung von `PLATZHALTER` auf `FEST` setzen | – |
+
+Die Schlüssel der Listen mit `entries` sind fest, weil die Geschäftsregeln daran hängen
+(zum Beispiel: Sponsor und Gremium entfallen bei Herkunft `übernommen`). Kennt der Standort
+einen **zusätzlichen** Zustand, ist das eine Regelentscheidung und keine Konfiguration:
+bitte als Änderungswunsch melden, nicht in die Datei schreiben.
+
+## Prompt zum Kopieren
+
+```text
+Du bearbeitest eine JSON-Konfigurationsdatei. Halte dich strikt an diese Regeln:
+1. Gib die vollständige Datei als gültiges JSON zurück, ohne Kommentare und ohne Erklärtext.
+2. Ändere keine Schlüsselnamen und keine Struktur. Ändere "config_version" nicht.
+3. In "value_lists" gilt: Bei Listen mit "entries" darfst du nur "label" und "aliases"
+   ändern. "key" bleibt unverändert, es kommen keine Einträge dazu oder weg, die
+   Reihenfolge bleibt. Bei Listen mit "values" darfst du die Werte frei setzen.
+4. Trage nur Werte ein, die in meinen Angaben unten stehen. Erfinde nichts. Was nicht
+   angegeben ist, bleibt unverändert und behält "status": "PLATZHALTER".
+5. Setze "status" nur bei den Listen und Zuordnungen auf "FEST", die ich unten
+   vollständig angegeben habe.
+6. Passt ein Wert aus meinen Angaben zu keinem vorhandenen "key", trage ihn nicht ein,
+   sondern nenne ihn nach dem JSON in einer Liste "Nicht zuordenbar".
+
+Meine Angaben:
+- Bezeichnungen (labels): ...
+- Stichtag der Richtlinie: ...
+- Typen von Use Cases: ...
+- Bereiche: ...
+- Ticket-Typen: ...
+- Bisherige Statuswerte und was sie bedeuten: ...
+- Spaltennamen Quelle 1 (Use Cases), in Reihenfolge: ...
+- Spaltennamen Quelle 2 (Tickets), in Reihenfolge: ...
+- Gewichte der Score-Kriterien: ...
+
+Die Datei:
+<Inhalt von standort.json einfügen>
+```

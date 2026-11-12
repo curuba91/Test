@@ -1,0 +1,212 @@
+/* Gestaltungssystem (Konzept 9.7). Alle Farben und Maße stehen hier, sonst nirgends. */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --line: #d5d9e0;
+  --line-strong: #aeb5c0;
+  --text: #1c2330;
+  --text-muted: #55606f;
+  --accent: #1d4ed8;
+  --accent-hover: #1a43ba;
+  --accent-soft: #e8eefc;
+  --on-accent: #ffffff;
+  --red: #b42318;
+  --red-soft: #fdecea;
+  --amber: #8a5300;
+  --amber-soft: #fdf3dc;
+  --green: #17692e;
+  --green-soft: #e6f4ea;
+  --gray: #55606f;
+  --gray-soft: #eceef2;
+
+  --fs-text: 15px;
+  --fs-section: 18px;
+  --fs-page: 24px;
+
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
+  --radius: 6px;
+  --content: 1280px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { font-size: var(--fs-text); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: var(--fs-text);
+  line-height: 1.45;
+}
+h1, h2, h3, p, ul, dl, dd { margin: 0; padding: 0; }
+ul { list-style: none; }
+h1 { font-size: var(--fs-page); font-weight: 600; line-height: 1.25; }
+h2 { font-size: var(--fs-section); font-weight: 600; line-height: 1.3; }
+a { color: var(--accent); }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-muted); }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#main:focus { outline: none; }
+
+.skip-link {
+  position: absolute; left: var(--s2); top: -48px;
+  background: var(--surface); padding: var(--s2) var(--s3);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); z-index: 10;
+}
+.skip-link:focus { top: var(--s2); }
+
+/* --- Symbole ------------------------------------------------------------ */
+.icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* --- Bänder über der Seite ---------------------------------------------- */
+.band {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: var(--s2) var(--s4); font-weight: 600; border-bottom: 1px solid var(--line-strong);
+}
+.band-red { background: var(--red-soft); color: var(--red); }
+.band-amber { background: var(--amber-soft); color: var(--amber); }
+.band-gray { background: var(--gray-soft); color: var(--text); }
+.band .btn { margin-left: var(--s2); }
+
+/* --- Kopfzeile ----------------------------------------------------------- */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar-inner {
+  max-width: var(--content); margin: 0 auto; padding: 0 var(--s6);
+  display: flex; align-items: center; gap: var(--s6); min-height: 56px;
+}
+.brand { font-weight: 600; white-space: nowrap; }
+.mainnav { display: flex; gap: var(--s1); align-self: stretch; }
+.mainnav a {
+  display: flex; align-items: center; padding: 0 var(--s3);
+  color: var(--text); text-decoration: none; border-bottom: 3px solid transparent; border-top: 3px solid transparent;
+}
+.mainnav a:hover { background: var(--bg); }
+.mainnav a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tools { margin-left: auto; display: flex; align-items: center; gap: var(--s2); }
+
+/* --- Eingaben und Schaltflächen ----------------------------------------- */
+input[type="text"], input[type="search"], input[type="number"] {
+  font: inherit; color: inherit; background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  padding: var(--s1) var(--s2); min-height: 32px;
+}
+input:disabled { background: var(--gray-soft); color: var(--text-muted); }
+input[aria-invalid="true"] { border-color: var(--red); }
+.search { width: 200px; }
+
+.btn {
+  font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  padding: var(--s1) var(--s3); min-height: 32px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--s2); text-decoration: none; white-space: nowrap;
+}
+.btn:hover { background: var(--bg); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn:disabled, .btn[aria-disabled="true"] { color: var(--text-muted); background: var(--gray-soft); border-color: var(--line); cursor: not-allowed; }
+
+/* --- Statusmenü ---------------------------------------------------------- */
+.status-menu { position: relative; }
+.status-menu > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s2);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: var(--s1) var(--s3); min-height: 32px;
+  white-space: nowrap;
+}
+.status-menu > summary::-webkit-details-marker { display: none; }
+.status-menu > summary:hover { background: var(--bg); }
+.status-panel {
+  position: absolute; right: 0; top: calc(100% + var(--s1)); z-index: 5; width: 320px;
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: var(--s4);
+  display: grid; gap: var(--s3);
+}
+.status-write { color: var(--green); }
+.status-readonly { color: var(--amber); }
+
+/* --- Seitenaufbau -------------------------------------------------------- */
+#main { max-width: var(--content); margin: 0 auto; padding: var(--s6); display: grid; gap: var(--s5); }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s4); }
+.page-head p { color: var(--text-muted); margin-top: var(--s1); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s5); display: grid; gap: var(--s4); align-content: start; }
+.panel > h2 { display: flex; align-items: baseline; gap: var(--s2); }
+.count { color: var(--text-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s5); align-items: start; }
+.stack { display: grid; gap: var(--s5); }
+.stack-tight { display: grid; gap: var(--s2); }
+
+.empty { color: var(--text-muted); padding: var(--s4); border: 1px dashed var(--line-strong); border-radius: var(--radius); }
+
+/* --- Handlungsbedarf ----------------------------------------------------- */
+.group-title { font-size: var(--fs-text); font-weight: 600; display: flex; align-items: center; gap: var(--s2); }
+.level-blocking { color: var(--red); }
+.level-open { color: var(--amber); }
+.action-list { display: grid; }
+.action-list a {
+  display: grid; grid-template-columns: 16px 200px minmax(0, 1fr) 16px; align-items: start; gap: var(--s3);
+  padding: var(--s2); color: var(--text); text-decoration: none; border-top: 1px solid var(--line);
+}
+.action-list li:first-child a { border-top: none; }
+.action-list a:hover { background: var(--bg); }
+.action-list .icon { margin-top: 3px; }
+.action-subject { font-weight: 600; overflow-wrap: anywhere; }
+.action-text { overflow-wrap: anywhere; }
+
+/* --- Kennzahlen ---------------------------------------------------------- */
+.stat-list { display: grid; }
+.stat-list > div { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-top: 1px solid var(--line); }
+.stat-list > div:first-child { border-top: none; }
+.stat-list dd { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* --- Verwaltung ---------------------------------------------------------- */
+.subnav { display: flex; flex-wrap: wrap; gap: var(--s1); border-bottom: 1px solid var(--line); }
+.subnav a { padding: var(--s2) var(--s3); color: var(--text); text-decoration: none; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.subnav a:hover { background: var(--surface); }
+.subnav a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+.field { display: grid; gap: var(--s1); }
+.field > label { font-weight: 600; }
+.field-row { display: flex; gap: var(--s2); align-items: center; }
+.field-row input[type="text"] { flex: 1; min-width: 0; }
+.field-note { display: flex; align-items: flex-start; gap: var(--s2); color: var(--text-muted); overflow-wrap: anywhere; }
+.field-note .icon { margin-top: 3px; }
+.field-note.ok { color: var(--green); }
+.field-note.bad { color: var(--red); }
+.saved { color: var(--green); display: inline-flex; align-items: center; gap: var(--s1); white-space: nowrap; min-width: 96px; }
+.kv { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--s1) var(--s4); }
+.kv dt { color: var(--text-muted); }
+.kv dd { overflow-wrap: anywhere; }
+
+.browser { border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg); }
+.browser-head { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); }
+.browser-path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.browser-list { max-height: 240px; overflow: auto; background: var(--surface); border-radius: 0 0 var(--radius) var(--radius); }
+.browser-list button {
+  font: inherit; color: inherit; background: none; border: none; border-top: 1px solid var(--line);
+  width: 100%; text-align: left; padding: var(--s2) var(--s3); cursor: pointer; display: flex; align-items: center; gap: var(--s2);
+}
+.browser-list li:first-child button { border-top: none; }
+.browser-list button:hover { background: var(--accent-soft); }
+.browser-list .empty { border: none; }
+
+.check-list { display: grid; gap: var(--s2); }
+.check-list li { display: flex; align-items: flex-start; gap: var(--s2); overflow-wrap: anywhere; }
+.check-list .icon { margin-top: 3px; }
+.check-error { color: var(--red); }
+.check-open { color: var(--amber); }
+.check-list li span { color: var(--text); }
+
+code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 14px; background: var(--gray-soft); padding: 0 var(--s1); border-radius: var(--s1); }
+
+@media (max-width: 1100px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  .search { width: 140px; }
+}
