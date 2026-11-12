@@ -600,18 +600,18 @@ Arbeitsweise (FEST):
 
 ## 16. Offene Punkte und Annahmen
 
-| Nr. | Punkt | Betrifft Phase | Benötigt |
-|---|---|---|---|
-| 1 | Entscheidungslogik, Risikomatrix und Kontrollen des Vorabchecks | 4 | Logik aus dem bisherigen Entwurf oder Vorgabe aus der <AI-Richtlinie> |
-| 2 | Spaltennamen der echten Quell-Excels (inklusive ID-Spalte) | 1 | Kopfzeilen beider Dateien |
-| 3 | Wertelisten: Typ, Herkunft, Governance-Status, Ticket-Typ | 1–3 | bestehende Werte aus Entwurf oder Alt-Excel |
-| 4 | Score: manuell eingegeben oder aus Kriterien berechnet? | 2 | Regel oder Bestätigung „manuell“ |
-| 5 | Stichtag der <AI-Richtlinie> und Vorlaufzeit für H09 | 2 | Datum; Vorschlag 60 Tage |
-| 6 | Versionsformat der Lösungen (`Haupt.Neben[.Patch]`?) | 3 | Bestätigung |
-| 7 | Aufbau der bisherigen Pflege-Tabellen für die Migration | 6 | anonymisierte Beispieldatei |
-| 8 | Pfad des Team-Ordners; ist der Ordner für die Vertretung synchronisiert? | 5 | Bestätigung |
-| 9 | Automatisches Beenden nach 10 Minuten ohne offenen Tab | 0 | Zustimmung oder Ablehnung |
-| 10 | Liegt der bisherige Entwurf als Referenz vor? | 0 | Datei im Arbeitsverzeichnis |
+| Nr. | Punkt | Betrifft Phase | Benötigt | Stand 12.11.2026 |
+|---|---|---|---|---|
+| 1 | Entscheidungslogik, Risikomatrix und Kontrollen des Vorabchecks | 4 | Logik aus dem bisherigen Entwurf oder Vorgabe aus der <AI-Richtlinie> | Wird lokal per KI in `validation_rules.json` eingefügt (kein Upload möglich). Die Datei entsteht in Phase 4 mit festem Schema, Prüfbefehl und Anleitung in `ANPASSUNG.md`; bis dahin PLATZHALTER. |
+| 2 | Spaltennamen der echten Quell-Excels (inklusive ID-Spalte) | 1 | Kopfzeilen beider Dateien | Quelle 1 geliefert: Titel Use Case · Link zu Ordner · Erwarteter Nutzen (Input Melder) · Interner Titel Use Case · AI Summary · Verantwortliche Person · Score Abweichungsvermeidung /RFT · Score CAPA-Beschleunigung · Score Arbeitszeit-Reduktion · Score Kosten-Reduktion · Score Potenzielle Anzahl Nutzer · Life Cycle erforderlich nach Implementierung? · Gewichteter Gesamtscore · Status Use Case. ID-Spalte fehlt und müsste ergänzt werden. **Offen:** wer die ID vergibt; Kopfzeilen von Quelle 2; fehlende Felder Beschreibung, Bereich, Melder:in, Datum. |
+| 3 | Wertelisten: Typ, Herkunft, Governance-Status, Ticket-Typ | 1–3 | bestehende Werte aus Entwurf oder Alt-Excel | Wird lokal per KI in `standort.json` eingefügt (siehe `ANPASSUNG.md`). Listen mit Regelbezug haben feste Schlüssel; anpassbar sind Anzeige und Alias-Werte. |
+| 4 | Score: manuell eingegeben oder aus Kriterien berechnet? | 2 | Regel oder Bestätigung „manuell“ | Zunächst manuell. Kriterien und Gewichte sind in `standort.json` (`score`) vorbereitet; Umschalten auf `gewichtet` ohne Codeänderung. |
+| 5 | Stichtag der <AI-Richtlinie> und Vorlaufzeit für H09 | 2 | Datum; Vorschlag 60 Tage | Vorlauf 60 Tage bestätigt. **Offen:** das Datum des Stichtags (`deadline.date`). |
+| 6 | Versionsformat der Lösungen (`Haupt.Neben[.Patch]`?) | 3 | Bestätigung | Bestätigt: `Haupt.Neben[.Patch]`. |
+| 7 | Aufbau der bisherigen Pflege-Tabellen für die Migration | 6 | anonymisierte Beispieldatei | Keine separate Datei vorhanden. Die Pflegespalten stehen in Quelle 1 selbst (siehe Punkt 2) und sind in `standort.json` unter `migration` hinterlegt; eine passende Beispieldatei wird in Phase 6 erzeugt. |
+| 8 | Pfad des Team-Ordners; ist der Ordner für die Vertretung synchronisiert? | 5 | Bestätigung | Das gesamte Konstrukt liegt auf einem Teams-SharePoint. Pfade werden relativ zum Programmordner gespeichert. Die Datenbank bleibt lokal (E3). |
+| 9 | Automatisches Beenden nach 10 Minuten ohne offenen Tab | 0 | Zustimmung oder Ablehnung | Zustimmung. Zusätzlich gewünscht: Schutz gegen versehentlichen Zugriff einer zweiten Person (Umsetzung mit der Sperre in Phase 5). |
+| 10 | Liegt der bisherige Entwurf als Referenz vor? | 0 | Datei im Arbeitsverzeichnis | Nein. Neubau ausschließlich auf Basis dieses Konzepts. |
 
 ---
 
