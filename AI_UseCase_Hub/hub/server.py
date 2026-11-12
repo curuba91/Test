@@ -18,9 +18,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import APP_ID, APP_VERSION, audit, handover, importer, rules, testdata, validation
+from . import APP_ID, APP_VERSION, audit, export, handover, importer, rules, testdata, validation
 from . import db as dbm
-from .config import FREE_LISTS, LOGIC_LISTS, PATH_KEYS, Config
+from .config import FREE_LISTS, LOGIC_LISTS, PATH_KEYS, SITE_FILE, Config, check_site, write_json_atomic
 
 PORT_ATTEMPTS = 10
 MAX_BODY_BYTES = 1_000_000
@@ -88,6 +88,23 @@ class HubApp:
         self.db_path = None
         self.backup_dir = None
         self.notices = []
+        # Übergabe und Ausgabe (Phase 5)
+        self.handover_dir = None
+        self.reporting_dir = None
+        self.handover_pending = None
+        self.lock_info = None
+        self.users = []
+        self.outputs = {}
+        self.publish_delay = 60     # Sekunden nach der letzten Änderung
+        self.output_tick = 5
+        self.retry_pause = 0.5
+        self._holds_lock = False
+        self._lock_started = ""
+        self._seen_revision = None
+        self._dirty_since = None
+        self._publish_lock = threading.Lock()
+        self._outputs_stop = threading.Event()
+        self._outputs_thread = None
 
     @property
     def static_dir(self) -> Path:
@@ -102,7 +119,7 @@ class HubApp:
 
     # --- Datenschicht -----------------------------------------------------------
 
-    def open_data(self) -> None:
+    def open_data(self, stand_decided=False) -> None:
         """Öffnet Datenbank und Import für den aktuellen Modus (echt oder Testmodus).
 
         Im Testmodus wird die echte Datenbank nie geöffnet (Kapitel 6.1).
@@ -141,8 +158,122 @@ class HubApp:
             self.importer = importer.Importer(
                 self.db, columns=lambda: self.cfg.site.get("columns"), path_for=self.source_path,
                 tmp_dir=self.data_root / "tmp", user=self.user, machine=self.machine, log_error=self.log_error)
+            # Erst die Übergabe prüfen, dann importieren: Ein Import vor der Prüfung würde den
+            # lokalen Stand verändern und fälschlich als „auseinandergelaufen“ erscheinen.
+            self._setup_team(stand_decided)
+            if self.read_only:
+                return
             if self.autostart_import:
                 self.importer.start(self._import_interval())
+            if self.handover_dir is not None and self.autostart_import:
+                self._outputs_stop = threading.Event()
+                self._outputs_thread = threading.Thread(target=self._outputs_loop, args=(self._outputs_stop,), daemon=True)
+                self._outputs_thread.start()
+
+    def _set_read_only(self, reason) -> None:
+        self.read_only, self.read_only_reason = True, reason
+
+    def _team_folder(self):
+        if self.test_mode:
+            return self.data_root  # der Testmodus schreibt nie in den echten Team-Ordner
+        stored = self.cfg.local["paths"]["team_folder"]
+        return self.cfg.resolve(stored) if self.cfg.check_path("team_folder", stored) is None else None
+
+    def _setup_team(self, stand_decided) -> None:
+        """Berechtigung, Sperre und Übergabestand prüfen (Kapitel 6.2 und 6.3)."""
+        team = self._team_folder()
+        self.handover_dir = team / handover.HANDOVER_DIR if team else None
+        self.reporting_dir = team / export.REPORTING_DIR if team else None
+        self.handover_pending, self.lock_info, self.users, self._holds_lock = None, None, [], False
+        self.outputs = {}
+        if self.handover_dir is None:
+            return
+        try:
+            self.users = handover.authorized_users(self.handover_dir, self.user)
+            if not handover.is_authorized(self.users, self.user):
+                self._set_read_only(f"Benutzer {self.user} ist für diesen Hub nicht berechtigt (berechtigt: "
+                                    f"{', '.join(self.users)}). Eintragen kann das eine berechtigte Person unter "
+                                    "Verwaltung → Übergabe & Backups.")
+                return
+            state, lock = handover.lock_state(self.handover_dir, self.user, self.machine)
+            if state == "fremd":
+                self.lock_info = lock
+                self._set_read_only(f"{lock.get('user')} arbeitet gerade an {lock.get('machine')} (seit "
+                                    f"{str(lock.get('started', ''))[11:16]} Uhr). Der angezeigte Stand kann veraltet sein.")
+                return
+            meta = self.db.meta()
+            shared = handover.inspect_shared(self.handover_dir, self.data_root / "tmp", pause=self.retry_pause)
+            situation = "gleich" if stand_decided else handover.check_start(meta, shared, dbm.latest_version())
+            if situation == "schema_neuer":
+                self._set_read_only("Der geteilte Übergabestand stammt von einer neueren Programmversion. "
+                                    "Bitte das Programm aktualisieren.")
+                return
+            if situation == "unlesbar":
+                self.notices.append("Der geteilte Übergabestand ist gerade nicht lesbar (läuft die Synchronisation?). "
+                                    "Es wird mit dem lokalen Stand gearbeitet.")
+            if situation in ("fremd_neuer", "auseinander"):
+                self.handover_pending = dict(shared, situation=situation, local_revision=meta["revision"],
+                                             local_unpublished=meta["revision"] - meta["revision_published"])
+                self._set_read_only("Im Team-Ordner liegt ein anderer Stand. Bis zur Entscheidung wird nichts geschrieben.")
+                return
+            self._lock_started = dbm.now_ts()
+            handover.write_lock(self.handover_dir, self.user, self.machine, self._lock_started, self.instance)
+            self._holds_lock = True
+            self._seen_revision = meta["revision"]
+            unpublished = meta["revision"] != meta["revision_published"] or shared is None
+            self._dirty_since = time.monotonic() if unpublished else None
+        except OSError as exc:
+            self.log_error(f"Übergabe-Ordner nicht nutzbar: {exc}")
+            self.notices.append("Der Übergabe-Ordner im Team-Ordner ist nicht erreichbar. Übergabestand und Sperre "
+                                "sind in dieser Sitzung nicht aktiv.")
+            self.handover_dir = None
+
+    def _outputs_loop(self, stop) -> None:
+        """Lebenszeichen der Sperre; Übergabestand und Reporting 60 Sekunden nach der letzten Änderung."""
+        last_beat = time.monotonic()
+        while not stop.wait(self.output_tick):
+            try:
+                now = time.monotonic()
+                if now - last_beat >= handover.LOCK_BEAT_SECONDS:
+                    handover.write_lock(self.handover_dir, self.user, self.machine, self._lock_started, self.instance)
+                    last_beat = now
+                revision = self.db.meta()["revision"]
+                if revision != self._seen_revision:
+                    self._seen_revision, self._dirty_since = revision, now
+                if self._dirty_since is not None and now - self._dirty_since >= self.publish_delay:
+                    self.publish_outputs()
+            except Exception:
+                self.log_error("Fehler beim Veröffentlichen:\n" + traceback.format_exc())
+
+    def publish_outputs(self, only=None) -> dict:
+        """Schreibt Übergabestand und Reporting-Excel jetzt. Ist eine Zieldatei geöffnet, folgt ein neuer Versuch."""
+        with self._publish_lock:
+            if self.db is None or self.read_only or self.handover_dir is None:
+                return self.outputs
+            steps = {
+                "handover": lambda: handover.publish(self.db, self.handover_dir, self.user, self.machine),
+                "reporting": lambda: export.write_reporting(self.db, self.cfg, self.reporting_dir,
+                                                            self.source_states(), self.test_mode),
+            }
+            failed = False
+            for key, step in steps.items():
+                if only and key != only:
+                    continue
+                entry = {"ok": True, "ts": dbm.now_ts(), "message": ""}
+                try:
+                    result = step()
+                    entry["path"] = str(result if key == "reporting" else self.handover_dir / handover.STAND_FILE)
+                except PermissionError:
+                    entry.update(ok=False, message="Die Zieldatei ist geöffnet oder gesperrt. Neuer Versuch im nächsten Zyklus.")
+                except Exception as exc:
+                    self.log_error(f"Veröffentlichen ({key}) fehlgeschlagen:\n{traceback.format_exc()}")
+                    entry.update(ok=False, message=f"{type(exc).__name__}: {exc}")
+                failed = failed or not entry["ok"]
+                self.outputs[key] = entry
+            if not only:
+                self._seen_revision = self.db.meta()["revision"]
+                self._dirty_since = time.monotonic() if failed else None
+            return self.outputs
 
     def _data_failed(self, state, message) -> None:
         self.db = None
@@ -152,9 +283,22 @@ class HubApp:
 
     def close_data(self) -> None:
         with self._data_lock:
+            if self._outputs_thread is not None:
+                self._outputs_stop.set()
+                self._outputs_thread.join(timeout=30)
+                self._outputs_thread = None
             if self.importer is not None:
                 self.importer.stop()
                 self.importer = None
+            if self.db is not None and self._holds_lock:
+                # Beim Ende: Übergabestand veröffentlichen (falls etwas offen ist), Sperre freigeben.
+                try:
+                    if self.db.meta()["revision"] != self._seen_revision or self._dirty_since is not None:
+                        self.publish_outputs()
+                    handover.release_lock(self.handover_dir, self.instance)
+                except Exception:
+                    self.log_error("Fehler beim Abschluss der Übergabe:\n" + traceback.format_exc())
+                self._holds_lock = False
             if self.db is not None:
                 self.db.close()
                 self.db = None
@@ -281,6 +425,8 @@ def api_state(app, _params):
         "labels": cfg.site.get("labels") if isinstance(cfg.site.get("labels"), dict) else {},
         "site_errors": len(cfg.site_check["errors"]),
         "warnings": list(cfg.warnings) + list(app.notices),
+        "handover_pending": app.handover_pending and {
+            k: app.handover_pending.get(k) for k in ("situation", "user", "machine", "ts", "revision", "local_unpublished")},
     }
 
 
@@ -529,7 +675,10 @@ def api_backup_restore(app, body):
         except ValueError as exc:
             app.open_data()
             raise ApiError(409, "not_possible", str(exc)) from None
-        app.open_data()
+        # Bewusst wiederhergestellt: Dieser Stand gilt und wird als neuer Übergabestand veröffentlicht.
+        app.open_data(stand_decided=True)
+        if app._holds_lock:
+            app._dirty_since = time.monotonic() - app.publish_delay
     return {"restored": backup["name"], "db_state": app.db_state}
 
 
@@ -885,6 +1034,138 @@ def api_search(app, params):
     return {"q": text, "items": items}
 
 
+# --- Übergabe, Export, Bericht (Phase 5) ---------------------------------------------------
+
+
+def api_handover(app, _params):
+    meta = app.db.meta() if app.db is not None else {}
+    lock_state, lock = ("", None)
+    if app.handover_dir is not None:
+        lock_state, lock = handover.lock_state(app.handover_dir, app.user, app.machine)
+    return {
+        "folder": str(app.handover_dir or ""), "reporting_folder": str(app.reporting_dir or ""),
+        "user": app.user, "machine": app.machine, "users": app.users,
+        "lock_state": lock_state, "lock": lock, "holds_lock": app._holds_lock,
+        "pending": app.handover_pending, "outputs": app.outputs,
+        "unpublished": bool(meta) and meta["revision"] != meta["revision_published"],
+        "meta": meta, "backups": handover.list_backups(app.backup_dir) if app.backup_dir else [],
+        "publish_delay": app.publish_delay,
+    }
+
+
+def api_handover_decide(app, body):
+    """Geteilten Stand übernehmen oder eigenen behalten. Keine automatische Zusammenführung."""
+    pending = app.handover_pending
+    if not pending:
+        raise ApiError(409, "not_possible", "Es steht keine Entscheidung zur Übergabe an.")
+    choice = body.get("choice")
+    with app._data_lock:
+        if choice == "uebernehmen":
+            handover.create_backup(app.db, app.backup_dir, "uebernahme")  # lokale Datenbank vorher sichern
+            app.close_data()
+            handover.restore_backup(pending["path"], app.db_path)
+            app.open_data()
+        elif choice == "behalten":
+            handover.keep_foreign_copy(pending["path"], app.backup_dir)  # der andere Stand bleibt als Backup
+            app.open_data(stand_decided=True)
+            app._dirty_since = time.monotonic() - app.publish_delay  # eigenen Stand gleich veröffentlichen
+        else:
+            raise ApiError(400, "format", "Unbekannte Entscheidung.")
+    return {"choice": choice, "mode": "nur-lesen" if app.read_only else "schreiben"}
+
+
+def api_handover_users(app, body):
+    if app.handover_dir is None:
+        raise ApiError(409, "not_possible", "Der Team-Ordner ist nicht eingerichtet.")
+    users = body.get("users")
+    if not isinstance(users, list):
+        raise ApiError(400, "format", "users muss eine Liste sein.")
+    try:
+        app.users = handover.set_authorized_users(app.handover_dir, users, app.user)
+    except ValueError as exc:
+        raise ApiError(422, "validation", str(exc)) from None
+    return {"users": app.users}
+
+
+def api_handover_publish(app, _body):
+    app.require_db()
+    if app.handover_dir is None:
+        raise ApiError(409, "not_possible", "Der Team-Ordner ist nicht eingerichtet.")
+    return {"outputs": app.publish_outputs()}
+
+
+def api_export_reporting(app, _body):
+    app.require_db()
+    if app.reporting_dir is None:
+        raise ApiError(409, "not_possible", "Der Team-Ordner ist nicht eingerichtet.")
+    return {"outputs": app.publish_outputs(only="reporting")}
+
+
+def api_export_full(app, _body):
+    database = app.require_db()
+    folder = app.reporting_dir or app.data_root
+    try:
+        return {"path": str(export.write_full(database, folder))}
+    except PermissionError:
+        raise ApiError(409, "not_possible", "Die Zieldatei ist geöffnet oder gesperrt.") from None
+
+
+def api_export_toollist(app, _params):
+    database = app.require_db()
+    with database.read() as conn:
+        return {"lines": export.tool_list(conn)}
+
+
+def api_report_status(app, _params):
+    """Daten des Statusberichts (Druckansicht); alle Werte kommen aus hub/rules.py."""
+    database = app.require_db()
+    with database.read() as conn:
+        rows = rules.overview(conn, rules.deadline_of(app.cfg))
+        actions = rules.handlungsbedarf(conn, app.cfg, app.source_states(), app.test_mode)
+        counts = rules.counts(conn)
+    return {
+        "generated": dbm.now_ts(), "counts": counts, "deadline": rules.deadline_of(app.cfg),
+        "labels": app.cfg.site.get("labels") if isinstance(app.cfg.site.get("labels"), dict) else {},
+        "blocking": [a for a in actions if a["level"] == rules.LEVEL_BLOCKING],
+        "governance": [r for r in rows if r["stage"] in ("governance", "betrieb")],
+    }
+
+
+SITE_FILES = {"standort": SITE_FILE, "regeln": validation.RULES_FILE}
+
+
+def _site_file(params):
+    name = params.get("file")
+    if name not in SITE_FILES:
+        raise ApiError(400, "format", "Unbekannte Datei.")
+    return name
+
+
+def api_sitefile_get(app, params):
+    name = _site_file(params)
+    path = app.cfg.program_dir / SITE_FILES[name]
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError:
+        text = ""
+    return {"file": name, "name": SITE_FILES[name], "text": text}
+
+
+def api_sitefile_put(app, body):
+    """Speichert standort.json oder validation_rules.json – nur, wenn die Prüfung ohne Fehler ist."""
+    name = _site_file(body)
+    try:
+        data = json.loads(body.get("text") or "")
+    except ValueError as exc:
+        raise ApiError(422, "validation", f"Kein gültiges JSON: {exc}", errors=[str(exc)]) from None
+    errors = check_site(data)["errors"] if name == "standort" else validation.check_rules(data)
+    if errors:
+        raise ApiError(422, "validation", "Nicht gespeichert: " + " ".join(errors), errors=errors)
+    write_json_atomic(app.cfg.program_dir / SITE_FILES[name], data)
+    app.cfg.reload_site()
+    return api_sitefile_get(app, {"file": name})
+
+
 def api_heartbeat(app, _body):
     app.beat()
     return {"ok": True}
@@ -923,6 +1204,16 @@ ROUTES = [
     ("POST", re.compile(r"^/api/usecases/([^/]+)/(milestones|releases|links)$"), api_sub_add),
     ("PATCH", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_patch),
     ("DELETE", re.compile(r"^/api/(milestones|releases|links)/(\d+)$"), api_sub_delete),
+    ("GET", re.compile(r"^/api/handover$"), api_handover),
+    ("POST", re.compile(r"^/api/handover/decide$"), api_handover_decide),
+    ("POST", re.compile(r"^/api/handover/users$"), api_handover_users),
+    ("POST", re.compile(r"^/api/handover/publish$"), api_handover_publish),
+    ("POST", re.compile(r"^/api/export/reporting$"), api_export_reporting),
+    ("POST", re.compile(r"^/api/export/full$"), api_export_full),
+    ("GET", re.compile(r"^/api/export/toollist$"), api_export_toollist),
+    ("GET", re.compile(r"^/api/report/status$"), api_report_status),
+    ("GET", re.compile(r"^/api/sitefile$"), api_sitefile_get),
+    ("PUT", re.compile(r"^/api/sitefile$"), api_sitefile_put),
     ("GET", re.compile(r"^/api/validation$"), api_validation_rules),
     ("POST", re.compile(r"^/api/validation/preview$"), api_validation_preview),
     ("POST", re.compile(r"^/api/usecases/([^/]+)/validations$"), api_validation_save),
@@ -1018,7 +1309,9 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiError(415, "content_type", "Erwartet wird application/json.")
         if app.read_only and path not in ALLOWED_WHEN_READ_ONLY:
             # Einzige Ausnahme: eine beschädigte Datenbank aus dem Backup wiederherstellen.
-            if not (path == "/api/backups/restore" and app.db_state == "defekt"):
+            allowed = (path == "/api/backups/restore" and app.db_state == "defekt") or \
+                (path == "/api/handover/decide" and app.handover_pending is not None)
+            if not allowed:
                 raise ApiError(403, "read_only", "Nur-Lese-Modus: Änderungen sind gesperrt.")
 
     def _read_json(self):

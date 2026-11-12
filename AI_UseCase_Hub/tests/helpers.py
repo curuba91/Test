@@ -63,6 +63,7 @@ class HubTestCase(unittest.TestCase):
             return None, running
         if data:  # Datenbank öffnen; den Import stoßen die Tests selbst an
             app.autostart_import = False
+            app.retry_pause = 0
             app.open_data()
         thread = threading.Thread(target=app.serve, daemon=True)
         thread.start()
